@@ -139,10 +139,6 @@
   }
 }
 
-.rakazo-bot-avatar-picture {
-  box-shadow: 0 2px 5px rgb(0 0 0 / 0.5);
-}
-
 .rakazo-bot-avatar-ring-working {
   filter: drop-shadow(0 0 4px var(--status-working));
 }

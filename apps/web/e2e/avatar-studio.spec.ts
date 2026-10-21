@@ -13,16 +13,15 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
 
-  await settings.getByTestId("avatar-studio-trigger").click();
+  const trigger = settings.getByTestId("avatar-studio-trigger");
+  await trigger.click();
   const studio = page.getByTestId("avatar-studio");
   await expect(studio).toBeVisible();
-  await expect(studio.getByText("Avatar Studio", { exact: true })).toBeVisible();
+  await expect(studio).toHaveAttribute("aria-label", "Avatar Studio");
   await expect(studio.getByRole("button", { name: "Bot", exact: true })).toBeVisible();
   await expect(studio.getByRole("button", { name: "Upload", exact: true })).toBeVisible();
   await expect(studio.getByRole("button", { name: "Generate" })).toHaveCount(0);
   await expect(studio.getByTestId("avatar-studio-bot-tab")).toBeVisible();
-  await expect(studio.getByText("Shape", { exact: true })).toBeVisible();
-  await expect(studio.getByText("Color", { exact: true })).toBeVisible();
 
   const defaultLook = studio.getByTestId("avatar-studio-default");
   const wedge = studio.getByRole("button", { name: "wedge", exact: true });
@@ -32,15 +31,15 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   await wedge.click();
   await expect(wedge).toHaveAttribute("aria-pressed", "true");
   await expect(defaultLook).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(0);
+  await expect(trigger.locator(".rakazo-organic-avatar")).toHaveCount(0);
 
   await defaultLook.click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
   await expect(wedge).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(1);
-  await expect(studio.locator(".rakazo-organic-avatar-eyes").first()).toBeVisible();
+  await expect(trigger.locator(".rakazo-organic-avatar")).toHaveCount(1);
+  await expect(trigger.locator(".rakazo-organic-avatar-eyes")).toHaveCount(2);
 
-  await studio.getByRole("button", { name: "Color #EAB308" }).click();
+  await studio.getByRole("button", { name: "Color #F79411" }).click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
   await expect(wedge).toHaveAttribute("aria-pressed", "false");
 
@@ -48,7 +47,7 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   await studio.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
   await expect(wedge).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(1);
+  await expect(trigger.locator(".rakazo-organic-avatar")).toHaveCount(1);
 
   await captureScreenshot(page, testInfo, "avatar-studio-bot-tab");
 });

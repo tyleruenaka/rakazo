@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AvatarStyleProvider } from "./avatar-style.js";
 import {
   BotAvatar,
+  botAvatarFill,
   DEFAULT_GROK_BOT_COLOR,
   defaultBotAvatarValue,
   GROK_BOT_COLORS,
@@ -201,6 +202,59 @@ describe("BotAvatar", () => {
     expect(html).toContain('aria-label="hex"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("focus-visible:ring-2");
+    // Grok's selection ring: an outline 3px off the shape, drawn under it.
+    expect(html).toContain("stroke-input-focus");
+    expect(html.indexOf("stroke-input-focus")).toBeLessThan(html.indexOf("mask="));
+    const idle = renderToString(<GrokShapePreview shapeIndex={0} color="#8B5CF6" />);
+    expect(idle).not.toContain("stroke-input-focus");
+  });
+
+  it("draws flat, shadowless bodies with eyes cut out of them, as in Grok", () => {
+    for (const color of ["#915BFC::shape_3", "#915BFC"]) {
+      const html = renderToString(<BotAvatar color={color} identity="maya" size={40} />);
+      const mask = html.match(/<mask id="([^"]+)"/)?.[1];
+      expect(mask).toBeTruthy();
+      expect(html).toContain(`mask="url(#${mask})"`);
+      expect(html).toContain('fill="black"');
+      expect(html).not.toContain('linearGradient id="grok-ink');
+      expect(html).not.toContain("drop-shadow(0 2px");
+      expect(html).toContain("fill:#915BFC");
+    }
+  });
+
+  it("gives each avatar its own eye mask", () => {
+    const html = renderToString(
+      <div>
+        <BotAvatar color="#915BFC" identity="a" />
+        <BotAvatar color="#915BFC" identity="b" />
+      </div>,
+    );
+    const masks = [...html.matchAll(/<mask id="([^"]+)"/g)].map((m) => m[1]);
+    expect(masks).toHaveLength(2);
+    expect(new Set(masks).size).toBe(2);
+  });
+
+  it("follows the theme for Grok's white and grey swatches only", () => {
+    expect(botAvatarFill("#FFFFFF")).toBe("var(--avatar-white)");
+    expect(botAvatarFill("#fff")).toBe("var(--avatar-white)");
+    expect(botAvatarFill("#777777")).toBe("var(--avatar-grey)");
+    expect(botAvatarFill("#915BFC")).toBe("#915BFC");
+  });
+
+  it("offers Grok's eleven swatches", () => {
+    expect(GROK_BOT_COLORS).toEqual([
+      "#FFFFFF",
+      "#A16C39",
+      "#FC2D3E",
+      "#FA6710",
+      "#F79411",
+      "#13C370",
+      "#15B8A4",
+      "#1784FC",
+      "#915BFC",
+      "#FB3499",
+      "#777777",
+    ]);
   });
 
   it("renders distinct robot and organic previews for the same identity", () => {
@@ -256,7 +310,7 @@ describe("BotAvatar", () => {
     const fallback = resolvePersonaColorDef("maya", "#zzzzzz");
     const html = renderToString(<BotAvatar color="#zzzzzz" identity="maya" variant="organic" />);
     expect(html).toContain("rakazo-organic-avatar");
-    expect(html).toContain(`fill="${fallback.hex}"`);
+    expect(html).toContain(`fill:${fallback.hex}`);
     expect(html).not.toContain("#zzzzzz");
   });
 });

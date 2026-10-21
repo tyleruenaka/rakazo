@@ -98,7 +98,23 @@ export const GROK_COLOR_LIST: GrokColorDef[] = [
   },
 ];
 
-export const GROK_BOT_COLORS = GROK_COLOR_LIST.map((c) => c.hex);
+/**
+ * Avatar Studio swatches: Grok Bot's palette as CSS sRGB (white, brown, red, orange, amber,
+ * green, teal, blue, purple, pink, grey). Stored colors outside it still resolve above.
+ */
+export const GROK_BOT_COLORS = [
+  "#FFFFFF",
+  "#A16C39",
+  "#FC2D3E",
+  "#FA6710",
+  "#F79411",
+  "#13C370",
+  "#15B8A4",
+  "#1784FC",
+  "#915BFC",
+  "#FB3499",
+  "#777777",
+];
 
 /** Shared identity color for Avatar Studio reset/fallback (Executive Violet). */
 export const DEFAULT_GROK_BOT_COLOR = GROK_COLOR_LIST.find((color) => color.id === "violet")!.hex;
