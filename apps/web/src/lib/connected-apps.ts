@@ -1,6 +1,6 @@
 import type { Connection, ConnectionCatalogItem } from "@rakazo/contracts";
 
-/** Connected apps, or artwork-first suggestions from the already loaded catalog. */
+/** Marks for connected apps, or artwork-first suggestions from the already loaded catalog, and how many apps are connected. */
 export function connectedAppMarks(
   catalog: readonly ConnectionCatalogItem[],
   connections: readonly Connection[],
@@ -26,7 +26,8 @@ export function connectedAppMarks(
     initials.add(initial);
     return true;
   });
-  return [...preferred, ...apps.filter((app) => !preferred.includes(app))]
+  const marks = [...preferred, ...apps.filter((app) => !preferred.includes(app))]
     .slice(0, 3)
     .map(({ name, logo }) => ({ name, logo }));
+  return { marks, connected: connected.length };
 }

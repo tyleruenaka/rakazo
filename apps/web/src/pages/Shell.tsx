@@ -616,7 +616,10 @@ function SpaceShell() {
   const [taughtSkillsBotId, setTaughtSkillsBotId] = useState<string | null>(null);
   const [agentSkills, setAgentSkills] = useState<AgentSkillCatalogEntry[]>([]);
   const [mentionRoutines, setMentionRoutines] = useState<Array<Routine & { botName?: string }>>([]);
-  const [footerLogos, setFooterLogos] = useState<Array<{ name: string; logo: string | null }>>([]);
+  const [footerApps, setFooterApps] = useState<ReturnType<typeof connectedAppMarks>>({
+    marks: [],
+    connected: 0,
+  });
   const [mentionConnectors, setMentionConnectors] = useState<
     Array<{
       id: string;
@@ -2265,7 +2268,7 @@ function SpaceShell() {
     ]).then(([connections, catalog]) => {
       if (cancelled) return;
       const connected = connections?.filter((row) => row.status === "connected") ?? [];
-      if (catalog && connections) setFooterLogos(connectedAppMarks(catalog, connections));
+      if (catalog && connections) setFooterApps(connectedAppMarks(catalog, connections));
       const options: Array<{
         id: string;
         name: string;
@@ -4100,7 +4103,8 @@ function SpaceShell() {
           ) : null}
         </div>
         <SidebarFooter
-          logos={footerLogos}
+          logos={footerApps.marks}
+          connectedCount={footerApps.connected}
           {...accountMenuProps}
           open={menuOpen && sidebarActive}
           inert={sidebarInert}
@@ -5327,7 +5331,7 @@ function SpaceShell() {
 
         {pluginsOpen ? (
           <PluginsOverlay
-            onConnectedAppsChange={setFooterLogos}
+            onConnectedAppsChange={setFooterApps}
             activeBotId={activeBotId.current}
             onClose={() => setPluginsOpen(false)}
             onOpenMcp={() => {
