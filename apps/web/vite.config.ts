@@ -458,8 +458,8 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       allowedHosts,
       proxy: {
-        "/api": { target: api, changeOrigin: true },
-        "/rpc": { target: api, changeOrigin: true },
+        "/api": { target: api, changeOrigin: true, headers: { origin: new URL(api).origin } },
+        "/rpc": { target: api, changeOrigin: true, headers: { origin: new URL(api).origin } },
       },
     },
     preview: {
