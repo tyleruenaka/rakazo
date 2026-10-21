@@ -134,6 +134,43 @@ describe("sidebarGroupsForSpaces", () => {
     ]);
   });
 
+  it("moves the space menu from the header-less pinned tiles to the first section", () => {
+    const groups = sidebarGroupsForSpaces(
+      [
+        {
+          ...space("space-1", "Personal", {
+            canRename: true,
+            bots: [{ ...chat("chief", "Chief"), pinned: true }, chat("ezra", "Ezra")],
+          }),
+          botSections: [{ id: "eng", name: "Engineering" }],
+        },
+      ],
+      "",
+    );
+
+    expect(groups.map((group) => [group.key, group.pinned, group.canOpenSpaceSettings])).toEqual([
+      ["pinned", true, false],
+      ["section:eng", false, true],
+      ["unassigned", false, false],
+    ]);
+  });
+
+  it("keeps the space menu on the pinned group when nothing else is listed", () => {
+    const groups = sidebarGroupsForSpaces(
+      [
+        space("space-1", "Personal", {
+          canRename: true,
+          bots: [{ ...chat("chief", "Chief"), pinned: true }],
+        }),
+      ],
+      "",
+    );
+
+    expect(groups).toEqual([
+      expect.objectContaining({ key: "pinned", pinned: true, canOpenSpaceSettings: true }),
+    ]);
+  });
+
   it("hides space actions while a search removes every chat from the only space", () => {
     expect(
       sidebarGroupsForSpaces([space("space-1", "Personal", { canRename: true })], "missing"),

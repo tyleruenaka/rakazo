@@ -84,8 +84,14 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
       ];
       grouped.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
     }
+    // Pinned chats render as header-less tiles, so the space menu sits on the first section.
+    const menuHost = Math.max(
+      0,
+      grouped.findIndex((group) => group.key !== "pinned"),
+    );
     const sections = grouped.map((group, index) => ({
       ...group,
+      pinned: group.key === "pinned",
       sectionId: group.key.startsWith("section:") ? group.key.slice("section:".length) : null,
       key: showSpaceNames ? `space:${space.id}:${group.key}` : group.key,
       // A header holding the space menu is never blank, even for the only space.
@@ -100,7 +106,7 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
       emptySpaceId: undefined as string | undefined,
       spaceId: space.id,
       spaceName: space.name,
-      ...spaceHeaderMenu(space, index === 0),
+      ...spaceHeaderMenu(space, index === menuHost),
     }));
     if (sections.length > 0) return sections;
     // Keep empty spaces selectable; chat clicks are the only switch control.
@@ -114,6 +120,7 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
           title: showSpaceNames ? `${space.name} · ${section.name}` : section.name,
           bots: [] as (typeof sections)[number]["bots"],
           sectionId: section.id as string | null,
+          pinned: false,
           showLock: showSpaceNames,
           emptySpaceId: undefined as string | undefined,
           spaceId: space.id,
@@ -131,6 +138,7 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
         title: space.name,
         bots: [],
         sectionId: null,
+        pinned: false,
         showLock: showSpaceNames,
         emptySpaceId: showSpaceNames ? space.id : undefined,
         spaceId: space.id,
