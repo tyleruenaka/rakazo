@@ -117,6 +117,9 @@ export type ColorTokens = {
   railDivider: string;
   /** Line icons at the bottom of the collapsed bot rail. */
   railIcon: string;
+  /** Hovered rail icon, and the circle or square behind it. */
+  railIconHover: string;
+  railHover: string;
   /** Translucent tag fill (role chip) that follows the row bg. */
   chip: string;
   chipBorder: string;
@@ -210,6 +213,8 @@ export const darkTokens = {
   sidebarMutedForeground: "rgba(245, 245, 245, 0.662)",
   railDivider: "#262626",
   railIcon: "#A2A2A2",
+  railIconHover: "#DFDFDF",
+  railHover: "#171717",
   chip: "rgba(255, 255, 255, 0.02)",
   chipBorder: "rgba(255, 255, 255, 0.054)",
   link: "#3B82F6",
@@ -294,8 +299,10 @@ export const lightTokens = {
   sidebarAccentForeground: "#1C1C1C",
   sidebarHover: "#E9E9E9",
   sidebarMutedForeground: "rgba(28, 28, 28, 0.677)",
-  railDivider: "#DCDCDC",
+  railDivider: "#DADADA",
   railIcon: "#666666",
+  railIconHover: "#2C2C2C",
+  railHover: "#E8E8E8",
   chip: "rgba(0, 0, 0, 0.037)",
   chipBorder: "rgba(0, 0, 0, 0.08)",
   link: "#2563EB",

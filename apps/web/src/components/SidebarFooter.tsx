@@ -38,6 +38,8 @@ type Props = {
   onLogOut: () => void;
   signingOut: boolean;
   logOutError: string | null;
+  /** Set while the collapsed rail covers the sidebar. */
+  inert?: boolean;
 };
 
 // Marks are 24px wide, overlap by 6px, and need 2px for the outer ring.
@@ -61,6 +63,7 @@ export function SidebarFooter({
   onLogOut,
   signingOut,
   logOutError,
+  inert,
 }: Props) {
   const [failedLogos, setFailedLogos] = useState<string[]>([]);
   const pillRef = useRef<HTMLButtonElement>(null);
@@ -89,6 +92,7 @@ export function SidebarFooter({
   return (
     <div
       data-testid="sidebar-footer"
+      inert={inert}
       className="flex shrink-0 items-center gap-2 bg-transparent px-4 pb-4 pt-2"
     >
       <AccountMenu
@@ -159,10 +163,13 @@ export function SidebarUpdateButton({ className }: { className?: string }) {
   );
 }
 
-type AccountMenuProps = Omit<Props, "logos" | "onIntegrations"> & {
-  /** The collapsed rail has its own trigger while the hidden sidebar's stays mounted. */
-  triggerTestId?: string;
+type AccountMenuProps = Omit<Props, "logos" | "onIntegrations" | "inert"> & {
+  /** In the collapsed rail the avatar sits on a 54px hover square, as in Grok. */
+  rail?: boolean;
 };
+
+const accountAvatarClass =
+  "grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground";
 
 /** The account avatar and its menu, shared by the sidebar footer and the collapsed rail. */
 export function AccountMenu({
@@ -179,29 +186,39 @@ export function AccountMenu({
   onLogOut,
   signingOut,
   logOutError,
-  triggerTestId = "user-menu-trigger",
+  rail = false,
 }: AccountMenuProps) {
   const { t } = useLingui();
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const avatar =
+    image && failedImage !== image ? (
+      <img
+        src={image}
+        alt=""
+        className="size-full object-cover"
+        onError={() => setFailedImage(image)}
+      />
+    ) : initials ? (
+      initials
+    ) : (
+      <UserRound size={18} aria-hidden="true" />
+    );
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
+      {/* The hidden sidebar keeps its trigger mounted, so the rail's has its own test id. */}
       <DropdownMenuTrigger
-        data-testid={triggerTestId}
+        data-testid={rail ? "rail-user-menu-trigger" : "user-menu-trigger"}
         aria-label={t`Account menu for ${name}`}
-        className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
+        className={
+          rail
+            ? "grid size-[54px] shrink-0 place-items-center rounded-[12px] outline-none hover:bg-rail-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-solid focus-visible:outline-ring"
+            : cn(
+                accountAvatarClass,
+                "outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring",
+              )
+        }
       >
-        {image && failedImage !== image ? (
-          <img
-            src={image}
-            alt=""
-            className="size-full object-cover"
-            onError={() => setFailedImage(image)}
-          />
-        ) : initials ? (
-          initials
-        ) : (
-          <UserRound size={18} aria-hidden="true" />
-        )}
+        {rail ? <span className={accountAvatarClass}>{avatar}</span> : avatar}
       </DropdownMenuTrigger>
       {open ? (
         <DropdownMenuContent

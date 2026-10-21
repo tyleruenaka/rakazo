@@ -86,30 +86,55 @@ export function PinnedTile({
           </span>
         ) : null}
       </TooltipTrigger>
-      <TooltipContent
-        side="right"
-        sideOffset={8}
-        data-testid="pinned-tile-card"
-        className="pointer-events-none h-auto w-[260px] max-w-none flex-col items-stretch gap-0 rounded-[11px] border border-popover-border px-[9px] pt-[10px] pb-[9px] text-[13px]"
-      >
-        <span className="flex min-w-0 items-center gap-1">
-          <span className="relative shrink-0">
-            {cardAvatar}
-            {unread ? (
-              <span
-                aria-hidden="true"
-                className="absolute -end-px -bottom-px size-[5px] rounded-full bg-unread ring-2 ring-popover"
-              />
-            ) : null}
-          </span>
-          <span dir="auto" className="truncate font-medium leading-4">
-            {name}
-          </span>
-        </span>
-        <span dir="auto" className="mt-[5px] line-clamp-2 leading-[18px]">
-          {cardLine}
-        </span>
-      </TooltipContent>
+      <RosterHoverCard
+        testId="pinned-tile-card"
+        name={name}
+        avatar={cardAvatar}
+        unread={unread}
+        line={cardLine}
+      />
     </Tooltip>
+  );
+}
+
+/** Grok's hover card for a chat: its 16px icon, full name, and last message or status. */
+export function RosterHoverCard({
+  testId,
+  name,
+  avatar,
+  unread,
+  line,
+}: {
+  testId: string;
+  name: string;
+  avatar: ReactNode;
+  unread: boolean;
+  line: ReactNode;
+}) {
+  return (
+    <TooltipContent
+      side="right"
+      sideOffset={8}
+      data-testid={testId}
+      className="pointer-events-none h-auto w-[260px] max-w-none flex-col items-stretch gap-0 rounded-[11px] border border-popover-border px-[9px] pt-[10px] pb-[9px] text-[13px]"
+    >
+      <span className="flex min-w-0 items-center gap-1">
+        <span className="relative shrink-0">
+          {avatar}
+          {unread ? (
+            <span
+              aria-hidden="true"
+              className="absolute -end-px -bottom-px size-[5px] rounded-full bg-unread ring-2 ring-popover"
+            />
+          ) : null}
+        </span>
+        <span dir="auto" className="truncate font-medium leading-4">
+          {name}
+        </span>
+      </span>
+      <span dir="auto" className="mt-[5px] line-clamp-2 leading-[18px]">
+        {line}
+      </span>
+    </TooltipContent>
   );
 }

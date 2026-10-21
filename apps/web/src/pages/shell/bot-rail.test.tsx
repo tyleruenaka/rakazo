@@ -90,6 +90,8 @@ function railItem(props: Partial<ComponentProps<typeof RailItem>> = {}) {
     <RailItem
       name="Justin"
       avatar={<span data-testid="avatar" />}
+      cardAvatar={<span />}
+      cardLine="Last message from Justin"
       unread={false}
       selected={false}
       {...props}
@@ -168,12 +170,25 @@ function rail(props: Partial<ComponentProps<typeof BotRail<string>>> = {}) {
 const button = (name: string) =>
   host.querySelector<HTMLButtonElement>(`nav button[aria-label="${name}"]`)!;
 
+it("opens Grok's hover card with the name and last message on focus", async () => {
+  await act(async () => root.render(railItem({ unread: true })));
+  await act(async () => {
+    host.querySelector("button")!.focus();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  });
+  const card = document.querySelector('[data-testid="rail-chat-card"]');
+  expect(card?.textContent).toBe("JustinLast message from Justin");
+  expect(card?.className).toContain("w-[260px]");
+  expect(card?.querySelector(".bg-unread")).not.toBeNull();
+});
+
 describe("BotRail", () => {
   it("renders each group in order with a short divider between groups", async () => {
     await act(async () => root.render(rail()));
     const nav = host.querySelector("nav")!;
     expect(nav.getAttribute("aria-label")).toBe("Bots");
-    expect(nav.className).toContain("w-[88px]");
+    // It covers the sidebar only while that is the 88px rail (130px or narrower).
+    expect(nav.className).toContain("@max-[130px]/sidebar:flex");
     expect([...nav.querySelectorAll("[data-chat]")].map((item) => item.textContent)).toEqual([
       "Admin",
       "Justin",

@@ -174,8 +174,11 @@ test("sidebar footer opens integrations and the account menu", async ({ page }, 
   await captureScreenshot(page, testInfo, "sidebar-footer-menu");
   await page.keyboard.press("Escape");
   await page.getByTestId("minimize-bots-sidebar").click();
-  await expect(footer).not.toBeInViewport();
+  // The rail covers the narrowed sidebar and brings its own account button.
+  await expect(footer).toHaveAttribute("inert", "");
+  await expect(page.getByTestId("rail-user-menu-trigger")).toBeVisible();
   await page.getByTestId("restore-bots-sidebar").click();
+  await expect(footer).not.toHaveAttribute("inert");
   await expect(footer).toBeInViewport();
 });
 

@@ -13,6 +13,7 @@ import {
 import { Bell, Plus, Search } from "lucide-react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { Fragment } from "react";
+import { RosterHoverCard } from "./pinned-tile";
 
 export type RailGroup<T> = { key: string; pinned: boolean; items: T[] };
 
@@ -32,16 +33,28 @@ export function railGroups<T extends RosterParentable>(
 
 type RailItemProps = Omit<ComponentProps<"button">, "children"> & {
   name: string;
-  /** 40px avatar. */
+  /** 40px avatar, and the 16px one for the hover card. */
   avatar: ReactNode;
+  cardAvatar: ReactNode;
+  /** Last message, or the working/error status, shown in the hover card. */
+  cardLine: ReactNode;
   unread: boolean;
   selected: boolean;
 };
 
-/** One chat in the rail: its avatar on a 54px tile, named by a tooltip. */
-export function RailItem({ name, avatar, unread, selected, className, ...props }: RailItemProps) {
+/** One chat in the rail: its avatar on a 54px tile, with Grok's hover card. */
+export function RailItem({
+  name,
+  avatar,
+  cardAvatar,
+  cardLine,
+  unread,
+  selected,
+  className,
+  ...props
+}: RailItemProps) {
   return (
-    <Tooltip>
+    <Tooltip disableHoverablePopup>
       <TooltipTrigger
         render={
           <button
@@ -75,13 +88,19 @@ export function RailItem({ name, avatar, unread, selected, className, ...props }
           {unread ? <Trans> (unread)</Trans> : null}
         </span>
       </TooltipTrigger>
-      <TooltipContent side="right">{name}</TooltipContent>
+      <RosterHoverCard
+        testId="rail-chat-card"
+        name={name}
+        avatar={cardAvatar}
+        unread={unread}
+        line={cardLine}
+      />
     </Tooltip>
   );
 }
 
 const railButtonClass =
-  "grid size-7 shrink-0 place-items-center rounded-[8px] text-rail-icon outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-solid focus-visible:outline-ring";
+  "grid size-7 shrink-0 place-items-center rounded-full text-rail-icon outline-none hover:bg-rail-hover hover:text-rail-icon-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring";
 
 function RailButton({
   label,
@@ -95,7 +114,7 @@ function RailButton({
   return (
     <Tooltip>
       <TooltipTrigger render={trigger}>{children}</TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }
@@ -156,7 +175,10 @@ type BotRailProps<T> = {
   account: ReactNode;
 };
 
-/** The collapsed bots sidebar: Grok's column of avatars, then its quiet icons. */
+/**
+ * The collapsed bots sidebar: Grok's column of avatars, then its quiet icons. It
+ * covers the sidebar once that is 130px or narrower, so it takes over mid-animation.
+ */
 export function BotRail<T>({
   groups,
   renderItem,
@@ -177,7 +199,7 @@ export function BotRail<T>({
     <nav
       aria-label={t`Bots`}
       data-testid="bots-rail"
-      className="hidden w-[88px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar md:flex"
+      className="absolute inset-0 z-10 hidden flex-col bg-sidebar @max-[130px]/sidebar:flex"
     >
       <div className="app-drag flex h-12 shrink-0 items-start ps-[18px] pt-3">{chrome}</div>
       <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto [scrollbar-width:none]">
@@ -199,7 +221,7 @@ export function BotRail<T>({
           </Fragment>
         ))}
       </div>
-      <div className="flex shrink-0 flex-col items-center pt-2 pb-[17px]">
+      <div className="flex shrink-0 flex-col items-center py-2">
         <RailButton
           label={t`Show bots`}
           trigger={
@@ -235,7 +257,7 @@ export function BotRail<T>({
               aria-label={t`Activity`}
               aria-pressed={activityMode}
               onClick={onActivity}
-              className={cn(railButtonClass, activityMode && "text-foreground")}
+              className={cn(railButtonClass, activityMode && "text-rail-icon-hover")}
             />
           }
         >
@@ -262,9 +284,8 @@ export function BotRail<T>({
           {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
           {createOpen ? (
             <PopoverContent
-              side="right"
-              align="end"
-              sideOffset={8}
+              side="top"
+              align="start"
               className="w-auto gap-0 overflow-hidden p-0 data-closed:animate-none"
             >
               {createMenu}
@@ -287,7 +308,7 @@ export function BotRail<T>({
           </RailButton>
         </div>
         {update}
-        <div className="mt-[15px]">{account}</div>
+        <div className="mt-1.5">{account}</div>
       </div>
     </nav>
   );

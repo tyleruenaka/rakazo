@@ -70,6 +70,8 @@
   --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
   --color-rail-divider: var(--rail-divider);
   --color-rail-icon: var(--rail-icon);
+  --color-rail-icon-hover: var(--rail-icon-hover);
+  --color-rail-hover: var(--rail-hover);
   --color-chip: var(--chip);
   --color-chip-border: var(--chip-border);
   --color-link: var(--link);

@@ -3144,6 +3144,59 @@ function SpaceShell() {
   const rosterChatSelected = (item: RosterChat) =>
     (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
     (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
+  const rosterAvatar = (item: RosterChat, size: number) =>
+    item.kind === "bot" ? (
+      <BotAvatar
+        color={item.chat.color}
+        identity={item.chat.id}
+        size={size}
+        status={item.chat.status}
+      />
+    ) : (
+      <GroupAvatar
+        members={
+          item.chat.id === activeSnapshot?.groupId
+            ? (activeSnapshot.members ?? item.chat.members)
+            : item.chat.members
+        }
+        size={size}
+      />
+    );
+  const rosterChatStatus = (item: RosterChat) => ({
+    workStatusLabel: item.kind === "bot" ? rosterWorkStatusLabel(item.chat.status) : null,
+    rowError:
+      item.kind === "bot" &&
+      (rosterHasUndismissedRunError(item.chat.runErrorId, dismissedRunErrorIds) ||
+        (active?.id === item.chat.id && Boolean(displayedRunError))),
+    previewLine:
+      item.kind === "bot"
+        ? item.chat.preview || (item.chat.status !== "idle" ? item.chat.status : "")
+        : item.chat.preview || item.chat.members.map((member) => member.name).join(", "),
+  });
+  // The hover card's line on pinned tiles and in the rail: error, work status, or last message.
+  const rosterCardLine = (item: RosterChat) => {
+    const { workStatusLabel, rowError, previewLine } = rosterChatStatus(item);
+    return rowError ? (
+      <span
+        data-roster-status="error"
+        className="inline-flex items-center gap-1 font-medium text-destructive"
+      >
+        <CircleAlert size={12} aria-hidden="true" />
+        {t`Error`}
+      </span>
+    ) : workStatusLabel ? (
+      <span
+        data-roster-status={item.kind === "bot" ? item.chat.status : undefined}
+        className="font-medium text-status-working"
+      >
+        {workStatusLabel}
+      </span>
+    ) : (
+      <span data-roster-preview="true" className="text-muted-foreground">
+        {previewLine}
+      </span>
+    );
+  };
   const openRosterChat = (item: RosterChat) =>
     openSpaceChat(
       item.chat.spaceId,
@@ -3161,6 +3214,7 @@ function SpaceShell() {
   };
   // The full sidebar shows when expanded, or as the phone drawer; otherwise the rail does.
   const sidebarActive = !botsSidebarCollapsed || mobileSidebarOpen;
+  const sidebarInert = sidebarActive ? undefined : true;
   const accountMenuProps = {
     name: userName,
     initials,
@@ -3301,16 +3355,15 @@ function SpaceShell() {
         data-space-switch="sidebar"
         data-bots-sidebar-density={botsSidebarDensity}
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
-        inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
-        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[295px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
+        // Grok's column: 88 <-> 295 in 0.2s; the rail covers it from 130px down.
+        className={`@container/sidebar absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[295px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:relative md:z-auto md:translate-x-0 md:overflow-hidden md:duration-200 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
-        } ${
-          botsSidebarCollapsed
-            ? "md:w-0 md:max-w-0 md:overflow-hidden md:border-e-0 md:opacity-0 md:pointer-events-none"
-            : "md:w-[295px]"
-        }`}
+        } ${botsSidebarCollapsed ? "md:w-[88px]" : "md:w-[295px]"}`}
       >
-        <div className="app-drag flex items-center justify-between pb-2 pe-4 ps-[18px] pt-3">
+        <div
+          inert={sidebarInert}
+          className="app-drag flex items-center justify-between pb-2 pe-4 ps-[18px] pt-3"
+        >
           <WindowChrome />
           <div className="relative flex items-center gap-2">
             <Tooltip>
@@ -3396,6 +3449,7 @@ function SpaceShell() {
         </div>
         {searchOpen || activityMode || query.length > 0 ? (
           <InputGroup
+            inert={sidebarInert}
             data-testid="sidebar-search"
             className="mx-3 mb-2 w-auto bg-card text-muted-foreground"
           >
@@ -3449,7 +3503,10 @@ function SpaceShell() {
             ) : null}
           </InputGroup>
         ) : null}
-        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2 pb-2.5">
+        <div
+          inert={sidebarInert}
+          className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2 pb-2.5"
+        >
           {showSpaceSearch ? (
             <SpaceSearchResults
               hits={searchHits}
@@ -3509,23 +3566,13 @@ function SpaceShell() {
                   const parentCollapsed = hasChildren && collapsedRosterParents.has(item.chat.id);
                   const selected = rosterChatSelected(item);
                   const compact = botsSidebarDensity === "compact";
-                  const workStatusLabel =
-                    item.kind === "bot" ? rosterWorkStatusLabel(item.chat.status) : null;
-                  const rowError =
-                    item.kind === "bot" &&
-                    (rosterHasUndismissedRunError(item.chat.runErrorId, dismissedRunErrorIds) ||
-                      (active?.id === item.chat.id && Boolean(displayedRunError)));
+                  const { workStatusLabel, rowError, previewLine } = rosterChatStatus(item);
                   const compactStatusLabel =
                     compact && item.kind === "bot"
                       ? rowError
                         ? t`Error`
                         : compactRosterStatusLabel(item.chat.status)
                       : null;
-                  const previewLine =
-                    item.kind === "bot"
-                      ? item.chat.preview || (item.chat.status !== "idle" ? item.chat.status : "")
-                      : item.chat.preview ||
-                        item.chat.members.map((member) => member.name).join(", ");
                   const rosterLine = compact
                     ? compactStatusLabel
                     : (workStatusLabel ?? previewLine);
@@ -3603,56 +3650,15 @@ function SpaceShell() {
                   } satisfies ComponentProps<"button"> &
                     Record<`data-${string}`, string | number | undefined>;
                   if (tile) {
-                    const tileAvatar = (size: number) =>
-                      item.kind === "bot" ? (
-                        <BotAvatar
-                          color={item.chat.color}
-                          identity={item.chat.id}
-                          size={size}
-                          status={item.chat.status}
-                        />
-                      ) : (
-                        <GroupAvatar
-                          members={
-                            item.chat.id === activeSnapshot?.groupId
-                              ? (activeSnapshot.members ?? item.chat.members)
-                              : item.chat.members
-                          }
-                          size={size}
-                        />
-                      );
                     return (
                       <PinnedTile
                         key={`${item.kind}:${item.chat.id}`}
                         {...rosterButtonProps}
                         name={item.chat.name}
                         label={item.kind === "bot" ? item.chat.title : null}
-                        avatar={tileAvatar(72)}
-                        cardAvatar={tileAvatar(16)}
-                        cardLine={
-                          rowError ? (
-                            <span
-                              data-roster-status="error"
-                              className="inline-flex items-center gap-1 font-medium text-destructive"
-                            >
-                              <CircleAlert size={12} aria-hidden="true" />
-                              {t`Error`}
-                            </span>
-                          ) : workStatusLabel ? (
-                            <span
-                              data-roster-status={
-                                item.kind === "bot" ? item.chat.status : undefined
-                              }
-                              className="font-medium text-status-working"
-                            >
-                              {workStatusLabel}
-                            </span>
-                          ) : (
-                            <span data-roster-preview="true" className="text-muted-foreground">
-                              {previewLine}
-                            </span>
-                          )
-                        }
+                        avatar={rosterAvatar(item, 72)}
+                        cardAvatar={rosterAvatar(item, 16)}
+                        cardLine={rosterCardLine(item)}
                         unread={item.chat.unread}
                         active={selected || rosterDropKey === rowDropKey}
                         botName={item.kind === "bot"}
@@ -4052,67 +4058,46 @@ function SpaceShell() {
           logos={footerLogos}
           {...accountMenuProps}
           open={menuOpen && sidebarActive}
+          inert={sidebarInert}
           onIntegrations={() => setPluginsOpen(true)}
         />
+        {botsSidebarCollapsed ? (
+          <BotRail
+            groups={railChats}
+            renderItem={(item) => (
+              <RailItem
+                key={`${item.kind}:${item.chat.id}`}
+                data-rail-chat-id={item.chat.id}
+                name={item.chat.name}
+                unread={Boolean(item.chat.unread)}
+                selected={rosterChatSelected(item)}
+                avatar={rosterAvatar(item, 40)}
+                cardAvatar={rosterAvatar(item, 16)}
+                cardLine={rosterCardLine(item)}
+                onClick={() => openRosterChat(item)}
+                onContextMenu={(event) => openRosterMenu(item, event)}
+              />
+            )}
+            chrome={<WindowChrome />}
+            onExpand={() => setBotsSidebarCollapsedPref(false)}
+            onSearch={() => {
+              setBotsSidebarCollapsedPref(false);
+              setSearchOpen(true);
+            }}
+            activityMode={activityMode}
+            onActivity={() => {
+              setBotsSidebarCollapsedPref(false);
+              if (!activityMode) toggleActivityMode();
+            }}
+            createOpen={createMenuOpen && !sidebarActive}
+            onCreateOpenChange={setCreateMenuOpen}
+            createMenu={createPicker}
+            onConnectApps={() => setPluginsOpen(true)}
+            update={<SidebarUpdateButton className="mt-1.5" />}
+            account={<AccountMenu {...accountMenuProps} open={menuOpen && !sidebarActive} rail />}
+          />
+        ) : null}
       </aside>
-      {botsSidebarCollapsed ? (
-        <BotRail
-          groups={railChats}
-          renderItem={(item) => (
-            <RailItem
-              key={`${item.kind}:${item.chat.id}`}
-              data-rail-chat-id={item.chat.id}
-              name={item.chat.name}
-              unread={Boolean(item.chat.unread)}
-              selected={rosterChatSelected(item)}
-              avatar={
-                item.kind === "bot" ? (
-                  <BotAvatar
-                    color={item.chat.color}
-                    identity={item.chat.id}
-                    size={40}
-                    status={item.chat.status}
-                  />
-                ) : (
-                  <GroupAvatar
-                    members={
-                      item.chat.id === activeSnapshot?.groupId
-                        ? (activeSnapshot.members ?? item.chat.members)
-                        : item.chat.members
-                    }
-                    size={40}
-                  />
-                )
-              }
-              onClick={() => openRosterChat(item)}
-              onContextMenu={(event) => openRosterMenu(item, event)}
-            />
-          )}
-          chrome={<WindowChrome />}
-          onExpand={() => setBotsSidebarCollapsedPref(false)}
-          onSearch={() => {
-            setBotsSidebarCollapsedPref(false);
-            setSearchOpen(true);
-          }}
-          activityMode={activityMode}
-          onActivity={() => {
-            setBotsSidebarCollapsedPref(false);
-            if (!activityMode) toggleActivityMode();
-          }}
-          createOpen={createMenuOpen && !sidebarActive}
-          onCreateOpenChange={setCreateMenuOpen}
-          createMenu={createPicker}
-          onConnectApps={() => setPluginsOpen(true)}
-          update={<SidebarUpdateButton className="mt-2.5" />}
-          account={
-            <AccountMenu
-              {...accountMenuProps}
-              open={menuOpen && !sidebarActive}
-              triggerTestId="rail-user-menu-trigger"
-            />
-          }
-        />
-      ) : null}
 
       {/* The full-screen computer covers the sidebar, so its edge must not catch clicks there. */}
       {computerOpen || booting ? null : (
