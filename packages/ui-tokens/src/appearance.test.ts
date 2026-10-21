@@ -45,10 +45,12 @@ describe("appearance preference", () => {
   it("returns distinct light and dark token sets", () => {
     expect(tokensForAppearance("dark")).toBe(darkTokens);
     expect(tokensForAppearance("light")).toBe(lightTokens);
-    // Same in both themes on purpose: white plates, and the full computer view's dark backdrop.
+    // Same in both themes on purpose: white plates, the full computer view's dark backdrop, and
+    // the pencil over a dimmed avatar.
     const shared = new Set<keyof ColorTokens>([
       "destructiveForeground",
       "faviconPlate",
+      "avatarPencil",
       "computerBackdrop",
       "computerIcon",
       "computerIconHover",

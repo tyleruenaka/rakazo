@@ -76,6 +76,7 @@
   --color-warning: var(--warning);
   --color-status-working: var(--status-working);
   --color-unread: var(--unread);
+  --color-avatar-pencil: var(--avatar-pencil);
   --color-overlay: var(--overlay);
   --color-scrollbar: var(--scrollbar);
   --color-popup-scrollbar: var(--popup-scrollbar);

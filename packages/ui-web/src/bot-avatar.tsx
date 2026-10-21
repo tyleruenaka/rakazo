@@ -106,10 +106,20 @@ export function botAvatarFill(color: string): string {
 }
 
 /**
- * Grok Bot's eyes as fractions of the avatar box (measured at 24, 40 and 72px): two stadiums
- * tilted 28deg left, the pair rising 15deg to the right, set up and right of center.
+ * Grok Bot's eyes as fractions of the avatar box (measured at 16, 24, 40 and 72px): two
+ * stadiums tilted 28deg left, the pair rising 15deg to the right, set up and right of center.
+ * Their length also has a fixed `lengthPx`, so small avatars keep readable eyes.
  */
-const EYES = { length: 0.2, width: 0.085, gap: 0.18, rise: 15, tilt: -28, x: 0.11, y: -0.12 };
+const EYES = {
+  length: 0.19,
+  lengthPx: 0.75,
+  width: 0.085,
+  gap: 0.18,
+  rise: 15,
+  tilt: -28,
+  x: 0.11,
+  y: -0.12,
+};
 
 /** Pointed studio shapes are too narrow up top, so their eyes sit lower. */
 const SHAPE_EYES: Partial<Record<string, { x: number; y: number }>> = {
@@ -119,10 +129,10 @@ const SHAPE_EYES: Partial<Record<string, { x: number; y: number }>> = {
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
-/** The eye pair centered on (0, 0) for a box `unit` viewBox units wide. */
-function eyePair(unit: number) {
+/** The eye pair centered on (0, 0) for a `size`px box `unit` viewBox units wide. */
+function eyePair(unit: number, size: number) {
   const w = round(EYES.width * unit);
-  const h = round(EYES.length * unit);
+  const h = round((EYES.length + EYES.lengthPx / size) * unit);
   const rise = (EYES.rise * Math.PI) / 180;
   return [-1, 1].map((side) => {
     const cx = round((side * EYES.gap * unit * Math.cos(rise)) / 2);
@@ -207,7 +217,7 @@ function ShapeArt({
             transform={eyeOrigin(SHAPE_MIN, SHAPE_UNIT, SHAPE_EYES[shape])}
             className="grok-character-eyes"
           >
-            {eyePair(SHAPE_UNIT)}
+            {eyePair(SHAPE_UNIT, size)}
           </g>
         </EyeMask>
       </defs>
@@ -614,7 +624,7 @@ function OrganicAvatar({
                 key={mode}
                 className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
               >
-                {eyePair(120)}
+                {eyePair(120, size)}
               </g>
             ))}
           </g>

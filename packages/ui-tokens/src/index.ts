@@ -128,6 +128,8 @@ export type ColorTokens = {
   avatarWhite: string;
   /** Bot avatar in the grey swatch, a step lighter in light mode. */
   avatarGrey: string;
+  /** Pencil over a dimmed bot avatar on hover; the same in both themes. */
+  avatarPencil: string;
   overlay: string;
   scrollbar: string;
   /** Thumb of the overlay scrollbar in popups, shown while scrolling. */
@@ -212,6 +214,7 @@ export const darkTokens = {
   unread: "#4D9BFF",
   avatarWhite: "#FFFFFF",
   avatarGrey: "#777777",
+  avatarPencil: "#F5F5F5",
   overlay: "rgba(0, 0, 0, 0.7)",
   scrollbar: "#1F1F1F",
   popupScrollbar: "#8F8F8F",
@@ -295,6 +298,7 @@ export const lightTokens = {
   unread: "#086ED3",
   avatarWhite: "#000000",
   avatarGrey: "#959595",
+  avatarPencil: "#F5F5F5",
   overlay: "rgba(0, 0, 0, 0.5)",
   scrollbar: "#D4D4D4",
   popupScrollbar: "#7F7F7F",

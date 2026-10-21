@@ -79,6 +79,7 @@
   --unread: #4d9bff;
   --avatar-white: #ffffff;
   --avatar-grey: #777777;
+  --avatar-pencil: #f5f5f5;
   --overlay: rgba(0, 0, 0, 0.7);
   --scrollbar: #1f1f1f;
   --popup-scrollbar: #8f8f8f;
@@ -164,6 +165,7 @@
   --unread: #086ed3;
   --avatar-white: #000000;
   --avatar-grey: #959595;
+  --avatar-pencil: #f5f5f5;
   --overlay: rgba(0, 0, 0, 0.5);
   --scrollbar: #d4d4d4;
   --popup-scrollbar: #7f7f7f;

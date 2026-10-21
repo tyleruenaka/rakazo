@@ -115,7 +115,7 @@ export function AvatarStudioPopover({
 
   const tabClass = (active: boolean) =>
     cn(
-      "h-[25px] rounded-full px-2 text-[13px] transition-colors",
+      "h-[26px] rounded-full px-2 text-[13px] transition-colors",
       active ? "bg-card-hover text-foreground" : "text-description hover:text-foreground",
     );
 
@@ -134,7 +134,7 @@ export function AvatarStudioPopover({
           size={16}
           strokeWidth={1.5}
           aria-hidden
-          className="pointer-events-none absolute text-white opacity-0 group-hover:opacity-100 group-data-popup-open:opacity-100"
+          className="pointer-events-none absolute text-avatar-pencil opacity-0 group-hover:opacity-100 group-data-popup-open:opacity-100"
         />
       </PopoverTrigger>
       <PopoverContent
@@ -143,7 +143,7 @@ export function AvatarStudioPopover({
         className="w-[297px] gap-0 border-card-border p-0"
         data-testid="avatar-studio"
       >
-        <div className="flex items-center justify-between border-b-[0.5px] border-card-border px-2 pt-2 pb-[8.5px]">
+        <div className="flex items-center justify-between border-b-[0.5px] border-card-border p-2">
           <div className="flex gap-0.5">
             <button
               type="button"
