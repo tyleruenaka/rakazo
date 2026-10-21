@@ -4110,6 +4110,10 @@ msgstr "例行任务"
 msgid "Routines"
 msgstr "例行任务"
 
+#: src/pages/Shell.tsx
+msgid "Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up."
+msgstr "例行任务是此机器人按计划重复执行的任务。在聊天中让它设置一个即可。"
+
 #: src/pages/Paywall.tsx
 msgid "Routines that run while you're away"
 msgstr ""

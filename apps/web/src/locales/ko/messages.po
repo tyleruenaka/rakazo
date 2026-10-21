@@ -4110,6 +4110,10 @@ msgstr "자동 실행"
 msgid "Routines"
 msgstr "자동 실행"
 
+#: src/pages/Shell.tsx
+msgid "Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up."
+msgstr "자동 실행은 이 봇이 일정에 따라 반복하는 작업입니다. 채팅에서 하나 설정해 달라고 요청하세요."
+
 #: src/pages/Paywall.tsx
 msgid "Routines that run while you're away"
 msgstr ""

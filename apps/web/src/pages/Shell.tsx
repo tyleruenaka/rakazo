@@ -4119,7 +4119,10 @@ function SpaceShell() {
             <button
               type="button"
               data-testid="bot-settings-trigger"
-              onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
+              aria-expanded={Boolean(panel)}
+              onClick={() =>
+                setPanel(panel ? null : inGroup ? "group-settings" : lastPanelTab.current)
+              }
               className="app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card ps-[9.5px] pe-[15px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
             >
               {inGroup ? (
@@ -4370,7 +4373,8 @@ function SpaceShell() {
                       <Trans>Computer</Trans>
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="details">
+                  {/* Panels skip the Tab order: each holds its own focusable controls. */}
+                  <TabsContent value="details" tabIndex={-1}>
                     <RoutineListHeader
                       onCreate={() => {
                         setRoutineDraft(emptyRoutineDraft());
@@ -4399,6 +4403,14 @@ function SpaceShell() {
                         })}
                       </div>
                     ) : null}
+                    {routinesBotId === active.id && activeRoutines.length === 0 ? (
+                      <p className="mx-auto max-w-[245px] text-center text-[13px] leading-[18px] text-caption">
+                        <Trans>
+                          Routines are recurring tasks this Bot runs on a schedule. Ask it in chat
+                          to set one up.
+                        </Trans>
+                      </p>
+                    ) : null}
                     {routineToggleError ? (
                       <p role="alert" className="mt-2 px-3 text-[12.5px] text-destructive">
                         {routineToggleError}
@@ -4406,7 +4418,7 @@ function SpaceShell() {
                     ) : null}
                   </TabsContent>
                   {/* Kept mounted so switching tabs never reloads the live screen. */}
-                  <TabsContent value="computer" keepMounted className="pt-5">
+                  <TabsContent value="computer" keepMounted tabIndex={-1} className="pt-5">
                     <div
                       data-testid="computer-preview"
                       className={cn(
@@ -4477,7 +4489,7 @@ function SpaceShell() {
                       ) : null}
                     </div>
                     <p
-                      className="mt-[8.5px] truncate px-1 text-center text-[12px] text-preview-caption"
+                      className="mt-[8.5px] truncate px-1 text-center text-[12px] text-caption"
                       dir="auto"
                     >
                       {t`${active.name}'s screen`} · {computer?.state ?? active.status}

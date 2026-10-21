@@ -41,7 +41,7 @@
   --preview-glyph: #939393;
   --preview-glyph-asleep: #828282;
   --preview-waking: #747474;
-  --preview-caption: #8d8d8d;
+  --caption: #8d8d8d;
   --card-ring: #1b1b1b;
   --code: #202020;
   --code-foreground: #adadad;
@@ -121,7 +121,7 @@
   --preview-glyph: #7a7a7a;
   --preview-glyph-asleep: #878787;
   --preview-waking: #9c9c9c;
-  --preview-caption: #7f7f7f;
+  --caption: #7f7f7f;
   --card-ring: #ededed;
   --code: #e7e7e7;
   --code-foreground: #5d5d5d;

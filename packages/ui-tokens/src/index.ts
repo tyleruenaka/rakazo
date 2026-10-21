@@ -73,8 +73,8 @@ export type ColorTokens = {
   previewGlyphAsleep: string;
   /** Resting color of the waking label before the shimmer sweeps it. */
   previewWaking: string;
-  /** Caption under the computer preview. */
-  previewCaption: string;
+  /** Captions and empty-state text in the bot panel. */
+  caption: string;
   /** Ring just outside a card in the transcript. */
   cardRing: string;
   /** Inline code chip and code block fill in a chat message. */
@@ -165,7 +165,7 @@ export const darkTokens = {
   previewGlyph: "#939393",
   previewGlyphAsleep: "#828282",
   previewWaking: "#747474",
-  previewCaption: "#8D8D8D",
+  caption: "#8D8D8D",
   cardRing: "#1B1B1B",
   code: "#202020",
   codeForeground: "#ADADAD",
@@ -243,7 +243,7 @@ export const lightTokens = {
   previewGlyph: "#7A7A7A",
   previewGlyphAsleep: "#878787",
   previewWaking: "#9C9C9C",
-  previewCaption: "#7F7F7F",
+  caption: "#7F7F7F",
   cardRing: "#EDEDED",
   code: "#E7E7E7",
   codeForeground: "#5D5D5D",

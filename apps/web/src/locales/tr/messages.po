@@ -4110,6 +4110,10 @@ msgstr "Rutin"
 msgid "Routines"
 msgstr "Rutinler"
 
+#: src/pages/Shell.tsx
+msgid "Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up."
+msgstr "Rutinler, bu Bot'un bir programa göre çalıştırdığı tekrarlayan görevlerdir. Kurmak için sohbette ondan isteyin."
+
 #: src/pages/Paywall.tsx
 msgid "Routines that run while you're away"
 msgstr ""

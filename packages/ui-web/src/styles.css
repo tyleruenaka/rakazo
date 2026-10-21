@@ -40,7 +40,7 @@
   --color-preview-glyph: var(--preview-glyph);
   --color-preview-glyph-asleep: var(--preview-glyph-asleep);
   --color-preview-waking: var(--preview-waking);
-  --color-preview-caption: var(--preview-caption);
+  --color-caption: var(--caption);
   --color-card-ring: var(--card-ring);
   --color-code: var(--code);
   --color-code-foreground: var(--code-foreground);

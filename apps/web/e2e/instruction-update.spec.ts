@@ -51,6 +51,7 @@ test("instruction proposals support edit, approval, undo and mandatory human app
     timeout: 30_000,
   });
   await page.getByTestId("bot-settings-trigger").click();
+  await page.getByRole("button", { name: "Show settings" }).click();
   await page.getByTestId("bot-settings-advanced").getByText("Advanced", { exact: true }).click();
   await expect(page.getByText("Instruction history", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "instruction-settings-history");

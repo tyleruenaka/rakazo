@@ -56,6 +56,14 @@ test("reload restores the open, closed and settings rail states", async ({ page 
   releaseBootstrap();
   await bootstrapResponse;
   await page.unrouteAll({ behavior: "wait" });
+  // The name pill opens the panel on its last tab; settings stay behind the gear.
+  await expect(panel).toHaveAttribute("data-panel", "details");
+  await waitForStoredPanel(page, "details");
+  await page.getByTestId("bot-settings-trigger").click();
+  await expect(panel).toHaveAttribute("data-panel", "closed");
+  await page.getByTestId("bot-settings-trigger").click();
+  await expect(panel).toHaveAttribute("data-panel", "details");
+  await page.getByRole("button", { name: "Show settings" }).click();
   await expect(panel).toHaveAttribute("data-panel", "settings");
   await waitForStoredPanel(page, "settings");
   await page.reload();
@@ -126,10 +134,10 @@ test("reload restores the selected routine and scopes preferences to the chat", 
   releaseRoutines();
   await listResponse;
   await page.unrouteAll({ behavior: "wait" });
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "settings");
-  await waitForStoredPanel(page, "settings");
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "details");
+  await waitForStoredPanel(page, "details");
   await page.reload();
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "settings");
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "details");
 
   // Editing another chat must beat its saved routine panel.
   const originalName = await rpc<Bot>(page, "bots/get", { botId }).then((bot) => bot.name);
