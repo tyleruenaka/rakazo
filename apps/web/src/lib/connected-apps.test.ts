@@ -31,11 +31,14 @@ const catalog: ConnectionCatalogItem[] = [
 ];
 
 it("uses artwork-first catalog suggestions without changing the fetched order", () => {
-  expect(connectedAppMarks(catalog, [])).toEqual([
-    { name: "Delta", logo: "https://example.test/delta.svg" },
-    { name: "Alpha", logo: null },
-    { name: "Beta", logo: null },
-  ]);
+  expect(connectedAppMarks(catalog, [])).toEqual({
+    marks: [
+      { name: "Delta", logo: "https://example.test/delta.svg" },
+      { name: "Alpha", logo: null },
+      { name: "Beta", logo: null },
+    ],
+    connected: 0,
+  });
   expect(catalog[0]!.name).toBe("Alpha");
 });
 
@@ -45,14 +48,14 @@ it("shows connected apps instead of suggestions and returns suggestions after di
       catalog.map((item, index) => ({ ...item, connected: index === 1 })),
       [],
     ),
-  ).toEqual([{ name: "Beta", logo: null }]);
-  expect(connectedAppMarks(catalog, [])).toHaveLength(3);
-  expect(connectedAppMarks([], [])).toEqual([]);
+  ).toEqual({ marks: [{ name: "Beta", logo: null }], connected: 1 });
+  expect(connectedAppMarks(catalog, []).marks).toHaveLength(3);
+  expect(connectedAppMarks([], [])).toEqual({ marks: [], connected: 0 });
 });
 
 it("deduplicates suggestions and preserves catalog order when artwork is missing", () => {
   const letters = catalog.slice(0, 3);
-  expect(connectedAppMarks([letters[0]!, ...letters], [])).toEqual(
+  expect(connectedAppMarks([letters[0]!, ...letters], []).marks).toEqual(
     letters.map(({ name, logo }) => ({ name, logo })),
   );
 });
@@ -65,8 +68,12 @@ for (const connected of [false, true]) {
       slug: name.toLowerCase(),
       connected,
     }));
-    expect(connectedAppMarks(items, []).map((app) => app.name)).toEqual(["Gamma", "Alpha", "Beta"]);
-    expect(connectedAppMarks(items.slice(0, 3), []).map((app) => app.name)).toEqual([
+    expect(connectedAppMarks(items, []).marks.map((app) => app.name)).toEqual([
+      "Gamma",
+      "Alpha",
+      "Beta",
+    ]);
+    expect(connectedAppMarks(items.slice(0, 3), []).marks.map((app) => app.name)).toEqual([
       "Gamma",
       "Garden",
       "Guide",

@@ -34,6 +34,7 @@ async function render(
   onIntegrations = vi.fn(),
   onBoard?: () => void,
   logos?: Array<{ name: string; logo: string }>,
+  { connectedCount, open = true }: { connectedCount?: number; open?: boolean } = {},
 ) {
   const email = "account@rakazo.test";
   await act(async () =>
@@ -41,6 +42,7 @@ async function render(
       <DesktopUpdatesProvider>
         <SidebarFooter
           logos={logos}
+          connectedCount={connectedCount}
           name={name}
           initials={name
             .split(" ")
@@ -50,7 +52,7 @@ async function render(
             .toUpperCase()}
           image={image}
           email={email}
-          open
+          open={open}
           onOpenChange={() => {}}
           onIntegrations={onIntegrations}
           onBoard={onBoard}
@@ -219,15 +221,67 @@ it.each(["throw", "state"] as const)(
   },
 );
 
+const apps = ["Gmail", "GitHub", "Drive"].map((name) => ({
+  name,
+  logo: `https://example.test/${name}.svg`,
+}));
+const connectPill = () =>
+  [...host.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Connect apps"),
+  )!;
+const accountTrigger = () => host.querySelector('[data-testid="user-menu-trigger"]')!;
+// React derives pointer enter and leave from pointerover and pointerout.
+const point = (element: Element, type: "pointerover" | "pointerout") =>
+  act(async () => element.dispatchEvent(new MouseEvent(type, { bubbles: true })));
+
+it("keeps the avatar and labeled Connect apps pill with fewer than four connected apps", async () => {
+  await render("Ada Lovelace", undefined, undefined, undefined, apps, {
+    connectedCount: 3,
+    open: false,
+  });
+  expect(accountTrigger().textContent).toBe("AL");
+  expect(connectPill().hasAttribute("data-expanded")).toBe(false);
+  expect(connectPill().querySelectorAll('span[aria-hidden="true"] > span')).toHaveLength(3);
+});
+
+it("names the account and folds Connect apps to its logos until it is hovered", async () => {
+  await render("Ada Lovelace", undefined, undefined, undefined, apps, {
+    connectedCount: 4,
+    open: false,
+  });
+  expect(accountTrigger().textContent).toBe("ALAda Lovelace");
+  expect(accountTrigger().getAttribute("title")).toBe("Ada Lovelace");
+  expect(accountTrigger().hasAttribute("data-expanded")).toBe(true);
+  expect(connectPill().hasAttribute("data-expanded")).toBe(false);
+  expect(connectPill().getAttribute("aria-label") ?? connectPill().textContent).toContain(
+    "Connect apps",
+  );
+  expect(connectPill().querySelectorAll('span[aria-hidden="true"] > span')).toHaveLength(3);
+
+  await point(connectPill(), "pointerover");
+  expect(connectPill().hasAttribute("data-expanded")).toBe(true);
+  expect(accountTrigger().hasAttribute("data-expanded")).toBe(false);
+  await point(connectPill(), "pointerout");
+  expect(connectPill().hasAttribute("data-expanded")).toBe(false);
+  expect(accountTrigger().hasAttribute("data-expanded")).toBe(true);
+});
+
+it("keeps the name out while the account menu is open", async () => {
+  await render("Ada Lovelace", undefined, undefined, undefined, apps, { connectedCount: 4 });
+  await point(connectPill(), "pointerover");
+  expect(accountTrigger().hasAttribute("data-expanded")).toBe(true);
+  expect(connectPill().hasAttribute("data-expanded")).toBe(false);
+});
+
 it.each([
   [-20, 0],
   [0, 0],
-  [25, 0],
-  [26, 1],
-  [43, 1],
-  [44, 2],
-  [61, 2],
-  [62, 3],
+  [17, 0],
+  [18, 1],
+  [29, 1],
+  [30, 2],
+  [41, 2],
+  [42, 3],
   [200, 3],
 ])("fits marks into %ipx without consuming label or padding space", (width, count) => {
   expect(sidebarMarkCount(width)).toBe(count);

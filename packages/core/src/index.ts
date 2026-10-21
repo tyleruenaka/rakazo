@@ -48,6 +48,7 @@ export * from "./model-probe.js";
 export * from "./model-providers.js";
 export * from "./passkey-offer.js";
 export * from "./password-policy.js";
+export * from "./peer-marker-groups.js";
 export * from "./product-analytics.js";
 export * from "./prompt-data.js";
 export * from "./remote-images.js";

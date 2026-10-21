@@ -5,6 +5,7 @@ import { AvatarStyleProvider } from "./avatar-style.js";
 import {
   BotAvatar,
   botAvatarFill,
+  botAvatarOutline,
   DEFAULT_GROK_BOT_COLOR,
   defaultBotAvatarValue,
   GROK_BOT_COLORS,
@@ -360,3 +361,32 @@ function robotFaceFromHtml(html: string) {
     eyeGap,
   };
 }
+
+describe("botAvatarOutline", () => {
+  const drawnPaths = (html: string) =>
+    [...html.matchAll(/<path[^>]* d="([^"]+)"/g)].map((m) => m[1]);
+
+  it("matches the organic blob BotAvatar draws, with both ends of its idle morph", () => {
+    const outline = botAvatarOutline("#14B8A6", "otto", "organic");
+    const html = renderToString(<BotAvatar color="#14B8A6" identity="otto" variant="organic" />);
+    expect(outline?.viewBox).toBe("-60 -60 120 120");
+    expect(outline?.paths).toHaveLength(2);
+    expect(drawnPaths(html)).toContain(outline?.paths[0]);
+    expect(html).toContain(outline?.paths[1]);
+  });
+
+  it("matches a picked shape in either avatar style", () => {
+    const color = "#F97316::shape_2";
+    for (const variant of ["organic", "robot"] as const) {
+      const outline = botAvatarOutline(color, "felix", variant);
+      const html = renderToString(<BotAvatar color={color} identity="felix" variant={variant} />);
+      expect(outline?.paths).toHaveLength(1);
+      expect(drawnPaths(html)).toContain(outline?.paths[0]);
+    }
+  });
+
+  it("leaves round avatars (photos and robots) to a circle", () => {
+    expect(botAvatarOutline("data:image/png;base64,AAAA", "otto", "organic")).toBeUndefined();
+    expect(botAvatarOutline("#14B8A6", "otto", "robot")).toBeUndefined();
+  });
+});

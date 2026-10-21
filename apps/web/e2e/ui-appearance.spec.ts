@@ -249,7 +249,7 @@ test("sidebar footer keeps the account identity readable and installs a ready de
 
   // Width changes must drop marks before taking space from the label or padding.
   // Measure the fixed controls and label, then target the middle of each band.
-  // Marks need 26px initially and 18px per additional mark, leaving 9px margin.
+  // Marks need 18px initially and 12px per additional mark, leaving 6px margin.
   const fixedWidth = await pill.evaluate((el) => {
     const style = getComputedStyle(el);
     return (
@@ -262,10 +262,10 @@ test("sidebar footer keeps the account identity readable and installs a ready de
     );
   });
   for (const [availableWidth, count] of [
-    [17, 0],
-    [35, 1],
-    [53, 2],
-    [71, 3],
+    [12, 0],
+    [24, 1],
+    [36, 2],
+    [48, 3],
   ]) {
     const width = fixedWidth + availableWidth!;
     await footer.evaluate((el, width) => {
@@ -413,6 +413,50 @@ test("footer app marks follow the integrations overlay", async ({ page }) => {
   listed = false;
   await footer.getByRole("button", { name: "Connect apps", exact: true }).click();
   await expect(footer.locator("img")).toHaveCount(0);
+});
+
+test("sidebar footer names the account once four apps are connected", async ({
+  page,
+}, testInfo) => {
+  await signup(page, `footer-named-${Date.now()}@rakazo.test`, "password12", "Footer Demo");
+  await completeOnboarding(page);
+  const logo =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ctext x='5' y='15'%3ES%3C/text%3E%3C/svg%3E";
+  await page.route("**/rpc/connections/catalog", (route) =>
+    route.fulfill({
+      json: {
+        json: ["Slack", "Notion", "Linear", "GitHub"].map((name) => ({
+          connectorId: "demo",
+          slug: name.toLowerCase(),
+          name,
+          logo,
+          connected: true,
+          noAuth: false,
+        })),
+      },
+    }),
+  );
+  await page.reload();
+  const footer = page.getByTestId("sidebar-footer");
+  const account = page.getByTestId("user-menu-trigger");
+  const connect = footer.getByRole("button", { name: "Connect apps", exact: true });
+  await expect(account).toContainText("Footer Demo");
+  await expect(account).toHaveAttribute("data-expanded", "true");
+  await expect(connect).not.toHaveAttribute("data-expanded");
+  await expect(footer.locator('span[aria-hidden="true"] > span')).toHaveCount(3);
+  await captureScreenshot(page, testInfo, "sidebar-footer-named");
+
+  await connect.hover();
+  await expect(connect).toHaveAttribute("data-expanded", "true");
+  await expect(account).not.toHaveAttribute("data-expanded");
+  // Let the 200ms fold finish before the screenshot.
+  await expect.poll(() => account.evaluate((el) => el.getBoundingClientRect().width)).toBe(36);
+  await captureScreenshot(page, testInfo, "sidebar-footer-named-connect-hover");
+  await connect.click();
+  await expect(page.getByRole("button", { name: "Close integrations", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Close integrations", exact: true }).click();
+  await account.click();
+  await expect(page.getByTestId("account-menu-header")).toContainText("Footer Demo");
 });
 
 test("sidebar list fades above the transparent footer and keeps the last row reachable", async ({

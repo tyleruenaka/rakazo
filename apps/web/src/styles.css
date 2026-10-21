@@ -4,6 +4,24 @@
 @source "../../packages/ui-web/src/**/*.{ts,tsx}";
 @source "./src/**/*.{ts,tsx}";
 
+/* A critically damped spring: quick start, no overshoot. */
+@theme {
+  --ease-spring: linear(
+    0,
+    0.086 5%,
+    0.253 10%,
+    0.427 15%,
+    0.578 20%,
+    0.697 25%,
+    0.787 30%,
+    0.899 40%,
+    0.954 50%,
+    0.98 60%,
+    0.994 75%,
+    1
+  );
+}
+
 html,
 body,
 #root {
