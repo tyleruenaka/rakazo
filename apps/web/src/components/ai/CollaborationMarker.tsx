@@ -45,7 +45,10 @@ export function CollaborationMarker({
     </button>
   );
   return (
-    <div className="flex min-h-6 items-center justify-center gap-1">
+    <div
+      data-testid="peer-marker"
+      className="flex min-h-6 w-full items-center justify-center gap-1"
+    >
       <span className="flex min-w-0 items-center gap-0.5 text-[12px] whitespace-nowrap text-muted-foreground">
         {sent ? <Trans>Messaged {chip}</Trans> : <Trans>Message from {chip}</Trans>}
       </span>

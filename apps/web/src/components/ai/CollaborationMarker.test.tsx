@@ -40,6 +40,29 @@ describe("collaboration transcript markers", () => {
     expect(html).not.toContain("{peer}");
   });
 
+  it("fills its row so it stays centered inside end-aligned user messages", () => {
+    const { host } = chipOf(
+      renderToString(
+        <CollaborationMarker
+          ariaLabel="Message from Ezra"
+          color="#14B8A6"
+          identity="ezra"
+          peer="Ezra"
+          sent={false}
+          onClick={() => undefined}
+          replies={{
+            expanded: false,
+            label: "Expand Message from Ezra",
+            onToggle: () => undefined,
+          }}
+        />,
+      ),
+    );
+    const row = host.querySelector('[data-testid="peer-marker"]');
+    expect(row?.classList.contains("w-full")).toBe(true);
+    expect(row?.classList.contains("justify-center")).toBe(true);
+  });
+
   it("names the outgoing exchange the same way", () => {
     const { host, chip } = chipOf(
       renderToString(
