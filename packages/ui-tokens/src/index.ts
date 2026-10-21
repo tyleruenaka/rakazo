@@ -138,6 +138,10 @@ export type ColorTokens = {
   /** Translucent tag fill (role chip) that follows the row bg. */
   chip: string;
   chipBorder: string;
+  /** Reply pills and quotes: translucent text, ring and hover fill that follow the fill behind them. */
+  replyForeground: string;
+  replyRing: string;
+  replyHover: string;
   link: string;
   /** Backing behind a link's site icon. White in both themes so dark logos stay visible. */
   faviconPlate: string;
@@ -242,6 +246,9 @@ export const darkTokens = {
   railHover: "#171717",
   chip: "rgba(255, 255, 255, 0.02)",
   chipBorder: "rgba(255, 255, 255, 0.054)",
+  replyForeground: "rgba(245, 245, 245, 0.66)",
+  replyRing: "rgba(255, 255, 255, 0.1)",
+  replyHover: "rgba(255, 255, 255, 0.038)",
   link: "#3B82F6",
   faviconPlate: "#FFFFFF",
   success: "#4ECB71",
@@ -340,6 +347,9 @@ export const lightTokens = {
   railHover: "#E8E8E8",
   chip: "rgba(0, 0, 0, 0.037)",
   chipBorder: "rgba(0, 0, 0, 0.08)",
+  replyForeground: "rgba(28, 28, 28, 0.68)",
+  replyRing: "rgba(28, 28, 28, 0.125)",
+  replyHover: "rgba(28, 28, 28, 0.059)",
   link: "#2563EB",
   faviconPlate: "#FFFFFF",
   success: "#228B3B",

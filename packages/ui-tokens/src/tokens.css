@@ -85,6 +85,9 @@
   --rail-hover: #171717;
   --chip: rgba(255, 255, 255, 0.02);
   --chip-border: rgba(255, 255, 255, 0.054);
+  --reply-foreground: rgba(245, 245, 245, 0.66);
+  --reply-ring: rgba(255, 255, 255, 0.1);
+  --reply-hover: rgba(255, 255, 255, 0.038);
   --link: #3b82f6;
   --favicon-plate: #ffffff;
   --success: #4ecb71;
@@ -185,6 +188,9 @@
   --rail-hover: #e8e8e8;
   --chip: rgba(0, 0, 0, 0.037);
   --chip-border: rgba(0, 0, 0, 0.08);
+  --reply-foreground: rgba(28, 28, 28, 0.68);
+  --reply-ring: rgba(28, 28, 28, 0.125);
+  --reply-hover: rgba(28, 28, 28, 0.059);
   --link: #2563eb;
   --favicon-plate: #ffffff;
   --success: #228b3b;

@@ -84,6 +84,9 @@
   --color-rail-hover: var(--rail-hover);
   --color-chip: var(--chip);
   --color-chip-border: var(--chip-border);
+  --color-reply-foreground: var(--reply-foreground);
+  --color-reply-ring: var(--reply-ring);
+  --color-reply-hover: var(--reply-hover);
   --color-link: var(--link);
   --color-favicon-plate: var(--favicon-plate);
   --color-success: var(--success);

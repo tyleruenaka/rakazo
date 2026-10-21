@@ -100,12 +100,16 @@ test("selecting a text span quotes it into a reply", async ({ page }, testInfo) 
   await selectAndRelease(page, sourceRow, "**forty two percent**");
   await expect(quoteButton).toBeVisible();
   await quoteButton.click();
-  const replyChip = page.getByTestId("reply-chip");
+  const replyChip = page.getByTestId("quote-chip");
   await expect(replyChip).toBeVisible();
+  await expect(page.getByTestId("reply-chip")).toHaveCount(0);
   await expect(composer).toBeFocused();
   await expect(page.getByTestId("composer-announcement")).toHaveText(/Replying to/);
+  // The chip shows a short cut of the excerpt; its title holds the whole one.
   await expect(replyChip).toContainText(/forty two percent/);
-  await expect(replyChip).toContainText("**forty two percent**");
+  await expect(replyChip.locator("[title]")).toHaveAttribute("title", "**forty two percent**");
+  await expect(composer).toHaveAttribute("placeholder", "");
+  await captureScreenshot(page, testInfo, "message-quote-composer");
 
   const replyText = `quote-reply-${stamp} why this number?`;
   await composer.fill(replyText);
@@ -250,11 +254,11 @@ test("selecting text inside a table cell quotes the rendered cell", async ({ pag
   await expect(quoteButton).toBeVisible();
   await captureScreenshot(page, testInfo, "quote-table-cell-selection");
   await quoteButton.click();
-  const replyChip = page.getByTestId("reply-chip");
+  const replyChip = page.getByTestId("quote-chip");
   await expect(replyChip).toBeVisible();
   // Exact match: an excerpt that picked up an adjacent cell or chrome would
   // still satisfy a substring check.
-  await expect(replyChip).toHaveText(new RegExp(`^.+: ${cellText}$`));
+  await expect(replyChip.locator("[title]")).toHaveAttribute("title", cellText);
   await expect(composer).toBeFocused();
 
   // The sent reply persists the server-derived excerpt from the same cell.
@@ -268,7 +272,7 @@ test("selecting text inside a table cell quotes the rendered cell", async ({ pag
     .first();
   await expect(replyRow).toBeVisible({ timeout: 20_000 });
   const parentPreview = replyRow.getByTestId("reply-parent-preview");
-  await expect(parentPreview).toHaveText(`↩ Chief: ${cellText}`);
+  await expect(parentPreview).toHaveText(cellText);
 });
 
 test("an armed reply survives the parent paging out of the transcript", async ({ page }) => {
@@ -294,9 +298,9 @@ test("an armed reply survives the parent paging out of the transcript", async ({
 
   await selectAndRelease(page, parentRow, `evict-parent-${stamp}`);
   await page.getByTestId("quote-selection").click();
-  const replyChip = page.getByTestId("reply-chip");
+  const replyChip = page.getByTestId("quote-chip");
   await expect(replyChip).toBeVisible();
-  await expect(replyChip).toContainText(`evict-parent-${stamp}`);
+  await expect(replyChip.locator("[title]")).toHaveAttribute("title", `evict-parent-${stamp}`);
 
   // Newer durable messages push the parent out of the latest page (window is
   // 100). While the flood's runs are alive, refreshes race the event stream and
@@ -386,7 +390,7 @@ test("quoting a second message retargets the armed reply", async ({ page }) => {
   const transcript = page.getByTestId("transcript");
   const composer = page.getByRole("combobox", { name: /Message/ });
   const quoteButton = page.getByTestId("quote-selection");
-  const replyChip = page.getByTestId("reply-chip");
+  const replyChip = page.getByTestId("quote-chip");
   const userRow = (text: string) =>
     transcript
       .locator("[data-message-id]")
@@ -421,11 +425,13 @@ test("quoting a second message retargets the armed reply", async ({ page }) => {
   await expect(replyChip).toContainText("switch-a");
   await expect(composer).toBeFocused();
 
-  // …then quote the second: the chip retargets, the announcement re-fires,
-  // and focus returns to the composer instead of dropping to <body>.
+  // …then quote the second with the shortcut: the chip retargets, the announcement
+  // re-fires, and focus returns to the composer instead of dropping to <body>.
   await secondRow.scrollIntoViewIfNeeded();
   await selectAndRelease(page, secondRow, secondText);
-  await quoteButton.click();
+  await expect(quoteButton).toContainText("Add to chat");
+  await page.keyboard.press("ControlOrMeta+l");
+  await expect(quoteButton).toHaveCount(0);
   await expect(replyChip).toContainText("switch-b");
   await expect(replyChip).not.toContainText("switch-a");
   await expect(composer).toBeFocused();
@@ -437,4 +443,11 @@ test("quoting a second message retargets the armed reply", async ({ page }) => {
   await expect(replyChip).toHaveCount(0);
   await expect(composer).toBeFocused();
   await expect(page.getByTestId("composer-announcement")).toHaveText(/Reply cancelled/);
+
+  // Backspace in an empty field removes the chip.
+  await selectAndRelease(page, secondRow, secondText);
+  await quoteButton.click();
+  await expect(replyChip).toBeVisible();
+  await composer.press("Backspace");
+  await expect(replyChip).toHaveCount(0);
 });

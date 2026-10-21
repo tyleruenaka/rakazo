@@ -681,6 +681,100 @@ describe("composer attachments", () => {
   });
 });
 
+describe("composer replies and quotes", () => {
+  const target: ThreadMessage = {
+    id: "message-1",
+    threadId: "thread-1",
+    seq: 1,
+    role: "bot",
+    blocks: [{ kind: "text", text: "Stored in\nthe repo" }],
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  const image = {
+    id: "shot",
+    threadKey: "bot-1",
+    file: new File(["png"], "shot.png", { type: "image/png" }),
+    previewUrl: "blob:shot",
+  };
+  const bar = () => container!.querySelector('[data-testid="composer-bar"]')!;
+
+  it("puts the reply pill inside the composer, above attachments and the field", () => {
+    const onJumpToReply = vi.fn();
+    const textarea = renderComposer(async () => true, {
+      replyTarget: target,
+      onJumpToReply,
+      pendingAttachments: [image],
+    });
+    const pill = bar().querySelector('[data-testid="reply-chip"]')!;
+    const attachments = bar().querySelector('[data-testid="composer-attachments"]')!;
+    expect(bar().getAttribute("data-expanded")).toBe("true");
+    expect(
+      pill.compareDocumentPosition(attachments) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      attachments.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(pill.textContent).toBe("Stored in the repo");
+    // The reply placeholder wins over the attachment one.
+    expect(textarea.placeholder).toBe("Reply…");
+    act(() =>
+      pill
+        .querySelector<HTMLButtonElement>('button[aria-label^="Jump to replied message"]')
+        ?.click(),
+    );
+    expect(onJumpToReply).toHaveBeenCalledWith("message-1");
+  });
+
+  it.each([
+    [
+      { kind: "image", artifactId: "a", mimeType: "image/png", name: "a.png" },
+      "Reply to attachment…",
+    ],
+    [
+      { kind: "file", artifactId: "b", mimeType: "text/plain", name: "b.txt", size: 1 },
+      "Reply to file…",
+    ],
+  ] as const)("names a text-less reply target in the placeholder", (block, placeholder) => {
+    const textarea = renderComposer(async () => true, {
+      replyTarget: { ...target, blocks: [block] },
+    });
+    expect(textarea.placeholder).toBe(placeholder);
+  });
+
+  it("shows a quote as a chip in the field instead of the pill, and Backspace removes it", () => {
+    const onClearReply = vi.fn();
+    const textarea = renderComposer(async () => true, {
+      replyTarget: target,
+      replyQuote: "the repo",
+      onClearReply,
+    });
+    expect(bar().querySelector('[data-testid="reply-chip"]')).toBeNull();
+    const chip = bar().querySelector('[data-testid="quote-chip"]')!;
+    expect(chip.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chip.querySelector("q")?.textContent).toBe("the repo");
+    expect(bar().getAttribute("data-expanded")).toBe("true");
+    expect(textarea.placeholder).toBe("");
+    // A quote alone does not make the draft sendable.
+    expect(container?.querySelector<HTMLButtonElement>('button[aria-label="Send"]')?.disabled).toBe(
+      true,
+    );
+
+    type(textarea, "x");
+    act(() => {
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+    });
+    expect(onClearReply).not.toHaveBeenCalled();
+    type(textarea, "");
+    act(() => {
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+    });
+    expect(onClearReply).toHaveBeenCalledOnce();
+    expect(container?.querySelector('[data-testid="composer-announcement"]')?.textContent).toBe(
+      "Reply cancelled",
+    );
+  });
+});
+
 describe("ComputerControlPill", () => {
   function renderPill(overrides: Partial<ComponentProps<typeof ComputerControlPill>> = {}) {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

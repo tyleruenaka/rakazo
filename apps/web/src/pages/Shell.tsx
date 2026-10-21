@@ -86,6 +86,7 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
+  Kbd,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -127,7 +128,6 @@ import {
   SlidersHorizontal,
   Smile,
   Square,
-  TextQuote,
   Trash2,
   X,
 } from "lucide-react";
@@ -332,8 +332,13 @@ import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotPanelHeader } from "./shell/bot-panel-header";
 import { BotCreatePicker } from "./shell/bot-picker";
 import { BotRail, RailItem, railGroups } from "./shell/bot-rail";
-import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
-import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
+import {
+  ComposerQuoteChip,
+  ComposerReplyPreview,
+  ReplyLine,
+  TimeSeparator,
+} from "./shell/chat-context";
+import { CommandPalette, isApplePlatform, isCommandPaletteHotkey } from "./shell/command-palette";
 import { ComposerAttachments } from "./shell/composer-attachments";
 import {
   ClearConversationDialog,
@@ -4395,6 +4400,7 @@ function SpaceShell() {
               replyQuote={activeReplyQuote}
               replyTargetName={replyTargetName}
               onClearReply={clearReply}
+              onJumpToReply={jumpToReplyMessage}
               mentionTargets={composerMentionTargets}
               agentSkills={agentSkills}
               onSlashOpen={refreshAgentSkills}
@@ -5807,6 +5813,29 @@ const Transcript = memo(function Transcript({
       window.removeEventListener("blur", onWindowBlur);
     };
   }, [evaluateSelection]);
+  const addQuote = useCallback(() => {
+    if (!quoteDraft) return;
+    onQuote(quoteDraft.message, quoteDraft.text);
+    window.getSelection()?.removeAllRanges();
+    setQuoteDraft(null);
+  }, [onQuote, quoteDraft]);
+  useEffect(() => {
+    if (!quoteDraft) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== "l"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      addQuote();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [addQuote, quoteDraft]);
   const snapToEnd = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
@@ -5868,15 +5897,22 @@ const Transcript = memo(function Transcript({
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // Streaming layout updates can interrupt a smooth jump before it reaches the row.
     row.scrollIntoView({ behavior: "auto", block: "center" });
-    row.animate(
+    // A ring hugs the replied bubble, holds, then fades out.
+    const ring = "0 0 0 3px var(--foreground)";
+    const bubble =
+      row.querySelector(
+        '[data-testid="message-user-bubble"], [data-testid="message-bot-bubble"]',
+      ) ?? row;
+    bubble.animate(
       reducedMotion
-        ? [{ backgroundColor: "var(--muted)" }, { backgroundColor: "var(--muted)" }]
+        ? [{ boxShadow: ring }, { boxShadow: ring }]
         : [
-            { backgroundColor: "transparent" },
-            { backgroundColor: "var(--muted)" },
-            { backgroundColor: "transparent" },
+            { boxShadow: "0 0 0 0 var(--foreground)", easing: "ease-out" },
+            { boxShadow: ring, offset: 0.08, easing: "ease-out" },
+            { boxShadow: ring, offset: 0.4, easing: "ease-out" },
+            { boxShadow: "0 0 0 3px transparent" },
           ],
-      { duration: 1200 },
+      { duration: 2500 },
     );
     onScrollRequestHandled();
   }, [messages, scrollRequest, scrollRef, endJumpScroll, onScrollRequestHandled]);
@@ -6122,16 +6158,7 @@ const Transcript = memo(function Transcript({
           ) : null}
         </div>
       </div>
-      {quoteDraft ? (
-        <QuoteSelectionButton
-          range={quoteDraft.range}
-          onQuote={() => {
-            onQuote(quoteDraft.message, quoteDraft.text);
-            window.getSelection()?.removeAllRanges();
-            setQuoteDraft(null);
-          }}
-        />
-      ) : null}
+      {quoteDraft ? <QuoteSelectionButton range={quoteDraft.range} onQuote={addQuote} /> : null}
       <button
         ref={jumpButtonRef}
         type="button"
@@ -6151,7 +6178,7 @@ const Transcript = memo(function Transcript({
 });
 
 /**
- * Floating Quote action anchored to the selection's bounding rect. Measures
+ * Floating "Add to chat" action anchored to the selection's bounding rect. Measures
  * itself after mount so it can flip below the selection when there is no room
  * above and stay clamped inside the viewport; re-anchors on scroll/resize.
  */
@@ -6179,9 +6206,9 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
       const rect = range.getBoundingClientRect();
       const width = buttonRef.current?.offsetWidth ?? 0;
       const height = buttonRef.current?.offsetHeight ?? 0;
-      const above = rect.top >= height + 8;
+      const above = rect.top >= height + 6;
       setPlacement({
-        top: above ? rect.top - 8 : rect.bottom + 8,
+        top: above ? rect.top - 6 : rect.bottom + 6,
         left: Math.min(
           Math.max(rect.left + rect.width / 2, width / 2 + 8),
           window.innerWidth - width / 2 - 8,
@@ -6213,12 +6240,14 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
       onClick={onQuote}
       style={placement ? { top: placement.top, left: placement.left } : { visibility: "hidden" }}
       className={cn(
-        "fixed z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-[13px] font-medium text-foreground shadow-md hover:bg-muted",
+        "fixed z-50 flex h-9 -translate-x-1/2 items-center gap-2.5 whitespace-nowrap rounded-full bg-popover ps-4 pe-2.5 text-[14px] text-popover-foreground shadow-popover hover:bg-popover-accent dark:shadow-none",
         placement?.above === false ? "translate-y-0" : "-translate-y-full",
       )}
     >
-      <TextQuote size={13} strokeWidth={2} />
-      {t`Quote`}
+      {t`Add to chat`}
+      <Kbd className="h-[19px] rounded-[6px] bg-control px-[5px] text-[12px] font-normal text-placeholder">
+        {isApplePlatform() ? "⌘L" : "Ctrl+L"}
+      </Kbd>
     </button>,
     document.body,
   );
@@ -6258,6 +6287,7 @@ export const Composer = memo(function Composer({
   replyQuote,
   replyTargetName,
   onClearReply,
+  onJumpToReply,
   mentionTargets,
   agentSkills,
   onSlashOpen,
@@ -6290,6 +6320,7 @@ export const Composer = memo(function Composer({
   replyQuote?: string | null;
   replyTargetName?: string;
   onClearReply?: () => void;
+  onJumpToReply?: (messageId: string) => void;
   mentionTargets?: ComposerMention[];
   agentSkills?: AgentSkillCatalogEntry[];
   onSlashOpen?: () => void;
@@ -6684,12 +6715,22 @@ export const Composer = memo(function Composer({
   }
 
   const showComposerPlaceholder =
-    draft.length === 0 && selectedSkill === null && selectedMentions.length === 0;
+    draft.length === 0 && selectedSkill === null && selectedMentions.length === 0 && !quote;
   const expanded =
     composerExpanded ||
     selectedSkill !== null ||
     selectedMentions.length > 0 ||
-    pendingAttachments.length > 0;
+    pendingAttachments.length > 0 ||
+    replyId !== null;
+  const replyTargetAttachment = replyTarget ? replyAttachment(replyTarget.blocks) : undefined;
+  const replyPlaceholder =
+    !replyTarget || messagePlainText(replyTarget)
+      ? t`Reply…`
+      : replyTargetAttachment?.kind === "image"
+        ? t`Reply to attachment…`
+        : replyTargetAttachment
+          ? t`Reply to file…`
+          : t`Reply…`;
 
   useLayoutEffect(() => {
     if (previousExpandedRef.current === expanded) return;
@@ -6782,6 +6823,13 @@ export const Composer = memo(function Composer({
       }, 50);
     }
   }, [replyTarget, replyName, t]);
+  const dismissReply = useCallback(() => {
+    replyAnnouncementKind.current = "cancelled";
+    window.clearTimeout(announceTimer.current);
+    onClearReply?.();
+    setReplyAnnouncement(t`Reply cancelled`);
+    textareaRef.current?.focus();
+  }, [onClearReply, t]);
 
   return (
     <fieldset
@@ -6842,22 +6890,6 @@ export const Composer = memo(function Composer({
           </button>
         </div>
       ) : null}
-      {replyTarget ? (
-        <ComposerReplyPreview
-          author={replyName}
-          text={previewMessageText(replyTarget)}
-          quote={replyQuote}
-          attachment={replyAttachment(replyTarget.blocks)}
-          target={artifactTarget}
-          onDismiss={() => {
-            replyAnnouncementKind.current = "cancelled";
-            window.clearTimeout(announceTimer.current);
-            onClearReply?.();
-            setReplyAnnouncement(t`Reply cancelled`);
-            textareaRef.current?.focus();
-          }}
-        />
-      ) : null}
       {attachmentNotice ? (
         <div className="mb-3 rounded-[14px] border border-warning/40 bg-background bg-linear-to-r from-warning/10 to-warning/10 px-4 py-2 text-[13px] text-warning">
           {attachmentNotice}
@@ -6868,7 +6900,16 @@ export const Composer = memo(function Composer({
         data-testid="composer-bar"
         data-expanded={expanded}
         className={`relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center gap-x-2 rounded-[22px] border-[0.5px] border-popover-border bg-card px-2 shadow-[0_2px_8px_rgb(0_0_0/0.06)] focus-within:border-input-focus dark:shadow-[0_0_0_1px_rgb(255_255_255/0.03)] ${
-          expanded ? "gap-y-2 pb-[7.5px] pt-3" : "py-[7.5px]"
+          expanded
+            ? // The reply pill sits 8 below the top edge; a lone quote chip lines up with the text.
+              `gap-y-2 pb-[7.5px] ${
+                replyTarget && !quote
+                  ? "pt-2"
+                  : quote && !pendingAttachments.length
+                    ? "pt-[7px]"
+                    : "pt-3"
+              }`
+            : "py-[7.5px]"
         }`}
       >
         {mentionPickerOpen ? (
@@ -6994,6 +7035,15 @@ export const Composer = memo(function Composer({
             expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
           }`}
         >
+          {replyTarget && !quote ? (
+            <ComposerReplyPreview
+              text={previewMessageText(replyTarget)}
+              attachment={replyTargetAttachment}
+              target={artifactTarget}
+              onJump={() => onJumpToReply?.(replyTarget.id)}
+              onDismiss={dismissReply}
+            />
+          ) : null}
           {pendingAttachments.length ? (
             <ComposerAttachments
               attachments={pendingAttachments}
@@ -7003,6 +7053,7 @@ export const Composer = memo(function Composer({
               }}
             />
           ) : null}
+          {quote ? <ComposerQuoteChip quote={quote} onDismiss={dismissReply} /> : null}
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
@@ -7070,6 +7121,11 @@ export const Composer = memo(function Composer({
                 removeLastChip();
                 return;
               }
+              if (event.key === "Backspace" && draft.length === 0 && quote) {
+                event.preventDefault();
+                dismissReply();
+                return;
+              }
               const slashKeys = !mentionPickerOpen && slashOptionCount > 0;
               const action = resolveMentionPickerKey({
                 key: event.key,
@@ -7114,11 +7170,13 @@ export const Composer = memo(function Composer({
             disabled={disabled}
             placeholder={
               showComposerPlaceholder
-                ? pendingAttachments.length
-                  ? t`Add a message, or hit send`
-                  : activeName
-                    ? t`Message ${activeName}`
-                    : t`Message…`
+                ? replyTarget
+                  ? replyPlaceholder
+                  : pendingAttachments.length
+                    ? t`Add a message, or hit send`
+                    : activeName
+                      ? t`Message ${activeName}`
+                      : t`Message…`
                 : undefined
             }
             aria-label={activeName ? t`Message ${activeName}` : t`Message`}
@@ -7291,8 +7349,8 @@ function MentionChipIcon({ mention }: { mention: ComposerMention }) {
   return <BotAvatar color={mention.color ?? FALLBACK_BOT_COLOR} identity={mention.id} size={16} />;
 }
 
-function previewMessageText(message: ThreadMessage): string {
-  const text = message.blocks
+function messagePlainText(message: ThreadMessage): string {
+  return message.blocks
     .map((block) => {
       if (block.kind === "channel_message") return block.text;
       if (block.kind === "text") {
@@ -7304,6 +7362,10 @@ function previewMessageText(message: ThreadMessage): string {
     .filter(Boolean)
     .join(" ")
     .trim();
+}
+
+function previewMessageText(message: ThreadMessage): string {
+  const text = messagePlainText(message);
   if (text) return text;
   const attachment = replyAttachment(message.blocks);
   if (attachment) return attachment.kind === "image" ? t`Photo` : attachment.name || t`Attachment`;
@@ -7389,15 +7451,6 @@ function MessageHoverActions({
             <MoreHorizontal size={16} strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align={side === "end" ? "start" : "end"}>
-            <DropdownMenuItem
-              onClick={() => {
-                setMoreOpen(false);
-                onReply(message);
-              }}
-            >
-              <Reply size={14} strokeWidth={1.7} />
-              <Trans>Reply</Trans>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={copyMessage}>
               <Copy size={14} strokeWidth={1.7} />
               <Trans>Copy</Trans>
@@ -7591,8 +7644,28 @@ const MessageView = memo(function MessageView({
   const isLive = message.id.startsWith("progress:");
   const quoteMessageId = message.id.includes(":") ? undefined : message.id;
   const visibleNarrationBlocks = renderableMessageBlocks(message.blocks, showToolActivity);
+  // Anchored below the speaker and reply line so the rail centers on the bubble itself.
+  // A message with text and attachments anchors it on its first text bubble.
+  const hoverAnchorIndex = message.blocks.findIndex((block) => block.kind === "text");
+  // A bot reply quotes its target inside its first bubble; without a bubble it sits above.
+  const replyPlacement =
+    message.role === "user"
+      ? "sent"
+      : (isNarration && !isToolOnlyNarration(message.blocks, showToolActivity)) ||
+          (!isNarration && hoverAnchorIndex >= 0)
+        ? "in-bubble"
+        : "above";
+  const replyLine = (
+    <ReplyLine
+      target={artifactTarget}
+      message={message}
+      fallbackText={replyParent ? previewMessageText(replyParent) : undefined}
+      placement={replyPlacement}
+      onJump={onJumpToMessage}
+    />
+  );
+  const bubbleReplyLine = replyPlacement === "in-bubble" ? replyLine : null;
 
-  const replyBotId = message.replyPreview?.botId ?? replyParent?.botId;
   const speakerBot = message.botId ? peerBot?.(message.botId) : undefined;
   const speakerColorDef = useMemo(
     () => resolvePersonaColorDef(message.botId ?? "bot", speakerBot?.color),
@@ -7614,24 +7687,9 @@ const MessageView = memo(function MessageView({
           {speakerName}
         </div>
       ) : null}
-      <ReplyLine
-        target={artifactTarget}
-        message={message}
-        fallbackText={replyParent ? previewMessageText(replyParent) : undefined}
-        author={
-          (message.replyPreview?.role ?? replyParent?.role) === "user"
-            ? t`You`
-            : ((replyBotId ? peerBot(replyBotId)?.name : undefined) ??
-              memberName?.(replyBotId) ??
-              t`Bot`)
-        }
-        onJump={onJumpToMessage}
-      />
+      {replyPlacement === "in-bubble" ? null : replyLine}
     </>
   );
-  // Anchored below the speaker and reply line so the rail centers on the bubble itself.
-  // A message with text and attachments anchors it on its first text bubble.
-  const hoverAnchorIndex = message.blocks.findIndex((block) => block.kind === "text");
   const hoverActions = isPeerReceiptBlocks(message.blocks) ? null : (
     <MessageHoverActions
       message={message}
@@ -7664,6 +7722,7 @@ const MessageView = memo(function MessageView({
               className="max-w-full space-y-2.5 rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
               dir="auto"
             >
+              {bubbleReplyLine}
               {visibleNarrationBlocks.map((block, i) => {
                 if (block.kind === "steps") {
                   return (
@@ -7715,7 +7774,7 @@ const MessageView = memo(function MessageView({
   return (
     <>
       {messageContext}
-      <div className="relative flex flex-col gap-2">
+      <div className={cn("relative flex flex-col gap-2", message.role === "user" && "items-end")}>
         {message.blocks.map((block, i) => {
           if (block.kind === "steps" && shouldRenderToolCard(block, showToolActivity)) {
             return (
@@ -7976,6 +8035,7 @@ const MessageView = memo(function MessageView({
                   className="max-w-full rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
                   dir="auto"
                 >
+                  {i === hoverAnchorIndex ? bubbleReplyLine : null}
                   <div data-quote-message-id={quoteMessageId}>
                     <ChatMarkdown>{block.text}</ChatMarkdown>
                   </div>

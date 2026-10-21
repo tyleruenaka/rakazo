@@ -5,7 +5,13 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { rpc } from "../../lib/rpc";
-import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./chat-context";
+import {
+  ComposerQuoteChip,
+  ComposerReplyPreview,
+  ellipsize,
+  ReplyLine,
+  TimeSeparator,
+} from "./chat-context";
 
 vi.mock("../../lib/rpc", () => ({ rpc: { artifacts: { get: vi.fn() } } }));
 
@@ -46,25 +52,74 @@ it("renders an unselectable semantic separator", () => {
   expect(container.querySelector("h3")?.textContent).toContain("4:05 PM");
   expect(container.querySelector("h3")?.className).toContain("select-none");
 });
-it("shows a compact composer quote and dismisses it", () => {
+it("shows the composer reply as a pill that jumps, keeps focus, and dismisses", () => {
+  const onJump = vi.fn();
   const onDismiss = vi.fn();
   act(() =>
     root.render(
       <ComposerReplyPreview
-        author="Helper"
-        text={"First line\nSecond line"}
+        text={"First line\n  Second line"}
+        onJump={onJump}
         onDismiss={onDismiss}
       />,
     ),
   );
-  expect(container.textContent).toBe("Helper: First line");
-  act(() => container.querySelector("button")!.click());
+  // The whole message on one line, without an author.
+  expect(container.textContent).toBe("First line Second line");
+  const [pill, cancel] = container.querySelectorAll("button");
+  expect(pill!.getAttribute("aria-label")).toBe("Jump to replied message: First line Second line");
+  const mouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+  pill!.dispatchEvent(mouseDown);
+  expect(mouseDown.defaultPrevented).toBe(true);
+  act(() => pill!.click());
+  expect(onJump).toHaveBeenCalledOnce();
+  expect(cancel!.getAttribute("aria-label")).toBe("Cancel reply");
+  act(() => cancel!.click());
   expect(onDismiss).toHaveBeenCalledOnce();
 });
-it("navigates a one-line authoritative quote without a loaded parent", () => {
+it("shows a quote chip with a short curly-quoted label and the full text on hover", () => {
+  const onDismiss = vi.fn();
+  const quote = "anything that checks out\nthe repo";
+  act(() => root.render(<ComposerQuoteChip quote={quote} onDismiss={onDismiss} />));
+  const label = container.querySelector("q")!;
+  expect(label.textContent).toBe("anything that check…");
+  expect(label.parentElement!.getAttribute("title")).toBe("anything that checks out the repo");
+  expect(container.querySelector("svg")).not.toBeNull();
+  act(() => container.querySelector("button")!.click());
+  expect(onDismiss).toHaveBeenCalledOnce();
+  act(() =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true })),
+  );
+  expect(onDismiss).toHaveBeenCalledTimes(2);
+});
+it("cuts text to the limit including the ellipsis", () => {
+  expect(ellipsize("short", 20)).toBe("short");
+  expect(ellipsize("x".repeat(56), 56)).toBe("x".repeat(56));
+  expect(ellipsize("x".repeat(57), 56)).toBe(`${"x".repeat(55)}…`);
+});
+it("navigates an authoritative quote pill without a loaded parent", () => {
   const onJump = vi.fn();
-  act(() => root.render(<ReplyLine message={message} author="Helper" onJump={onJump} />));
-  expect(container.textContent).toBe("↩ Helper: First line");
+  act(() => root.render(<ReplyLine message={message} placement="sent" onJump={onJump} />));
+  expect(container.textContent).toBe("First line Second line");
+  expect(container.querySelector("q")).toBeNull();
+  act(() => container.querySelector("button")!.click());
+  expect(onJump).toHaveBeenCalledWith("parent");
+});
+it("quotes the replied message as the first row inside a bot bubble", () => {
+  const onJump = vi.fn();
+  const long = `${"word ".repeat(20)}end`;
+  act(() =>
+    root.render(
+      <ReplyLine
+        message={{ ...message, replyPreview: { role: "user", text: long } }}
+        placement="in-bubble"
+        onJump={onJump}
+      />,
+    ),
+  );
+  const label = container.querySelector("q")!;
+  expect(label.textContent).toBe(`${long.slice(0, 55)}…`);
+  expect(container.querySelector("svg")).not.toBeNull();
   act(() => container.querySelector("button")!.click());
   expect(onJump).toHaveBeenCalledWith("parent");
 });
@@ -78,7 +133,7 @@ it("renders a deleted target as static unavailable text", () => {
           replyQuote: "Old text",
           replyPreview: null,
         }}
-        author="Helper"
+        placement="sent"
       />,
     ),
   );
@@ -88,9 +143,7 @@ it("renders a deleted target as static unavailable text", () => {
 
 it("dismisses a composer reply with Escape", () => {
   const onDismiss = vi.fn();
-  act(() =>
-    root.render(<ComposerReplyPreview author="Helper" text="Quote" onDismiss={onDismiss} />),
-  );
+  act(() => root.render(<ComposerReplyPreview text="Quote" onDismiss={onDismiss} />));
   act(() =>
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true })),
   );
@@ -114,7 +167,7 @@ it("keeps internal peer receipt replies out of the transcript", () => {
           ],
           replyPreview: { role: "bot", botId: "bot", text: "peer-exchange-alpha" },
         }}
-        author="Bot"
+        placement="in-bubble"
       />,
     ),
   );
@@ -142,7 +195,6 @@ it.each([
     await act(async () =>
       root.render(
         <ComposerReplyPreview
-          author="You"
           text={text}
           attachment={attachment}
           target={{ groupId: "group" }}
@@ -150,7 +202,7 @@ it.each([
         />,
       ),
     );
-    expect(container.textContent).toContain(`You: ${label}`);
+    expect(container.textContent).toBe(label);
     expect(container.querySelector("img")?.getAttribute("src") ?? null).toBe(
       image ? "blob:photo" : null,
     );
@@ -158,12 +210,14 @@ it.each([
       root.render(
         <ReplyLine
           message={{ ...message, replyPreview: { role: "user", text, attachment } }}
-          author="You"
+          placement="sent"
           target={{ botId: "bot" }}
         />,
       ),
     );
-    expect(container.textContent).toContain(`You: ${label}`);
+    expect(container.textContent).toBe(label);
+    // A file shows its icon; a photo its thumbnail.
+    expect(container.querySelector("svg") !== null).toBe(!image);
     expect(container.querySelector("img")?.getAttribute("src") ?? null).toBe(
       image ? "blob:photo" : null,
     );
@@ -177,28 +231,29 @@ it("keeps image labels when fetching fails", async () => {
     root.render(
       <ReplyLine
         message={{ ...message, replyPreview: { role: "user", text: "", attachment: photo } }}
-        author="You"
+        placement="sent"
         target={{ botId: "bot" }}
       />,
     ),
   );
-  expect(container.textContent).toContain("You: Photo");
+  expect(container.textContent).toBe("Photo");
   expect(container.querySelector("img")).toBeNull();
 });
 
-it("prefers a selected excerpt over the photo caption in the composer", () => {
+it("prefers a selected excerpt over the photo caption in the transcript", () => {
   act(() =>
     root.render(
-      <ComposerReplyPreview
-        author="You"
-        quote={"selected\ntext"}
-        text="Caption"
-        attachment={photo}
-        onDismiss={vi.fn()}
+      <ReplyLine
+        message={{
+          ...message,
+          replyQuote: "selected\ntext",
+          replyPreview: { role: "user", text: "Caption", attachment: photo },
+        }}
+        placement="sent"
       />,
     ),
   );
-  expect(container.textContent).toBe("You: selected text");
+  expect(container.textContent).toBe("selected text");
 });
 
 it("defers transcript thumbnails until near the viewport while the composer loads immediately", async () => {
@@ -226,7 +281,7 @@ it("defers transcript thumbnails until near the viewport while the composer load
     root.render(
       <ReplyLine
         message={{ ...message, replyPreview: { role: "user", text: "", attachment: photo } }}
-        author="You"
+        placement="sent"
         target={{ botId: "bot" }}
       />,
     ),
@@ -255,7 +310,6 @@ it("defers transcript thumbnails until near the viewport while the composer load
   await act(async () =>
     root.render(
       <ComposerReplyPreview
-        author="You"
         text=""
         attachment={photo}
         target={{ groupId: "group" }}

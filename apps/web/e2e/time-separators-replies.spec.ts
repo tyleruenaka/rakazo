@@ -22,10 +22,16 @@ test("a short reply thread shows one time separator and navigates to its parent"
     .first();
   await expect(parent).toBeVisible();
   await parent.hover();
+  // Like Grok, Reply lives only in the hover toolbar, not the More menu.
   await parent.getByRole("button", { name: "More" }).click();
-  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
-  await expect(page.getByTestId("reply-chip")).toContainText("Let's review the release notes.");
+  await expect(page.getByRole("menuitem", { name: "Copy" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Reply", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await parent.hover();
+  await parent.getByRole("button", { name: "Reply", exact: true }).click();
+  await expect(page.getByTestId("reply-chip")).toHaveText("Let's review the release notes.");
   await expect(composer).toBeFocused();
+  await expect(composer).toHaveAttribute("placeholder", "Reply…");
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("reply-chip")).toHaveCount(0);
   await parent.hover();
@@ -40,7 +46,7 @@ test("a short reply thread shows one time separator and navigates to its parent"
     .filter({ hasText: "Start with the mobile changes." })
     .first();
   const quote = reply.getByTestId("reply-parent-preview");
-  await expect(quote).toHaveText("↩ You: Let's review the release notes.");
+  await expect(quote).toHaveText("Let's review the release notes.");
   await expect(transcript.getByTestId("time-separator")).toHaveCount(1);
   await expect(transcript.getByTestId("time-separator")).toContainText("Today");
   await quote.click();
@@ -78,10 +84,11 @@ test("replying to a photo shows authenticated thumbnails before and after sendin
   await parent.hover();
   await parent.getByRole("button", { name: "Reply", exact: true }).click();
   const chip = page.getByTestId("reply-chip");
-  await expect(chip).toContainText("You: Photo");
+  await expect(chip).toHaveText("Photo");
+  const composer = page.getByRole("combobox", { name: /^Message/ });
+  await expect(composer).toHaveAttribute("placeholder", "Reply to attachment…");
   await expect(chip.locator("img")).toBeVisible();
   await captureScreenshot(page, testInfo, "photo-reply-composer");
-  const composer = page.getByRole("combobox", { name: /^Message/ });
   await composer.fill("Review this photo.");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const reply = page
@@ -91,11 +98,11 @@ test("replying to a photo shows authenticated thumbnails before and after sendin
     .filter({ has: page.getByTestId("message-user-bubble") })
     .first();
   const quote = reply.getByTestId("reply-parent-preview");
-  await expect(quote).toContainText("You: Photo");
+  await expect(quote).toHaveText("Photo");
   await expect(quote.locator("img")).toBeVisible();
   await captureScreenshot(page, testInfo, "photo-reply-sent");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(quote).toContainText("You: Photo");
+  await expect(quote).toHaveText("Photo");
   await expect(quote.locator("img")).toBeVisible();
   await quote.click();
   await expect(parent).toBeInViewport();

@@ -1,7 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import type { ReplyPreview, ThreadMessage } from "@rakazo/contracts";
 import { formatTimeSeparator, isPeerReceiptBlocks, replyLabel } from "@rakazo/core";
-import { X } from "lucide-react";
+import { File, MessageCircleMore, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { useArtifactImage } from "../../lib/use-artifact-image";
@@ -41,7 +41,7 @@ function ReplyThumbnail({
     <span
       ref={container}
       aria-hidden="true"
-      className="size-8 shrink-0 overflow-hidden rounded-md bg-muted"
+      className="size-4 shrink-0 overflow-hidden rounded-[4px] bg-muted"
     >
       {src ? (
         <img
@@ -69,22 +69,24 @@ export function TimeSeparator({ createdAt, locale }: { createdAt: string; locale
   );
 }
 
-export function ComposerReplyPreview({
-  author,
-  text,
-  quote,
-  attachment,
-  target,
-  onDismiss,
-}: {
-  author: string;
-  text: string;
-  quote?: string | null;
-  attachment?: ReplyPreview["attachment"];
-  target?: ArtifactTarget;
-  onDismiss: () => void;
-}) {
-  const { t } = useLingui();
+/** Ring-outlined reply pill shared by the composer and sent user replies. */
+const replyPillClass =
+  "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-start text-[12px] leading-4 text-reply-foreground outline-none ring-1 ring-inset ring-reply-ring transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
+/** 20px ghost circle that cancels a reply or quote. */
+const replyCancelClass =
+  "grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-foreground/90";
+
+/** Cuts text to `max` characters, the last one an ellipsis. */
+export function ellipsize(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/gu, " ").trim();
+}
+
+/** Escape cancels from anywhere in the window. */
+function useEscapeToDismiss(onDismiss: () => void) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !event.defaultPrevented) {
@@ -95,63 +97,140 @@ export function ComposerReplyPreview({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onDismiss]);
+}
+
+function ReplyAttachmentIcon({
+  attachment,
+  target,
+  lazy,
+}: {
+  attachment?: ReplyPreview["attachment"];
+  target?: ArtifactTarget;
+  lazy?: boolean;
+}) {
+  if (attachment?.kind === "image" && target)
+    return <ReplyThumbnail attachment={attachment} target={target} lazy={lazy} />;
+  if (attachment?.kind === "file")
+    return <File size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />;
+  return null;
+}
+
+/** The replied message as a pill inside the composer; clicking it jumps to the message. */
+export function ComposerReplyPreview({
+  text,
+  attachment,
+  target,
+  onJump,
+  onDismiss,
+}: {
+  text: string;
+  attachment?: ReplyPreview["attachment"];
+  target?: ArtifactTarget;
+  onJump?: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useLingui();
+  useEscapeToDismiss(onDismiss);
+  const label = replyLabel(undefined, collapseWhitespace(text), attachment, {
+    photo: t`Photo`,
+    attachment: t`Attachment`,
+  });
+  const excerpt = label.slice(0, 120);
   return (
-    <div
-      data-testid="reply-chip"
-      className="mb-2 flex items-center gap-2 rounded-[14px] border-[0.5px] border-popover-border bg-card px-3 py-1.5 text-[13px]"
-    >
-      {attachment?.kind === "image" && target ? (
-        <ReplyThumbnail attachment={attachment} target={target} />
-      ) : null}
-      <span className="min-w-0 flex-1 truncate text-muted-foreground" dir="auto">
-        <span className="font-medium">{author}</span>:{" "}
-        {replyLabel(quote, text, attachment, { photo: t`Photo`, attachment: t`Attachment` })}
-      </span>
+    <div data-testid="reply-chip" className="relative -mx-1.5 mb-1 basis-full">
+      <button
+        type="button"
+        aria-label={t`Jump to replied message: ${excerpt}`}
+        // Keep the caret in the field.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onJump}
+        className={`${replyPillClass} w-full pe-7`}
+        dir="auto"
+      >
+        <ReplyAttachmentIcon attachment={attachment} target={target} />
+        <span className="min-w-0 truncate">{label}</span>
+      </button>
       <button
         type="button"
         aria-label={t`Cancel reply`}
         onClick={onDismiss}
-        className="shrink-0 text-muted-foreground hover:text-foreground"
+        className={`absolute end-1 top-1 ${replyCancelClass}`}
       >
-        <X size={13} strokeWidth={2} />
+        <X size={16} strokeWidth={2.25} aria-hidden="true" />
       </button>
     </div>
   );
 }
 
+/** A selected-text quote at the start of the composer field. */
+export function ComposerQuoteChip({ quote, onDismiss }: { quote: string; onDismiss: () => void }) {
+  const { t } = useLingui();
+  useEscapeToDismiss(onDismiss);
+  const text = collapseWhitespace(quote);
+  return (
+    <span
+      data-testid="quote-chip"
+      className="group/quote inline-flex h-6 max-w-full shrink-0 items-center gap-1 text-[14px] leading-5 text-foreground"
+    >
+      <span title={text} className="inline-flex min-w-0 max-w-[170px] items-center gap-1.5">
+        <MessageCircleMore size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
+        <q className="block min-w-0 truncate" dir="auto">
+          {ellipsize(text, 20)}
+        </q>
+      </span>
+      <button
+        type="button"
+        aria-label={t`Cancel reply`}
+        onClick={onDismiss}
+        className={`${replyCancelClass} opacity-0 group-focus-within/quote:opacity-100 group-hover/quote:opacity-100 [@media(hover:none)]:opacity-100`}
+      >
+        <X size={16} strokeWidth={2.25} aria-hidden="true" />
+      </button>
+    </span>
+  );
+}
+
+/**
+ * What a sent message replies to: an outlined pill above a user bubble ("sent") or a bubble-less
+ * bot message ("above"), or a quoted first row inside a bot bubble ("in-bubble").
+ */
 export function ReplyLine({
   message,
   fallbackText,
   target,
-  author,
+  placement,
   onJump,
 }: {
   message: ThreadMessage;
   fallbackText?: string;
   target?: ArtifactTarget;
-  author: string;
+  placement: "sent" | "above" | "in-bubble";
   onJump?: (id: string) => void;
 }) {
   const { t } = useLingui();
   // Peer receipts use internal reply links for routing; their bodies belong in the peer view.
   if (isPeerReceiptBlocks(message.blocks)) return null;
   if (!message.replyToMessageId && message.replyQuote == null) return null;
+  const inBubble = placement === "in-bubble";
+  const className = inBubble
+    ? "mb-1 flex h-[22px] max-w-full items-center gap-1 text-start text-[13px] leading-[18px] text-reply-foreground outline-none transition-colors duration-[120ms] ease-[ease] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+    : `${replyPillClass} mb-1 max-w-[252px]`;
   const unavailable = message.replyPreview === null || !message.replyToMessageId;
   if (unavailable)
     return (
-      <div
-        data-testid="reply-parent-preview"
-        className="mb-1 truncate text-xs text-muted-foreground"
-      >{t`Original message unavailable`}</div>
+      <div data-testid="reply-parent-preview" className={`${className} pointer-events-none`}>
+        <span className="min-w-0 truncate">{t`Original message unavailable`}</span>
+      </div>
     );
   const attachment = message.replyPreview?.attachment;
+  const previewText = message.replyPreview?.text || (attachment ? undefined : fallbackText);
   const text = replyLabel(
     message.replyQuote,
-    message.replyPreview?.text || (attachment ? undefined : fallbackText),
+    previewText ? collapseWhitespace(previewText) : undefined,
     attachment,
     { photo: t`Photo`, attachment: t`Attachment` },
   );
-  const excerpt = text.replace(/\s+/gu, " ").slice(0, 120);
+  const excerpt = text.slice(0, 120);
   return (
     <button
       type="button"
@@ -160,16 +239,23 @@ export function ReplyLine({
       onClick={() => {
         if (message.replyToMessageId) onJump?.(message.replyToMessageId);
       }}
-      className="mb-1 flex max-w-full items-center gap-1 text-start text-xs text-muted-foreground hover:text-foreground"
+      className={className}
       dir="auto"
     >
-      <span aria-hidden="true">↩ </span>
-      {attachment?.kind === "image" && target ? (
-        <ReplyThumbnail attachment={attachment} target={target} lazy />
+      {inBubble ? (
+        <MessageCircleMore
+          size={16}
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="-ms-0.5 shrink-0"
+        />
       ) : null}
-      <span className="min-w-0 truncate">
-        {author}: {text}
-      </span>
+      <ReplyAttachmentIcon attachment={attachment} target={target} lazy />
+      {inBubble ? (
+        <q className="block min-w-0 truncate">{ellipsize(text, 56)}</q>
+      ) : (
+        <span className="min-w-0 truncate">{text}</span>
+      )}
     </button>
   );
 }
