@@ -17,7 +17,7 @@ vi.mock("@lingui/react/macro", () => {
 });
 
 import { dictation } from "../lib/dictation";
-import { Composer, ComputerControlPill, computerFrameStyle } from "./Shell";
+import { Composer, ComposerDock, ComputerControlPill, computerFrameStyle } from "./Shell";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -679,5 +679,72 @@ describe("computerFrameStyle", () => {
       aspectRatio: "1.6",
       width: "min(100cqw, 160cqh)",
     });
+  });
+});
+
+describe("ComposerDock", () => {
+  let resize: (() => void) | null = null;
+
+  function renderDock(scroller: HTMLDivElement) {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() =>
+      root?.render(
+        <ComposerDock scrollRef={{ current: scroller }}>
+          <div>composer</div>
+        </ComposerDock>,
+      ),
+    );
+    const dock = container.firstElementChild as HTMLDivElement;
+    return {
+      dock,
+      setHeight(height: number) {
+        Object.defineProperty(dock, "offsetHeight", { configurable: true, value: height });
+        act(() => resize?.());
+      },
+    };
+  }
+
+  function scrollerAt(scrollTop: number) {
+    const scroller = document.createElement("div");
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 1_000 });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 400 });
+    scroller.scrollTop = scrollTop;
+    return scroller;
+  }
+
+  it("floats over the chat area and shares its live height", () => {
+    const { dock, setHeight } = renderDock(scrollerAt(0));
+    expect(dock.className).toContain("absolute");
+    expect(dock.className).toContain("bottom-0");
+    setHeight(60);
+    expect(container?.style.getPropertyValue("--rk-composer-height")).toBe("60px");
+    setHeight(104);
+    expect(container?.style.getPropertyValue("--rk-composer-height")).toBe("104px");
+  });
+
+  it("keeps a transcript resting at its end there when the composer grows", () => {
+    const scroller = scrollerAt(600);
+    const { setHeight } = renderDock(scroller);
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 1_044 });
+    setHeight(104);
+    expect(scroller.scrollTop).toBe(1_044);
+  });
+
+  it("leaves a transcript scrolled up where it is", () => {
+    const scroller = scrollerAt(100);
+    const { setHeight } = renderDock(scroller);
+    setHeight(104);
+    expect(scroller.scrollTop).toBe(100);
   });
 });
