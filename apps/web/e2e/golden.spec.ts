@@ -128,6 +128,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   });
   await captureScreenshot(page, testInfo, "09a-computer-takeover-skipped");
 
+  await page.getByRole("tab", { name: "Details" }).click();
   await page.getByRole("button", { name: "Create Routine" }).click();
   await page.locator("label:has-text('Name') input").fill("Monday briefing");
   await page
@@ -334,7 +335,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   if (!(await gear.isVisible().catch(() => false))) {
     await page.getByTitle("Agent computer").click();
   }
-  await gear.click();
+  if ((await gear.getAttribute("aria-pressed")) !== "true") await gear.click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export" }).click();
   const download = await downloadPromise;

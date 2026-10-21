@@ -52,6 +52,26 @@ body,
   }
 }
 
+/* Computer preview placeholders: the waking glyph breathes, a sleeping one trails z's. */
+@keyframes rk-breathe {
+  50% {
+    transform: scale(1.07);
+  }
+}
+@keyframes rk-zz {
+  0% {
+    opacity: 0;
+    transform: translate(-2px, 3px);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(1px, -3px);
+  }
+}
+
 /* Accent: Bot color (Settings > Appearance). `--bot-accent` is set on the open bot's chat. */
 [data-chat-accent="bot"] [data-bot-accent] .rk-user-bubble,
 [data-chat-accent="bot"] [data-bot-accent] .rk-accent-button:not(:disabled) {

@@ -261,6 +261,67 @@ export const BotAvatar = memo(function BotAvatar({
   );
 });
 
+/**
+ * The bot's shape as a flat glyph in the current text color, for placeholders such as a
+ * sleeping computer. Eyes take `eyeClassName` so they read as cut out of the surface.
+ */
+export function BotGlyph({
+  color,
+  identity = "",
+  size,
+  asleep = false,
+  className,
+  eyeClassName,
+}: {
+  color: string;
+  identity?: string;
+  size: number;
+  asleep?: boolean;
+  className?: string;
+  eyeClassName?: string;
+}) {
+  const preferredVariant = useAvatarStyle();
+  const parsed = parseBotAvatar(color, identity);
+  const effectiveId = identity || parsed.color || "agent";
+  // Same outline BotAvatar draws: a picked shape, else the organic blob or the persona shape.
+  const organic = parsed.shapeIndex === undefined && preferredVariant === "organic";
+  const frame = organic
+    ? { viewBox: "-60 -60 120 120", x: 0, y: 0, dx: 12, unit: 1 }
+    : { viewBox: VIEWBOX, x: CENTER, y: CENTER - 8, dx: 29, unit: 2.16 };
+  const path =
+    parsed.shapeIndex !== undefined
+      ? shippedBotAvatarShapePath(parsed.shapeIndex)
+      : organic
+        ? organicAvatarPath(avatarIdentitySeed(effectiveId))
+        : resolvePersonaShape(effectiveId);
+  const eye = asleep ? { w: 20, h: 11 } : { w: 12, h: 26 };
+  const w = eye.w * frame.unit;
+  const h = eye.h * frame.unit;
+  return (
+    <svg
+      viewBox={frame.viewBox}
+      width={size}
+      height={size}
+      aria-hidden="true"
+      className={cn("overflow-visible", className)}
+    >
+      <path d={path} fill="currentColor" />
+      <g className={eyeClassName}>
+        {[-1, 1].map((side) => (
+          <rect
+            key={side}
+            x={frame.x + side * frame.dx - w / 2}
+            y={frame.y - h / 2}
+            width={w}
+            height={h}
+            rx={Math.min(w, h) / 2}
+          />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
 const VISOR_BORDER_PX = 1;
 
 function robotFaceLayout(size: number) {

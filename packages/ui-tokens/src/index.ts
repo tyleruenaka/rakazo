@@ -49,6 +49,22 @@ export type ColorTokens = {
   composerControlBorder: string;
   /** Hairline around the floating chat name pill. */
   pillBorder: string;
+  /** Hairline between the chat and the bot panel. */
+  panelBorder: string;
+  /** Hovered row inside a card (routines in the bot panel). */
+  cardHover: string;
+  /** Chip behind an inline-editable bot name or label on hover. */
+  inlineEditHover: string;
+  /** Computer preview card while it shows no screen. */
+  preview: string;
+  previewBorder: string;
+  /** Bot glyph in the computer preview while waking, and its asleep shade. */
+  previewGlyph: string;
+  previewGlyphAsleep: string;
+  /** Resting color of the waking label before the shimmer sweeps it. */
+  previewWaking: string;
+  /** Caption under the computer preview. */
+  previewCaption: string;
   /** Ring just outside a card in the transcript. */
   cardRing: string;
   /** Inline code chip and code block fill in a chat message. */
@@ -126,6 +142,15 @@ export const darkTokens = {
   composerIcon: "#979797",
   composerControlBorder: "#333333",
   pillBorder: "#262626",
+  panelBorder: "#1F1F1F",
+  cardHover: "#272727",
+  inlineEditHover: "#242424",
+  preview: "#1F1F1F",
+  previewBorder: "#2B2B2B",
+  previewGlyph: "#939393",
+  previewGlyphAsleep: "#828282",
+  previewWaking: "#747474",
+  previewCaption: "#8D8D8D",
   cardRing: "#1B1B1B",
   code: "#202020",
   codeForeground: "#ADADAD",
@@ -190,6 +215,15 @@ export const lightTokens = {
   composerIcon: "#7A7A7A",
   composerControlBorder: "#E1E1E1",
   pillBorder: "#E9E9E9",
+  panelBorder: "#EAEAEA",
+  cardHover: "#F2F2F2",
+  inlineEditHover: "#E5E5E5",
+  preview: "#F2F2F2",
+  previewBorder: "#E0E0E0",
+  previewGlyph: "#7A7A7A",
+  previewGlyphAsleep: "#878787",
+  previewWaking: "#9C9C9C",
+  previewCaption: "#7F7F7F",
   cardRing: "#EDEDED",
   code: "#E7E7E7",
   codeForeground: "#5D5D5D",

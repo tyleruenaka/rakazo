@@ -43,7 +43,6 @@ import {
   GitBranch,
   Globe,
   MessageSquare,
-  Pause,
   Plus,
   SlidersHorizontal,
   X,
@@ -235,20 +234,47 @@ export function routineTriggerSummary(routine: Routine): string {
   return parts.length > 0 ? parts.join(" · ") : t`No trigger`;
 }
 
+/**
+ * Pauses or resumes a routine from its list row through the update the editor saves. The row
+ * shows the change at once and gets the routine back if the save fails. A never-run one-shot
+ * opens the editor instead, since only the editor asks for its run time.
+ */
+export async function setRoutineActive(
+  routine: Routine,
+  active: boolean,
+  {
+    apply,
+    openEditor,
+  }: { apply: (routine: Routine) => void; openEditor: (routine: Routine) => void },
+) {
+  if (active && routineNeedsOneShotArm(routine, routine.crons)) {
+    openEditor(routine);
+    return;
+  }
+  apply({ ...routine, active });
+  try {
+    apply(await rpc.routines.update({ routineId: routine.id, active }));
+  } catch (error) {
+    apply(routine);
+    throw error;
+  }
+}
+
 export function RoutineListHeader({ onCreate }: { onCreate: () => void }) {
   const { t } = useLingui();
   return (
-    <div className="mb-2 mt-6 flex items-center justify-between gap-3 ps-3">
-      <div className="text-[14px] text-muted-foreground">
+    <div className="mt-[21px] mb-3 flex h-[15px] items-center justify-between gap-3 ps-3 pe-1">
+      <div className="text-[12.5px] text-muted-foreground">
         <Trans>Routines</Trans>
       </div>
       <Button
-        variant="secondary"
-        size="icon-sm"
+        variant="ghost"
+        size="icon-xs"
         data-testid="routine-create-button"
         aria-label={t`Create Routine`}
         title={t`Create Routine`}
         onClick={onCreate}
+        className="rounded-full text-muted-foreground"
       >
         <Plus strokeWidth={1.9} />
       </Button>
@@ -261,34 +287,27 @@ export function RoutineListRow({
   running,
   onOpen,
   onStop,
+  onActiveChange,
 }: {
   routine: Routine;
   running: boolean;
   onOpen: () => void;
   onStop: () => void;
+  onActiveChange: (active: boolean) => void;
 }) {
   return (
-    <div className="flex w-full items-center gap-2 px-4 py-2 hover:bg-accent">
+    <div className="flex h-12 w-full items-center gap-2 rounded-[8px] pe-2 hover:bg-card-hover has-[>button:first-child:focus-visible]:bg-card-hover">
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-3 text-start"
+        className="flex h-full min-w-0 flex-1 flex-col justify-center ps-2 text-start text-[12.5px] leading-[18px] outline-none"
       >
-        <span className="grid h-5 w-5 place-items-center">
-          {routine.active ? (
-            <Clock size={16} strokeWidth={1.6} className="text-success" aria-hidden />
-          ) : (
-            <Pause size={14} className="text-muted-foreground" />
-          )}
+        <span className="block truncate text-foreground" dir="auto">
+          {routine.name}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] text-foreground" dir="auto">
-            {routine.name}
-          </span>
-          <span className="block truncate text-[13px] text-muted-foreground">
-            {routineTriggerSummary(routine)}
-            {routine.modelProvider && routine.modelId ? ` · ${routine.modelId}` : ""}
-          </span>
+        <span className="block truncate text-muted-foreground">
+          {routineTriggerSummary(routine)}
+          {routine.modelProvider && routine.modelId ? ` · ${routine.modelId}` : ""}
         </span>
       </button>
       {running ? (
@@ -300,6 +319,7 @@ export function RoutineListRow({
           <Trans>Running · Stop</Trans>
         </Button>
       ) : null}
+      <Switch checked={routine.active} onCheckedChange={onActiveChange} aria-label={routine.name} />
     </div>
   );
 }

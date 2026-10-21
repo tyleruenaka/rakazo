@@ -71,6 +71,7 @@ import type { GroupAvatarMember } from "@rakazo/ui-web";
 import {
   AvatarStyleProvider,
   BotAvatar,
+  BotGlyph,
   Button,
   buttonVariants,
   Collapsible,
@@ -90,6 +91,10 @@ import {
   PopoverTrigger,
   parseBotAvatar,
   resolvePersonaColorDef,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -152,6 +157,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import { Shimmer } from "../components/ai/primitives";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
 import {
@@ -314,11 +320,13 @@ import {
   RoutineListHeader,
   RoutineListRow,
   routineNeedsOneShotArm,
+  setRoutineActive,
   watchFromDraft,
 } from "./RoutineEditor";
 import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
+import { BotPanelHeader } from "./shell/bot-panel-header";
 import { BotCreatePicker } from "./shell/bot-picker";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
@@ -581,6 +589,10 @@ function SpaceShell() {
       currentSearch.setSearchParams(params, { replace: true });
     }
   }, []);
+  // Details and Computer are tabs of one view: the preview stays mounted and awake on both.
+  const computerPanel = panel === "details" || panel === "computer";
+  const lastPanelTab = useRef<"details" | "computer">("details");
+  if (panel === "details" || panel === "computer") lastPanelTab.current = panel;
   const [peerConversation, setPeerConversation] = usePreloadRecoveryState<{
     peerBotId: string;
     peerBotName: string;
@@ -831,12 +843,14 @@ function SpaceShell() {
     }, 4000);
   }, []);
   useEffect(() => {
-    if (panel !== "computer") releaseComputerRecovery();
-  }, [panel, releaseComputerRecovery]);
+    if (!computerPanel) releaseComputerRecovery();
+  }, [computerPanel, releaseComputerRecovery]);
   useEffect(() => () => window.clearTimeout(recoveryHoldTimer.current), []);
   const [routineDraft, setRoutineDraft] = useState<RoutineDraftState>(emptyRoutineDraft());
   const [routineWebhookSecret, setRoutineWebhookSecret] = useState<string | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
+  const routineToggles = useRef(new Set<string>());
+  const [routineToggleError, setRoutineToggleError] = useState<string | null>(null);
   const [deleteRoutineTarget, setDeleteRoutineTarget] = useState<Routine | null>(null);
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [runningRoutine, setRunningRoutine] = useState(false);
@@ -940,7 +954,7 @@ function SpaceShell() {
   const notifiedBrowserEvents = useRef(new Set<string>());
   const pendingBrowserNotifications = useRef(new Map<string, PendingBrowserNotification>());
   const computerVisible = useRef(false);
-  computerVisible.current = panel === "computer" || computerOpen;
+  computerVisible.current = computerPanel || computerOpen;
   const autoSpoken = useRef<string | null>(null);
   const autoSpokenBotId = useRef<string | null>(null);
 
@@ -2015,6 +2029,7 @@ function SpaceShell() {
   useEffect(() => {
     setEditingRoutine(null);
     setDeleteRoutineTarget(null);
+    setRoutineToggleError(null);
     setPanelState((current) => (current === "routine" ? null : current));
   }, [active?.id]);
 
@@ -2039,7 +2054,7 @@ function SpaceShell() {
         setEditingRoutine(routine);
         setPanel("routine");
       } else {
-        setPanel("computer");
+        setPanel("details");
       }
       const next = new URLSearchParams(searchParams);
       next.delete("routine");
@@ -2670,6 +2685,49 @@ function SpaceShell() {
     writeBotsSidebarCollapsed(userId, collapsed);
   }
 
+  function openRoutineEditor(routine: Routine) {
+    setRoutineDraft(draftFromRoutine(routine));
+    setRoutineWebhookSecret(null);
+    setEditingRoutine(routine);
+    setRoutineError(null);
+    setPanel("routine");
+  }
+
+  async function toggleRoutine(routine: Routine, nextActive: boolean) {
+    if (routineToggles.current.has(routine.id)) return;
+    routineToggles.current.add(routine.id);
+    setRoutineToggleError(null);
+    try {
+      await setRoutineActive(routine, nextActive, {
+        apply: (next) =>
+          setRoutines((current) => current.map((item) => (item.id === next.id ? next : item))),
+        openEditor: openRoutineEditor,
+      });
+    } catch (error) {
+      if (activeBotId.current === routine.botId)
+        setRoutineToggleError(errorText(error, t`Could not save routine`));
+    } finally {
+      routineToggles.current.delete(routine.id);
+    }
+  }
+
+  async function saveActiveBot({
+    computerMode,
+    ...patch
+  }: Parameters<ComponentProps<typeof BotSettings>["onSave"]>[0]) {
+    if (!active) return;
+    if (computerMode !== undefined && computerMode !== active.computerMode) {
+      await rpc.bots.setComputer({
+        botId: active.id,
+        mode: computerMode,
+      });
+    }
+    const updated = await rpc.bots.update({ botId: active.id, ...patch });
+    setBots((current) => current.map((bot) => (bot.id === updated.id ? updated : bot)));
+    // Persistence succeeded; a failed navigation refresh must not undo the tool edit.
+    await refreshBots().catch(() => undefined);
+  }
+
   function openSettings(section: SettingsSection = "general") {
     setSettingsSpaceId(null);
     setSettingsSection(section);
@@ -2795,7 +2853,7 @@ function SpaceShell() {
   }
 
   useEffect(() => {
-    if (panel !== "computer") {
+    if (!computerPanel) {
       autoBooted.current = null;
       return;
     }
@@ -2822,7 +2880,7 @@ function SpaceShell() {
     return () => {
       cancelled = true;
     };
-  }, [panel, active?.id]);
+  }, [computerPanel, active?.id]);
 
   useEffect(() => {
     setComputerOpen(false);
@@ -2868,8 +2926,8 @@ function SpaceShell() {
       // Reload starts with panel=null so storage restores. In-session chat switches used to
       // keep computer/settings open; only routine was cleared (handled above). Carry is
       // session-only — do not write the carried panel onto the destination's saved prefs.
-      if (panel === "computer" || panel === "settings" || panel === "group-settings") {
-        const carried = panel === "computer" ? "computer" : inGroup ? "group-settings" : "settings";
+      if (computerPanel || panel === "settings" || panel === "group-settings") {
+        const carried = computerPanel ? panel : inGroup ? "group-settings" : "settings";
         pendingPanelRestore.current = null;
         if (carried !== panel) setPanelState(carried);
         setRestoredPanelKey(null);
@@ -2890,7 +2948,7 @@ function SpaceShell() {
       const routine = saved.routineId
         ? routines.find((item) => item.id === saved.routineId)
         : undefined;
-      if (saved.routineId && !routine) next = "computer";
+      if (saved.routineId && !routine) next = "details";
       setEditingRoutine(routine ?? null);
       setRoutineDraft(routine ? draftFromRoutine(routine) : emptyRoutineDraft());
       setRoutineWebhookSecret(null);
@@ -2942,7 +3000,7 @@ function SpaceShell() {
 
   useEffect(() => {
     const heartbeatBotId = computerBot?.id ?? active?.id;
-    if ((panel !== "computer" && !computerOpen) || !heartbeatBotId || computer?.state !== "running")
+    if ((!computerPanel && !computerOpen) || !heartbeatBotId || computer?.state !== "running")
       return;
     // A computer panel left open in a hidden window must not keep the computer awake.
     const ping = () => {
@@ -2952,7 +3010,7 @@ function SpaceShell() {
     ping();
     const timer = window.setInterval(ping, 60_000);
     return () => window.clearInterval(timer);
-  }, [panel, computerOpen, computerBot?.id, active?.id, computer?.state]);
+  }, [computerPanel, computerOpen, computerBot?.id, active?.id, computer?.state]);
 
   /** Open the computer view. Only an explicit Take control asks for the lease. */
   async function openComputer(botId?: string, takeControl = false) {
@@ -4254,13 +4312,14 @@ function SpaceShell() {
             panel !== "create" &&
             panel !== "create-group" &&
             panel !== "group-settings" ? (
-              <div className="app-drag flex items-center justify-end">
+              <div className="app-drag -me-1 flex items-center justify-end">
                 <div className="app-no-drag flex items-center gap-2">
                   {active &&
-                  panel === "computer" &&
+                  computerPanel &&
                   !computerOpen &&
                   computerPanelNeedsMaintenance(computer?.state, booting) ? (
                     <ComputerMaintenanceActions
+                      round
                       botId={active.id}
                       computer={computer}
                       onChanged={async () => {
@@ -4271,147 +4330,161 @@ function SpaceShell() {
                   {active ? (
                     <button
                       type="button"
-                      aria-label={panel === "settings" ? t`Show computer` : t`Show settings`}
+                      aria-label={t`Show settings`}
                       aria-pressed={panel === "settings"}
-                      onClick={() => setPanel(panel === "settings" ? "computer" : "settings")}
-                      className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent aria-pressed:bg-accent"
+                      onClick={() =>
+                        setPanel(panel === "settings" ? lastPanelTab.current : "settings")
+                      }
+                      className={cn(
+                        headerButtonClass,
+                        "aria-pressed:border-input-hover aria-pressed:bg-popover-accent",
+                      )}
                     >
-                      <Settings size={17} strokeWidth={1.7} />
+                      <Settings strokeWidth={1.5} aria-hidden />
                     </button>
                   ) : null}
                   <button
                     type="button"
                     aria-label={t`Close panel`}
                     onClick={() => setPanel(null)}
-                    className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
+                    className={headerButtonClass}
                   >
-                    <X size={18} strokeWidth={1.7} />
+                    <X strokeWidth={1.5} aria-hidden />
                   </button>
                 </div>
               </div>
             ) : null}
-            {panel === "computer" && active ? (
-              <div>
-                <div className="flex flex-col items-center pb-6 pt-3">
-                  <BotAvatar
-                    color={active.color}
-                    identity={active.id}
-                    size={64}
-                    status={active.status}
-                  />
-                  <span className="mt-4 max-w-full truncate text-[18px] text-foreground" dir="auto">
-                    {active.name}
-                  </span>
-                  {active.title ? (
-                    <span
-                      className="mt-1 max-w-full truncate text-[12px] text-muted-foreground"
+            {computerPanel && active ? (
+              <>
+                <BotPanelHeader key={active.id} bot={active} onSave={saveActiveBot} />
+                <Tabs
+                  value={panel}
+                  onValueChange={(value) => setPanel(value === "computer" ? "computer" : "details")}
+                  className="mt-4 gap-0"
+                >
+                  <TabsList className="self-center">
+                    <TabsTrigger value="details">
+                      <Trans>Details</Trans>
+                    </TabsTrigger>
+                    <TabsTrigger value="computer">
+                      <Trans>Computer</Trans>
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="details">
+                    <RoutineListHeader
+                      onCreate={() => {
+                        setRoutineDraft(emptyRoutineDraft());
+                        setRoutineWebhookSecret(null);
+                        setEditingRoutine(null);
+                        setRoutineError(null);
+                        setPanel("routine");
+                      }}
+                    />
+                    {activeRoutines.length > 0 ? (
+                      <div className="rounded-[12px] border-[0.5px] border-input bg-card p-1">
+                        {activeRoutines.map((routine) => {
+                          const routineRunning =
+                            snapshot?.run?.routineId === routine.id &&
+                            isActive(snapshot.run.status);
+                          return (
+                            <RoutineListRow
+                              key={routine.id}
+                              routine={routine}
+                              running={routineRunning}
+                              onOpen={() => openRoutineEditor(routine)}
+                              onStop={() => void stopRun()}
+                              onActiveChange={(on) => void toggleRoutine(routine, on)}
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {routineToggleError ? (
+                      <p role="alert" className="mt-2 px-3 text-[12.5px] text-destructive">
+                        {routineToggleError}
+                      </p>
+                    ) : null}
+                  </TabsContent>
+                  {/* Kept mounted so switching tabs never reloads the live screen. */}
+                  <TabsContent value="computer" keepMounted className="pt-5">
+                    <div
+                      data-testid="computer-preview"
+                      className={cn(
+                        "group relative rounded-[12px]",
+                        !showingRecoveryHint && "aspect-[16/10] overflow-hidden",
+                        !computerPreviewScreen && "border-[0.5px] border-preview-border bg-preview",
+                      )}
+                    >
+                      {computerOpen ? (
+                        <div className="grid h-full place-items-center text-[13px] font-medium text-foreground">
+                          <Trans>Open in full window</Trans>
+                        </div>
+                      ) : computer?.kind === "desktop" ? (
+                        <DesktopKindEmptyState className="grid h-full place-items-center px-6 text-center text-[13px] text-muted-foreground" />
+                      ) : computer?.state === "running" &&
+                        embeddedScreenUrl &&
+                        !computerScreenError ? (
+                        <iframe
+                          title={t`Bot screen preview`}
+                          src={embeddedScreenUrl}
+                          sandbox={screenIframeSandbox(embeddedScreenUrl)}
+                          className="h-full w-full border-0 bg-black"
+                          allow="clipboard-read; clipboard-write"
+                          style={{ pointerEvents: "none" }}
+                        />
+                      ) : (
+                        <div className="grid h-full place-items-center px-6 text-center text-[13px]">
+                          {computerScreenError ??
+                            (showComputerRecoveryHint ? (
+                              <ComputersUnavailableHint
+                                sandboxProvider={bootstrapMe?.sandboxProvider}
+                                onRecovered={(sandboxProvider) => {
+                                  setBootstrapMe((prev) =>
+                                    prev ? { ...prev, sandboxProvider } : prev,
+                                  );
+                                  holdComputerRecovery();
+                                }}
+                                onRecoveryDismissed={releaseComputerRecovery}
+                                onOpenComputerSettings={
+                                  bootstrapMe?.isDeploymentOwner === true
+                                    ? () => openSettings("computer")
+                                    : undefined
+                                }
+                              />
+                            ) : (
+                              <ComputerPlaceholder
+                                bot={active}
+                                state={computer?.state}
+                                booting={booting}
+                                label={computerLabel(computer?.mode, active.name)}
+                              />
+                            ))}
+                        </div>
+                      )}
+                      {!computerScreenError && !showingRecoveryHint ? (
+                        <button
+                          type="button"
+                          data-testid="computer-preview-open"
+                          className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 outline-none transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                          aria-label={t`Open`}
+                          onClick={() => void openComputer()}
+                        >
+                          <span className="mb-[3px] inline-flex h-[30px] items-center gap-[5.75px] rounded-full bg-black/90 ps-[9.25px] pe-[10.25px] text-[12px] text-white">
+                            <Maximize2 size={14} strokeWidth={1.8} aria-hidden />
+                            <Trans>Open</Trans>
+                          </span>
+                        </button>
+                      ) : null}
+                    </div>
+                    <p
+                      className="mt-[8.5px] truncate px-1 text-center text-[12px] text-preview-caption"
                       dir="auto"
                     >
-                      {active.title}
-                    </span>
-                  ) : null}
-                </div>
-                <div
-                  data-testid="computer-preview"
-                  className={`group relative rounded-[14px] bg-background ${
-                    showingRecoveryHint ? "" : "aspect-[16/10] overflow-hidden"
-                  }`}
-                >
-                  {computerOpen ? (
-                    <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
-                      <Trans>Open in full window</Trans>
-                    </div>
-                  ) : computer?.kind === "desktop" ? (
-                    <DesktopKindEmptyState className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80" />
-                  ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
-                    <iframe
-                      title={t`Bot screen preview`}
-                      src={embeddedScreenUrl}
-                      sandbox={screenIframeSandbox(embeddedScreenUrl)}
-                      className="h-full w-full border-0 bg-black"
-                      allow="clipboard-read; clipboard-write"
-                      style={{ pointerEvents: "none" }}
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80">
-                      {computerScreenError ??
-                        (showComputerRecoveryHint ? (
-                          <ComputersUnavailableHint
-                            sandboxProvider={bootstrapMe?.sandboxProvider}
-                            onRecovered={(sandboxProvider) => {
-                              setBootstrapMe((prev) =>
-                                prev ? { ...prev, sandboxProvider } : prev,
-                              );
-                              holdComputerRecovery();
-                            }}
-                            onRecoveryDismissed={releaseComputerRecovery}
-                            onOpenComputerSettings={
-                              bootstrapMe?.isDeploymentOwner === true
-                                ? () => openSettings("computer")
-                                : undefined
-                            }
-                          />
-                        ) : (
-                          computerPlaceholder(
-                            computer?.state,
-                            booting,
-                            computerLabel(computer?.mode, active.name),
-                          )
-                        ))}
-                    </div>
-                  )}
-                  {!computerScreenError && !showingRecoveryHint ? (
-                    <button
-                      type="button"
-                      data-testid="computer-preview-open"
-                      className="absolute inset-0 flex cursor-pointer items-center justify-center bg-overlay/40 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                      aria-label={t`Open`}
-                      onClick={() => void openComputer()}
-                    >
-                      <span className="inline-flex items-center gap-2 rounded-full bg-overlay px-3.5 py-2 text-[14px] text-foreground shadow-md">
-                        <Maximize2 size={15} strokeWidth={1.9} aria-hidden />
-                        <Trans>Open</Trans>
-                      </span>
-                    </button>
-                  ) : null}
-                </div>
-                <p className="mt-2 flex gap-2 px-1 text-[13px] text-muted-foreground" dir="auto">
-                  <span className="min-w-0 truncate">{t`${active.name}'s screen`}</span>
-                  <span className="ms-auto shrink-0">{computer?.state ?? active.status}</span>
-                </p>
-                <RoutineListHeader
-                  onCreate={() => {
-                    setRoutineDraft(emptyRoutineDraft());
-                    setRoutineWebhookSecret(null);
-                    setEditingRoutine(null);
-                    setRoutineError(null);
-                    setPanel("routine");
-                  }}
-                />
-                {activeRoutines.length > 0 ? (
-                  <div className="overflow-hidden rounded-[14px] bg-card py-1">
-                    {activeRoutines.map((routine) => {
-                      const routineRunning =
-                        snapshot?.run?.routineId === routine.id && isActive(snapshot.run.status);
-                      return (
-                        <RoutineListRow
-                          key={routine.id}
-                          routine={routine}
-                          running={routineRunning}
-                          onOpen={() => {
-                            setRoutineDraft(draftFromRoutine(routine));
-                            setRoutineWebhookSecret(null);
-                            setEditingRoutine(routine);
-                            setRoutineError(null);
-                            setPanel("routine");
-                          }}
-                          onStop={() => void stopRun()}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+                      {t`${active.name}'s screen`} · {computer?.state ?? active.status}
+                    </p>
+                  </TabsContent>
+                </Tabs>
+              </>
             ) : null}
             {panel === "create-group" ? (
               <CreateGroupForm
@@ -4463,20 +4536,7 @@ function SpaceShell() {
                 bot={active}
                 memoryProviderConfigured={memoryProviderConfig != null}
                 onSkillsChange={setAgentSkills}
-                onSave={async ({ computerMode, ...patch }) => {
-                  if (computerMode !== undefined && computerMode !== active.computerMode) {
-                    await rpc.bots.setComputer({
-                      botId: active.id,
-                      mode: computerMode,
-                    });
-                  }
-                  const updated = await rpc.bots.update({ botId: active.id, ...patch });
-                  setBots((current) =>
-                    current.map((bot) => (bot.id === updated.id ? updated : bot)),
-                  );
-                  // Persistence succeeded; a failed navigation refresh must not undo the tool edit.
-                  await refreshBots().catch(() => undefined);
-                }}
+                onSave={saveActiveBot}
                 onExport={async () => {
                   const manifest = await rpc.export.bot({ botId: active.id });
                   const blob = new Blob([JSON.stringify(manifest, null, 2)], {
@@ -4515,7 +4575,7 @@ function SpaceShell() {
                 saving={savingRoutine}
                 running={runningRoutine}
                 error={routineError}
-                onBack={() => setPanel("computer")}
+                onBack={() => setPanel("details")}
                 onClose={() => setPanel(null)}
                 onEnsureWebhook={async () => {
                   await ensureWebhookSecret(active.id);
@@ -4668,7 +4728,7 @@ function SpaceShell() {
                     setDeleteRoutineTarget(editingRoutine);
                     return;
                   }
-                  setPanel("computer");
+                  setPanel("details");
                 }}
               />
             ) : null}
@@ -5099,7 +5159,7 @@ function SpaceShell() {
               setEditingRoutine((current) => (current?.id === target.id ? null : current));
               if (activeBotId.current !== target.botId) return;
               await refreshThread(target.botId);
-              if (activeBotId.current === target.botId) setPanel("computer");
+              if (activeBotId.current === target.botId) setPanel("details");
             }}
           />
         ) : null}
@@ -7768,6 +7828,77 @@ function computerPlaceholder(
   if (state === "suspended") return t`Computer is asleep. Open it to wake.`;
   if (state === "error") return t`Computer failed to boot`;
   return t`Computer is stopped`;
+}
+
+/** Grok-style card body for a computer with no screen: the bot's glyph over its state. */
+function ComputerPlaceholder({
+  bot,
+  state,
+  booting,
+  label,
+}: {
+  bot: Bot;
+  state: ComputerStatus["state"] | undefined;
+  booting: boolean;
+  label: string;
+}) {
+  const text = computerPlaceholder(state, booting, label);
+  const waking = state === "booting" || booting;
+  const asleep = !waking && state === "suspended";
+  return (
+    <div className="flex flex-col items-center leading-[14px]">
+      {waking || asleep ? (
+        <span className="relative">
+          <BotGlyph
+            color={bot.color}
+            identity={bot.id}
+            size={36}
+            asleep={asleep}
+            eyeClassName="fill-preview"
+            className={
+              asleep
+                ? "text-preview-glyph-asleep"
+                : "animate-[rk-breathe_3.7s_ease-in-out_infinite] text-preview-glyph motion-reduce:animate-none"
+            }
+          />
+          {asleep ? <SleepingZs /> : null}
+        </span>
+      ) : null}
+      {waking ? (
+        <Shimmer className="animate-[bui-shimmer-text_1.1s_linear_infinite] from-preview-waking to-preview-waking motion-reduce:animate-none">
+          {text}
+        </Shimmer>
+      ) : (
+        <span className="font-medium text-foreground">{text}</span>
+      )}
+    </div>
+  );
+}
+
+function SleepingZs() {
+  return (
+    <svg
+      viewBox="0 0 13 12"
+      aria-hidden="true"
+      className="absolute -end-[10.5px] -top-[20.5px] size-[13px] overflow-visible fill-none stroke-preview-glyph-asleep"
+      strokeWidth={1.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {[
+        { x: 0, y: 7.5, size: 3.5, delay: "0s" },
+        { x: 3.5, y: 3.5, size: 4.5, delay: "0.8s" },
+        { x: 7.5, y: 0, size: 5.5, delay: "1.6s" },
+      ].map((z) => (
+        <path
+          key={z.x}
+          d={`M${z.x} ${z.y}h${z.size}l-${z.size} ${z.size}h${z.size}`}
+          className="animate-[rk-zz_2.4s_ease-in-out_infinite] opacity-0 [transform-box:fill-box] motion-reduce:animate-none motion-reduce:opacity-100"
+          style={{ animationDelay: z.delay }}
+        />
+      ))}
+    </svg>
+  );
 }
 
 function computerLabel(mode: ComputerStatus["mode"] | undefined, botName: string) {

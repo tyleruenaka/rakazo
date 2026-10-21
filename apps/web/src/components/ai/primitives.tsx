@@ -9,9 +9,20 @@ import "./beautiful-ui.css";
    expose real props. */
 
 /** A light sweep travelling across a text label. */
-export function Shimmer({ children }: { children: React.ReactNode }) {
+export function Shimmer({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="animate-[bui-shimmer-text_1.4s_linear_infinite] bg-linear-to-r from-muted-foreground from-35% via-foreground via-50% to-muted-foreground to-65% bg-size-[200%_100%] bg-clip-text text-transparent">
+    <span
+      className={cn(
+        "animate-[bui-shimmer-text_1.4s_linear_infinite] bg-linear-to-r from-muted-foreground from-35% via-foreground via-50% to-muted-foreground to-65% bg-size-[200%_100%] bg-clip-text text-transparent",
+        className,
+      )}
+    >
       {children}
     </span>
   );

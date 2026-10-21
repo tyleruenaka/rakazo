@@ -27,10 +27,13 @@ export function ComputerMaintenanceActions({
   botId,
   computer,
   onChanged,
+  round = false,
 }: {
   botId: string;
   computer: ComputerStatus | null;
   onChanged: () => Promise<void>;
+  /** Match the round outlined buttons beside it (bot panel header). */
+  round?: boolean;
 }) {
   const { t } = useLingui();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,7 +143,13 @@ export function ComputerMaintenanceActions({
           data-testid="computer-more-button"
           aria-label={t`More computer actions`}
           disabled={busy && pending === null}
-          render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}
+          render={
+            round ? (
+              <Button variant="outline" size="icon-lg" className="text-control-icon" />
+            ) : (
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground" />
+            )
+          }
         >
           <MoreHorizontal />
         </DropdownMenuTrigger>

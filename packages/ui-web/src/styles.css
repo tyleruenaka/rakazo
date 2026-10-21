@@ -32,6 +32,15 @@
   --color-composer-icon: var(--composer-icon);
   --color-composer-control-border: var(--composer-control-border);
   --color-pill-border: var(--pill-border);
+  --color-panel-border: var(--panel-border);
+  --color-card-hover: var(--card-hover);
+  --color-inline-edit-hover: var(--inline-edit-hover);
+  --color-preview: var(--preview);
+  --color-preview-border: var(--preview-border);
+  --color-preview-glyph: var(--preview-glyph);
+  --color-preview-glyph-asleep: var(--preview-glyph-asleep);
+  --color-preview-waking: var(--preview-waking);
+  --color-preview-caption: var(--preview-caption);
   --color-card-ring: var(--card-ring);
   --color-code: var(--code);
   --color-code-foreground: var(--code-foreground);
