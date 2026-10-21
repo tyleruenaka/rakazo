@@ -75,3 +75,7 @@ export function SettingsDescription({ children }: { children: ReactNode }) {
 
 /** Pill buttons in settings rows: 13px text, 13px side padding, like Grok Bot's Sign Out. */
 export const settingsPillClass = "px-[13px] text-[13px]";
+
+/** A native select in a settings form, matching the 35-tall, 0.5-bordered field triggers. */
+export const settingsNativeSelectClass =
+  "[&>select]:h-[35px] [&>select]:rounded-[8px] [&>select]:border-[0.5px] [&>select]:ps-3 [&>select]:text-[13px]";

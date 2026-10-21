@@ -25,7 +25,7 @@ export function ConnectionModeFields({
   const baseUrlId = useId();
   return (
     <>
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-2.5 flex items-center justify-between gap-4">
         <FieldTitle>
           <Trans>Connection</Trans>
         </FieldTitle>

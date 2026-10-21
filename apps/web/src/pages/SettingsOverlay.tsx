@@ -283,7 +283,7 @@ export function SettingsOverlay({
                   aria-current={active ? "page" : undefined}
                   disabled={panelBusy}
                   onClick={() => setSection(item.id)}
-                  className={`flex h-8 shrink-0 items-center gap-[7px] rounded-[10px] px-2.5 text-start text-[13px] text-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 ${
+                  className={`flex h-8 shrink-0 items-center gap-[8.5px] rounded-[10px] ps-[8.5px] pe-2.5 text-start text-[13px] text-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 ${
                     active ? "bg-settings-nav" : "hover:bg-settings-nav"
                   }`}
                 >

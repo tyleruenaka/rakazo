@@ -799,14 +799,29 @@ export function PluginsOverlay({
               renderDetail(detailItem)
             ) : (
               <>
-                {!loading && showFeatured ? (
+                {!loading && showFeatured && catalog.length === 0 ? (
                   <div className="mb-6" data-testid="featured-connectors">
-                    {!loading && catalog.length === 0 ? (
-                      <p className="text-[13.5px] leading-6 text-muted-foreground/80">
-                        <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-x-8">
+                    <p className="text-[13.5px] leading-6 text-muted-foreground/80">
+                      <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
+                    </p>
+                  </div>
+                ) : null}
+
+                {!loading && catalog.length === 0 && !showFeatured ? (
+                  <p className="text-muted-foreground/80">
+                    <Trans>No managed app catalog is configured on this deployment.</Trans>
+                  </p>
+                ) : null}
+                {!loading && catalog.length > 0 && visible.length === 0 && !showFeatured ? (
+                  <p className="text-muted-foreground/80">
+                    <Trans>No apps match your search.</Trans>
+                  </p>
+                ) : null}
+                {/* Featured apps and the rest of the catalog fill one grid, so no gap or empty cell sits between them. */}
+                {(!loading && showFeatured && catalog.length > 0) || visible.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-x-8">
+                    {!loading && showFeatured && catalog.length > 0 ? (
+                      <div className="contents" data-testid="featured-connectors">
                         {featuredTiles.map((tile) => {
                           const item = tile.item;
                           const key = item ? itemKey(item) : tile.id;
@@ -841,22 +856,7 @@ export function PluginsOverlay({
                           );
                         })}
                       </div>
-                    )}
-                  </div>
-                ) : null}
-
-                {!loading && catalog.length === 0 && !showFeatured ? (
-                  <p className="text-muted-foreground/80">
-                    <Trans>No managed app catalog is configured on this deployment.</Trans>
-                  </p>
-                ) : null}
-                {!loading && catalog.length > 0 && visible.length === 0 && !showFeatured ? (
-                  <p className="text-muted-foreground/80">
-                    <Trans>No apps match your search.</Trans>
-                  </p>
-                ) : null}
-                {visible.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-x-8">
+                    ) : null}
                     {rendered.map((item) =>
                       renderCatalogTile(item, item.name, item.logo, {
                         // Avoid duplicate connection-tile-* ids while featured is also shown.

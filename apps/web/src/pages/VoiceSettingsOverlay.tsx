@@ -19,6 +19,7 @@ import {
 } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { settingsNativeSelectClass } from "../components/SettingsLayout";
 import { useBoundSpaceId, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 
@@ -281,7 +282,7 @@ export function VoiceSettingsOverlay({
           </div>
         </div>
 
-        <div className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto [&_[data-slot=field-label]]:text-[12.5px] [&_[data-slot=field-label]]:font-normal [&_[data-slot=field-label]]:text-muted-foreground [&_[data-slot=input]]:h-[35px] [&_[data-slot=input]]:rounded-[8px] md:[&_[data-slot=input]]:text-[13px]">
           {loading ? (
             <p className="text-sm text-muted-foreground">
               <Trans>Loading voice providers…</Trans>
@@ -399,7 +400,7 @@ export function VoiceSettingsOverlay({
                     </FieldLabel>
                     <NativeSelect
                       id={voiceSelectId}
-                      className="w-full"
+                      className={`w-full ${settingsNativeSelectClass}`}
                       value={voiceId}
                       disabled={busy}
                       onChange={(event) => void chooseVoice(event.target.value)}

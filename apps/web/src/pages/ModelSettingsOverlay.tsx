@@ -61,6 +61,7 @@ import {
   ModelPreflightFeedback,
   modelPreflightTestingLabel,
 } from "../components/ModelConnectionPreflightNotice";
+import { settingsNativeSelectClass } from "../components/SettingsLayout";
 import { useCopyText } from "../lib/copy-text";
 import { providerRowHint } from "../lib/localized-provider-hint";
 import type { ModelCatalogEntry, ModelCredential } from "../lib/model-auth";
@@ -799,7 +800,7 @@ export function ModelSettingsOverlay({
             <Trans>Thinking</Trans>
             <NativeSelect
               id="model-thinking-level"
-              className="mt-2 w-full text-foreground"
+              className={`mt-2 w-full text-foreground ${settingsNativeSelectClass}`}
               value={thinkingLevel ?? ""}
               disabled={busy}
               onChange={(event) => {
@@ -1326,7 +1327,7 @@ export function ModelSettingsOverlay({
                     </span>
                     {compatibleRows.includes(modelId) ? (
                       <NativeSelect
-                        className="mt-2 w-full text-foreground"
+                        className={`mt-2 w-full text-foreground ${settingsNativeSelectClass}`}
                         value={modelId}
                         onChange={(event) => {
                           cancelOAuthAttempt();

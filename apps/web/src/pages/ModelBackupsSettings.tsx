@@ -9,6 +9,7 @@ import {
 } from "@rakazo/contracts";
 import { Button, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { settingsNativeSelectClass } from "../components/SettingsLayout";
 import { selectedSpaceId } from "../lib/rpc";
 import { useBoundSpaceId, useSpaceRpc } from "../lib/space-rpc";
 
@@ -340,7 +341,7 @@ export function ModelBackupsSettings({
               <NativeSelect
                 id="model-backup-picker"
                 aria-label={t`Add connected model`}
-                className="mt-1.5 w-full text-foreground"
+                className={`mt-1.5 w-full text-foreground ${settingsNativeSelectClass}`}
                 value={addableKey}
                 disabled={
                   !editable ||
