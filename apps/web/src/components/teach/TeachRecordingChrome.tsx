@@ -168,15 +168,16 @@ function ProtectedTeachInput({ botId, skillId }: { botId: string; skillId: strin
 export function TeachStopButton({
   busy,
   onStop,
+  className,
 }: {
   busy?: boolean;
   onStop: () => void | Promise<void>;
+  className?: string;
 }) {
   return (
     <Button
       type="button"
-      variant="outline"
-      size="sm"
+      className={className}
       disabled={busy}
       data-testid="teach-stop-overlay"
       onClick={() => void onStop()}

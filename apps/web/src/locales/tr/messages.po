@@ -1135,6 +1135,10 @@ msgstr "Kapat"
 msgid "Close chart"
 msgstr "Grafiği kapat"
 
+#: src/pages/PeerMessagesOverlay.tsx
+msgid "Close Chat"
+msgstr "Sohbeti kapat"
+
 #: src/pages/Shell.tsx
 msgid "Close computer"
 msgstr "Bilgisayarı kapat"
@@ -5142,6 +5146,10 @@ msgstr "Sırada bekleniyor…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "Bekleniyor…"
+
+#: src/pages/Shell.tsx
+msgid "Watching"
+msgstr "İzleniyor"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"

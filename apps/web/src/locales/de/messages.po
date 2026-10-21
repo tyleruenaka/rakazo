@@ -1135,6 +1135,10 @@ msgstr "Schließen"
 msgid "Close chart"
 msgstr "Diagramm schließen"
 
+#: src/pages/PeerMessagesOverlay.tsx
+msgid "Close Chat"
+msgstr "Chat schließen"
+
 #: src/pages/Shell.tsx
 msgid "Close computer"
 msgstr "Computer schließen"
@@ -5142,6 +5146,10 @@ msgstr "Wartet in der Warteschlange…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "Warten…"
+
+#: src/pages/Shell.tsx
+msgid "Watching"
+msgstr "Zuschauen"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"

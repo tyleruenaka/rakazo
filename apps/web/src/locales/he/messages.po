@@ -1135,6 +1135,10 @@ msgstr "סגירה"
 msgid "Close chart"
 msgstr "סגירת התרשים"
 
+#: src/pages/PeerMessagesOverlay.tsx
+msgid "Close Chat"
+msgstr "סגירת הצ'אט"
+
 #: src/pages/Shell.tsx
 msgid "Close computer"
 msgstr "סגירת המחשב"
@@ -5142,6 +5146,10 @@ msgstr "ממתין בתור…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "ממתין…"
+
+#: src/pages/Shell.tsx
+msgid "Watching"
+msgstr "צופה"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"

@@ -144,3 +144,30 @@ body,
     opacity: 0.3;
   }
 }
+
+/* A bot-to-bot exchange covers the chat. The transcript and composer stay mounted under it so
+   their scroll position and draft survive, but are hidden from pointer, focus and screen
+   readers; its pair pill stands in for the name pill. */
+main[data-peer-open] > :not([data-peer-view], [data-chat-header]),
+main[data-peer-open] [data-name-pill] {
+  visibility: hidden;
+}
+
+/* Sender names in a bot-to-bot exchange: the bot's light tint in dark, its color darkened in light. */
+.rk-peer-name {
+  color: var(--bot-name);
+}
+[data-theme="light"] .rk-peer-name {
+  color: color-mix(in srgb, var(--bot-accent) 82%, black);
+}
+
+/* The exchange fades under the pair pill and above Close Chat. */
+.rk-peer-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 60px,
+    black calc(100% - 40px),
+    transparent
+  );
+}

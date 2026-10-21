@@ -45,8 +45,16 @@ describe("appearance preference", () => {
   it("returns distinct light and dark token sets", () => {
     expect(tokensForAppearance("dark")).toBe(darkTokens);
     expect(tokensForAppearance("light")).toBe(lightTokens);
+    // Same in both themes on purpose: white plates, and the full computer view's dark backdrop.
+    const shared = new Set<keyof ColorTokens>([
+      "destructiveForeground",
+      "faviconPlate",
+      "computerBackdrop",
+      "computerIcon",
+      "computerIconHover",
+    ]);
     for (const key of Object.keys(darkTokens) as (keyof ColorTokens)[]) {
-      if (key === "destructiveForeground" || key === "faviconPlate") continue;
+      if (shared.has(key)) continue;
       expect(darkTokens[key], key).not.toBe(lightTokens[key]);
     }
   });

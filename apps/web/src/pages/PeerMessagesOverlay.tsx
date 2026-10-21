@@ -1,14 +1,19 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ThreadMessage } from "@rakazo/contracts";
-import { BotAvatar, Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
-import { useEffect, useMemo, useState } from "react";
+import { timeSeparatorIds } from "@rakazo/core";
+import { BotAvatar, Button, parseBotAvatar, resolvePersonaColorDef } from "@rakazo/ui-web";
+import { ArrowRightLeft } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadPeerHistory } from "../lib/peer-history";
 import { peerConversations } from "../lib/peer-messages";
 import { rpc } from "../lib/rpc";
+import { TimeSeparator } from "./shell/chat-context";
 
 /**
- * Full-screen view-only transcript of a bot-to-bot exchange.
+ * View-only transcript of a bot-to-bot exchange, shown in the chat area like Grok's: the
+ * sidebar and the bot panel stay, the pair pill replaces the name pill, Close Chat the composer.
  * Opened from a Messaged / Message from chip in the human thread.
  */
 export function PeerMessagesOverlay({
@@ -28,16 +33,29 @@ export function PeerMessagesOverlay({
   peerBotColor: string;
   onClose: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [messages, setMessages] = useState<readonly ThreadMessage[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [historyFailed, setHistoryFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const conversation = useMemo(() => {
     if (!historyReady) return null;
     return peerConversations(messages).find((entry) => entry.peerBotId === peerBotId) ?? null;
   }, [historyReady, messages, peerBotId]);
   const peerBotName = conversation?.peerBotName ?? initialPeerBotName;
+  const rows = useMemo(() => {
+    const entries = (conversation?.messages ?? []).map((peerMessage, index) => ({
+      id: `${peerMessage.messageId}-${index}`,
+      createdAt: peerMessage.createdAt,
+      peerMessage,
+    }));
+    const separators = timeSeparatorIds(entries);
+    return entries.map((entry) => ({ ...entry, separator: separators.has(entry.id) }));
+  }, [conversation]);
 
   useEffect(() => {
     const abort = new AbortController();
@@ -64,92 +82,140 @@ export function PeerMessagesOverlay({
     };
   }, [botId, reloadKey]);
 
-  const title = `${botName} · ${peerBotName}`;
+  // The opener is hidden under this view: focus Close Chat, and hand focus back on close.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus({ preventScroll: true });
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented) onCloseRef.current();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  // Open on the latest exchange.
+  useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (scroller && rows.length > 0) scroller.scrollTop = scroller.scrollHeight;
+  }, [rows]);
+
+  const speakers = {
+    sent: { id: botId, name: botName, color: botColor },
+    received: { id: peerBotId, name: peerBotName, color: peerBotColor },
+  };
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+    <section
+      data-peer-view=""
+      data-testid="peer-conversation-view"
+      aria-labelledby="peer-conversation-title"
+      className="absolute inset-0 z-10 flex flex-col bg-background animate-in fade-in-0 duration-150"
     >
-      <DialogContent
-        data-testid="peer-conversation-view"
-        showCloseButton={false}
-        className="inset-0 top-0 left-0 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-background p-0 text-foreground ring-0 sm:max-w-none"
+      <h2
+        id="peer-conversation-title"
+        aria-label={`${botName} · ${peerBotName}`}
+        className="absolute start-1/2 top-2.5 z-10 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-card-border bg-card ps-[9.5px] pe-[15px] text-[12.5px] font-normal text-foreground shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
       >
-        <div className="flex items-center justify-between gap-4 border-b border-sidebar-border px-[18px] py-3.5">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex items-center -space-x-2">
-              <BotAvatar color={botColor} identity={botId} size={28} />
-              <BotAvatar color={peerBotColor} identity={peerBotId} size={28} />
-            </div>
-            <DialogTitle className="truncate text-[15.5px] font-medium text-foreground" dir="auto">
-              {title}
-            </DialogTitle>
-          </div>
-          <DialogClose aria-label={t`Close`} render={<Button variant="ghost" size="sm" />}>
-            <Trans>Close</Trans>
-          </DialogClose>
-        </div>
+        <BotAvatar color={botColor} identity={botId} size={24} />
+        <span className="min-w-0 truncate" dir="auto">
+          {botName}
+        </span>
+        <ArrowRightLeft
+          size={16}
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="shrink-0 text-chat-placeholder"
+        />
+        <BotAvatar color={peerBotColor} identity={peerBotId} size={24} />
+        <span className="min-w-0 truncate" dir="auto">
+          {peerBotName}
+        </span>
+      </h2>
 
-        {!historyReady ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
-            <Trans>Loading…</Trans>
+      {!historyReady ? (
+        <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <Trans>Loading…</Trans>
+        </div>
+      ) : historyFailed ? (
+        <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <div className="flex flex-col items-center gap-3">
+            <Trans>Could not load this chat.</Trans>
+            <Button variant="outline" size="sm" onClick={() => setReloadKey((value) => value + 1)}>
+              <Trans>Retry now</Trans>
+            </Button>
           </div>
-        ) : historyFailed ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
-            <div className="flex flex-col items-center gap-3">
-              <Trans>Could not load this chat.</Trans>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setReloadKey((value) => value + 1)}
-              >
-                <Trans>Retry now</Trans>
-              </Button>
-            </div>
-          </div>
-        ) : !conversation || conversation.messages.length === 0 ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
-            <Trans>No messages with {peerBotName} yet.</Trans>
-          </div>
-        ) : (
-          <div
-            data-testid="peer-conversation-transcript"
-            className="rk-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-5 md:px-7 md:py-6"
-          >
-            {conversation.messages.map((peerMessage, index) => {
-              const sent = peerMessage.direction === "sent";
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <Trans>No messages with {peerBotName} yet.</Trans>
+        </div>
+      ) : (
+        <div
+          ref={scrollRef}
+          data-testid="peer-conversation-transcript"
+          className="rk-scroll rk-peer-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
+        >
+          <div className="mx-auto flex w-full max-w-[960px] flex-col gap-4">
+            {rows.map(({ id, peerMessage, separator, createdAt }) => {
+              const speaker = speakers[peerMessage.direction];
+              const color = resolvePersonaColorDef(
+                speaker.id,
+                parseBotAvatar(speaker.color, speaker.id).color,
+              );
               return (
-                <div
-                  key={`${peerMessage.messageId}-${index}`}
-                  className={`flex ${sent ? "justify-end" : "justify-start"}`}
-                >
+                <Fragment key={id}>
+                  {separator ? (
+                    <TimeSeparator createdAt={createdAt} locale={i18n.locale || "en"} />
+                  ) : null}
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                      sent ? "bg-accent" : "bg-muted"
-                    }`}
+                    data-testid="peer-message"
+                    className={`flex items-end gap-2 ${separator ? "mt-3" : ""}`}
                   >
-                    <div className="mb-1 text-[12px] text-muted-foreground/70" dir="auto">
-                      {sent ? botName : peerBotName}
-                    </div>
-                    <div className="text-[14.5px] leading-[1.5] text-foreground/90" dir="auto">
-                      <ChatMarkdown>{peerMessage.text}</ChatMarkdown>
+                    <BotAvatar color={speaker.color} identity={speaker.id} size={22} />
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <div
+                        className="rk-peer-name ps-3 text-[12px] leading-4"
+                        style={
+                          {
+                            "--bot-name": color.light,
+                            "--bot-accent": color.hex,
+                          } as CSSProperties
+                        }
+                        dir="auto"
+                      >
+                        {speaker.name}
+                      </div>
+                      <div
+                        className="w-fit max-w-[560px] rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
+                        dir="auto"
+                      >
+                        <ChatMarkdown>{peerMessage.text}</ChatMarkdown>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Fragment>
               );
             })}
           </div>
-        )}
-
-        <div className="flex items-center gap-4 border-t border-sidebar-border px-[18px] py-3.5">
-          <p className="text-[13.5px] text-muted-foreground/80">
-            <Trans>This chat is view-only</Trans>
-          </p>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      <fieldset
+        aria-label={t`This chat is view-only`}
+        className="flex h-16 shrink-0 justify-center pt-3"
+      >
+        <Button
+          ref={closeRef}
+          variant="ghost"
+          className="h-8 rounded-full bg-muted px-4 text-[14px] text-foreground hover:bg-accent"
+          onClick={onClose}
+        >
+          <Trans>Close Chat</Trans>
+        </Button>
+      </fieldset>
+    </section>
   );
 }

@@ -1135,6 +1135,10 @@ msgstr "关闭"
 msgid "Close chart"
 msgstr "关闭图表"
 
+#: src/pages/PeerMessagesOverlay.tsx
+msgid "Close Chat"
+msgstr "关闭聊天"
+
 #: src/pages/Shell.tsx
 msgid "Close computer"
 msgstr "关闭电脑"
@@ -5142,6 +5146,10 @@ msgstr "排队等候…"
 #: src/pages/shell/message-cards.tsx
 msgid "Waiting…"
 msgstr "等待中…"
+
+#: src/pages/Shell.tsx
+msgid "Watching"
+msgstr "观看中"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"
