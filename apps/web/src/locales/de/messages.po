@@ -526,6 +526,10 @@ msgid "Agents:"
 msgstr "Agents:"
 
 #: src/pages/Artifacts.tsx
+msgid "All"
+msgstr "Alle"
+
+#: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr ""
 
@@ -1121,6 +1125,7 @@ msgstr ""
 msgid "Client secret"
 msgstr ""
 
+#: src/components/ArtifactPreviewPane.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1192,6 +1197,7 @@ msgid "Cloud"
 msgstr "Cloud"
 
 #: src/components/AskCard.tsx
+#: src/pages/Artifacts.tsx
 msgid "Code"
 msgstr "Code"
 
@@ -1605,6 +1611,7 @@ msgid "Could not load approval rules"
 msgstr "Bestätigungsregeln konnten nicht geladen werden"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Could not load artifacts."
 msgstr ""
 
@@ -1650,7 +1657,7 @@ msgstr "Anmeldeoptionen konnten nicht geladen werden"
 msgid "Could not load skill"
 msgstr "Skill konnte nicht geladen werden"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Could not load this artifact."
 msgstr ""
 
@@ -2185,6 +2192,10 @@ msgstr "Dokumentation"
 msgid "Document changed. Reopen to edit the latest version."
 msgstr "Das Dokument wurde geändert. Öffne es erneut, um die neueste Version zu bearbeiten."
 
+#: src/pages/Artifacts.tsx
+msgid "Documents"
+msgstr "Dokumente"
+
 #: src/pages/Auth.tsx
 msgid "Don’t have an account?"
 msgstr "Du hast noch kein Konto?"
@@ -2195,7 +2206,7 @@ msgstr "Du hast noch kein Konto?"
 msgid "Done"
 msgstr "Fertig"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Download"
 msgstr ""
 
@@ -2422,6 +2433,10 @@ msgstr "Dateien oder Ordner auf dem Computer"
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders, one per line"
 msgstr "Dateien oder Ordner, einer pro Zeile"
+
+#: src/pages/shell/bot-library.tsx
+msgid "Files this Bot makes show up here"
+msgstr "Dateien, die dieser Bot erstellt, erscheinen hier"
 
 #: src/pages/GroupPanel.tsx
 msgid "Filter bots"
@@ -2651,6 +2666,10 @@ msgstr ""
 msgid "Image upload area"
 msgstr "Bild-Upload-Bereich"
 
+#: src/pages/Artifacts.tsx
+msgid "Images"
+msgstr "Bilder"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "OpenAPI-JSON importieren"
@@ -2738,7 +2757,7 @@ msgstr "Intervalleinheit"
 msgid "Isolated"
 msgstr "Isoliert"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Isolated preview — no access to your account"
 msgstr ""
 
@@ -2800,6 +2819,10 @@ msgstr ""
 msgid "Lets this bot organize, retune and schedule the bots it creates. You approve each change."
 msgstr "Erlaubt diesem Bot, die von ihm erstellten Bots zu organisieren, anzupassen und zu planen. Du genehmigst jede Änderung."
 
+#: src/pages/Shell.tsx
+msgid "Library"
+msgstr "Bibliothek"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "Hell"
@@ -2838,6 +2861,7 @@ msgid "Load earlier messages"
 msgstr "Frühere Nachrichten laden"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Load more"
 msgstr ""
 
@@ -2882,6 +2906,7 @@ msgid "Loading voice providers…"
 msgstr "Stimmanbieter werden geladen…"
 
 #: src/App.tsx
+#: src/components/ArtifactPreviewPane.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
@@ -2890,6 +2915,7 @@ msgstr "Stimmanbieter werden geladen…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Loading…"
 msgstr "Wird geladen…"
 
@@ -2976,7 +3002,7 @@ msgstr "Max."
 msgid "Max"
 msgstr ""
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Maximize"
 msgstr ""
 
@@ -3001,6 +3027,10 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "MCP servers"
 msgstr "MCP-Server"
+
+#: src/pages/Artifacts.tsx
+msgid "Media"
+msgstr "Medien"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3572,6 +3602,10 @@ msgstr "Organisations-API-Schlüssel"
 msgid "Original message unavailable"
 msgstr "Originalnachricht nicht verfügbar"
 
+#: src/pages/Artifacts.tsx
+msgid "Other"
+msgstr "Sonstiges"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
@@ -3698,7 +3732,7 @@ msgstr ""
 msgid "Preview {0}"
 msgstr "Vorschau von {0}"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
 
@@ -4399,7 +4433,7 @@ msgstr ""
 msgid "Show bots"
 msgstr ""
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Show list"
 msgstr ""
 
@@ -4919,6 +4953,7 @@ msgstr "Erneut versuchen"
 msgid "Try the test again."
 msgstr "Teste erneut."
 
+#: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
 msgstr ""
@@ -5113,7 +5148,7 @@ msgstr "Prüfen und hinzufügen"
 msgid "Verifying…"
 msgstr "Wird geprüft…"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Version"
 msgstr ""
 

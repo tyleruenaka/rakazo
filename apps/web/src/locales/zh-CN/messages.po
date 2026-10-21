@@ -526,6 +526,10 @@ msgid "Agents:"
 msgstr "Agent："
 
 #: src/pages/Artifacts.tsx
+msgid "All"
+msgstr "全部"
+
+#: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr ""
 
@@ -1121,6 +1125,7 @@ msgstr ""
 msgid "Client secret"
 msgstr ""
 
+#: src/components/ArtifactPreviewPane.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1192,6 +1197,7 @@ msgid "Cloud"
 msgstr "云端"
 
 #: src/components/AskCard.tsx
+#: src/pages/Artifacts.tsx
 msgid "Code"
 msgstr "代码"
 
@@ -1605,6 +1611,7 @@ msgid "Could not load approval rules"
 msgstr "无法加载审批规则"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Could not load artifacts."
 msgstr ""
 
@@ -1650,7 +1657,7 @@ msgstr "无法加载登录选项"
 msgid "Could not load skill"
 msgstr "无法加载技能"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Could not load this artifact."
 msgstr ""
 
@@ -2185,6 +2192,10 @@ msgstr "文档"
 msgid "Document changed. Reopen to edit the latest version."
 msgstr "文档已更改。请重新打开以编辑最新版本。"
 
+#: src/pages/Artifacts.tsx
+msgid "Documents"
+msgstr "文档"
+
 #: src/pages/Auth.tsx
 msgid "Don’t have an account?"
 msgstr "还没有账户？"
@@ -2195,7 +2206,7 @@ msgstr "还没有账户？"
 msgid "Done"
 msgstr "完成"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Download"
 msgstr ""
 
@@ -2422,6 +2433,10 @@ msgstr "计算机上的文件或文件夹"
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders, one per line"
 msgstr "文件或文件夹，每行一个"
+
+#: src/pages/shell/bot-library.tsx
+msgid "Files this Bot makes show up here"
+msgstr "此机器人创建的文件会显示在这里"
 
 #: src/pages/GroupPanel.tsx
 msgid "Filter bots"
@@ -2651,6 +2666,10 @@ msgstr ""
 msgid "Image upload area"
 msgstr "图片上传区域"
 
+#: src/pages/Artifacts.tsx
+msgid "Images"
+msgstr "图片"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "导入 OpenAPI JSON"
@@ -2738,7 +2757,7 @@ msgstr "间隔单位"
 msgid "Isolated"
 msgstr "隔离"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Isolated preview — no access to your account"
 msgstr ""
 
@@ -2800,6 +2819,10 @@ msgstr "退出"
 msgid "Lets this bot organize, retune and schedule the bots it creates. You approve each change."
 msgstr "允许此机器人整理、调整和安排它创建的机器人。每项更改都由你批准。"
 
+#: src/pages/Shell.tsx
+msgid "Library"
+msgstr "资料库"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "浅色"
@@ -2838,6 +2861,7 @@ msgid "Load earlier messages"
 msgstr "加载更早的消息"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Load more"
 msgstr ""
 
@@ -2882,6 +2906,7 @@ msgid "Loading voice providers…"
 msgstr "正在加载语音提供方…"
 
 #: src/App.tsx
+#: src/components/ArtifactPreviewPane.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
@@ -2890,6 +2915,7 @@ msgstr "正在加载语音提供方…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Loading…"
 msgstr "加载中…"
 
@@ -2976,7 +3002,7 @@ msgstr "最大"
 msgid "Max"
 msgstr ""
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Maximize"
 msgstr ""
 
@@ -3001,6 +3027,10 @@ msgstr ""
 #: src/pages/McpServersOverlay.tsx
 msgid "MCP servers"
 msgstr "MCP 服务器"
+
+#: src/pages/Artifacts.tsx
+msgid "Media"
+msgstr "媒体"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3572,6 +3602,10 @@ msgstr "组织 API 密钥"
 msgid "Original message unavailable"
 msgstr "原消息不可用"
 
+#: src/pages/Artifacts.tsx
+msgid "Other"
+msgstr "其他"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
@@ -3698,7 +3732,7 @@ msgstr "POST 到"
 msgid "Preview {0}"
 msgstr "预览 {0}"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
 
@@ -4399,7 +4433,7 @@ msgstr ""
 msgid "Show bots"
 msgstr ""
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Show list"
 msgstr ""
 
@@ -4919,6 +4953,7 @@ msgstr "重试"
 msgid "Try the test again."
 msgstr "请重试测试。"
 
+#: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
 msgstr ""
@@ -5113,7 +5148,7 @@ msgstr "校验并添加"
 msgid "Verifying…"
 msgstr "正在校验…"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Version"
 msgstr ""
 

@@ -36,6 +36,7 @@ vi.mock("@rakazo/ui-web", () => {
     AlertDialogTitle: Container,
     BotAvatar: () => <span />,
     Button: (props: ComponentProps<"button">) => <button {...props} />,
+    cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
     NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
     NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
     parseBotAvatar: () => ({ color: undefined }),
@@ -45,7 +46,12 @@ vi.mock("@rakazo/ui-web", () => {
 
 import { ArtifactsPage } from "./Artifacts";
 
-function artifact(name: string, id: string, createdAt = new Date().toISOString()) {
+function artifact(
+  name: string,
+  id: string,
+  createdAt = new Date().toISOString(),
+  mimeType = "text/markdown",
+) {
   return {
     id,
     botId: null,
@@ -53,7 +59,7 @@ function artifact(name: string, id: string, createdAt = new Date().toISOString()
     runId: null,
     name,
     description: null,
-    mimeType: "text/markdown",
+    mimeType,
     size: 128,
     version: 1,
     createdAt,
@@ -101,6 +107,49 @@ it("opens the Artifacts screen and lists what listSpace returns", async () => {
     expect(page.container.textContent).toContain("Q3 Content Calendar");
     expect(page.container.querySelector("a[href='/app']")?.textContent).toContain("Bots");
     expect(page.container.querySelector("[data-testid='app-rail']")).toBeNull();
+  } finally {
+    await page.cleanup();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("filters by artifact type and pages on until a type matches", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  api.listSpace.mockImplementation(async (input: { cursor?: string }) => {
+    if (!input.cursor) {
+      return {
+        items: [
+          artifact("Launch notes", "artifact-1"),
+          artifact("Pricing page", "artifact-2", undefined, "text/html"),
+        ],
+        nextCursor: "artifact-2",
+      };
+    }
+    return {
+      items: [artifact("Demo clip", "artifact-3", undefined, "video/mp4")],
+      nextCursor: null,
+    };
+  });
+  const page = await renderArtifacts();
+  const chip = (label: string) =>
+    [...page.container.querySelectorAll("button")].find((button) => button.textContent === label);
+  try {
+    expect(chip("All")?.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => chip("Code")?.click());
+    expect(chip("Code")?.getAttribute("aria-pressed")).toBe("true");
+    expect(page.container.textContent).toContain("Pricing page");
+    expect(page.container.textContent).not.toContain("Launch notes");
+
+    await act(async () => chip("Media")?.click());
+    await act(async () => {
+      await vi.waitFor(() => expect(page.container.textContent).toContain("Demo clip"));
+    });
+    expect(page.container.textContent).not.toContain("Pricing page");
+    expect(api.listSpace).toHaveBeenCalledWith(expect.objectContaining({ cursor: "artifact-2" }));
+
+    await act(async () => chip("All")?.click());
+    expect(page.container.textContent).toContain("Launch notes");
+    expect(page.container.textContent).toContain("Demo clip");
   } finally {
     await page.cleanup();
     vi.unstubAllGlobals();

@@ -31,6 +31,15 @@ describe("right panel preferences", () => {
     writeRightPanelState("state", "details");
     expect(readRightPanelState("state")).toEqual({ panel: "details" });
   });
+  it("remembers the Library tab", () => {
+    const entries = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => entries.get(key) ?? null,
+      setItem: (key: string, value: string) => entries.set(key, value),
+    });
+    writeRightPanelState("state", "library");
+    expect(readRightPanelState("state")).toEqual({ panel: "library" });
+  });
   it.each(["not json", "null", "[]", '{"panel":"unknown"}', '{"panel":{}}', '{"panel":"create"}'])(
     "ignores malformed preference %s",
     (value) => {
