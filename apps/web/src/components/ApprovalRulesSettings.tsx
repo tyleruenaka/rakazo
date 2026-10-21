@@ -5,7 +5,7 @@ import { Button, Switch } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
-import { SettingsCard, SettingsRow } from "./SettingsLayout";
+import { SettingsCard, SettingsRow, settingsPillClass } from "./SettingsLayout";
 
 function describeRule(rule: ActionApprovalRule): string {
   if (rule.effect === "require_approval") {
@@ -134,6 +134,7 @@ export function ApprovalRulesSettings() {
         <div className="flex flex-wrap gap-2 px-3.5 py-2.5">
           <Button
             variant="secondary"
+            className={settingsPillClass}
             disabled={loading || savingPreset !== null}
             onClick={() => void setPreset("email")}
           >
@@ -141,6 +142,7 @@ export function ApprovalRulesSettings() {
           </Button>
           <Button
             variant="secondary"
+            className={settingsPillClass}
             disabled={loading || savingPreset !== null}
             onClick={() => void setPreset("purchase")}
           >

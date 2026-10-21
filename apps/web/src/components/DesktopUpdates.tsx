@@ -3,7 +3,7 @@ import type { DesktopUpdateState } from "@rakazo/contracts";
 import { Button } from "@rakazo/ui-web";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { desktopBridge } from "../lib/desktop";
-import { SettingsGroup, SettingsRow } from "./SettingsLayout";
+import { SettingsGroup, SettingsRow, settingsPillClass } from "./SettingsLayout";
 
 function useDesktopUpdates() {
   const { t } = useLingui();
@@ -165,7 +165,7 @@ export function DesktopUpdateSection() {
       >
         <Button
           variant="secondary"
-          className="h-[30px]"
+          className={`h-[30px] ${settingsPillClass}`}
           disabled={busy || downloading || state.phase === "checking"}
           onClick={() => void act(ready ? "install" : "check")}
         >

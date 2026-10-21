@@ -1746,6 +1746,7 @@ msgstr "Impossible d'exécuter la routine"
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "Impossible d'enregistrer"
@@ -2945,6 +2946,10 @@ msgstr ""
 msgid "Manage MCP servers"
 msgstr "Gérer les serveurs MCP"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Manage messaging settings"
+msgstr "Gérer les paramètres de messagerie"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
 msgstr "Manuel"
@@ -3207,6 +3212,7 @@ msgstr "Micro coupé"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
@@ -4389,10 +4395,6 @@ msgstr ""
 msgid "Show bots"
 msgstr "Afficher les bots"
 
-#: src/pages/Shell.tsx
-msgid "Show computer"
-msgstr "Afficher l'ordinateur"
-
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr "Afficher la liste"
@@ -4825,6 +4827,7 @@ msgid "Timezone"
 msgstr ""
 
 #: src/pages/Board.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Title"
 msgstr "Titre"

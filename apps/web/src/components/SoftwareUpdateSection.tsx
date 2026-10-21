@@ -10,7 +10,7 @@ import {
 } from "../lib/updater-recreate";
 import { errorText } from "../lib/user-error";
 import { SuccessPop } from "./ai/primitives";
-import { SettingsGroup } from "./SettingsLayout";
+import { SettingsGroup, settingsPillClass } from "./SettingsLayout";
 
 const RECREATE_POLL_MS = 2_000;
 const RECREATE_POLL_ATTEMPTS = 90;
@@ -70,11 +70,20 @@ export function SoftwareUpdatePanel({
   return (
     <div className="space-y-2 px-3.5 py-2.5">
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" className="h-[30px]" disabled={busy !== null} onClick={onCheck}>
+        <Button
+          variant="secondary"
+          className={`h-[30px] ${settingsPillClass}`}
+          disabled={busy !== null}
+          onClick={onCheck}
+        >
           {busy === "check" ? <Trans>Checking…</Trans> : <Trans>Check for updates</Trans>}
         </Button>
         {updateAvailable ? (
-          <Button className="h-[30px]" disabled={busy !== null} onClick={onApply}>
+          <Button
+            className={`h-[30px] ${settingsPillClass}`}
+            disabled={busy !== null}
+            onClick={onApply}
+          >
             {busy === "apply" ? <Trans>Updating…</Trans> : <Trans>Update</Trans>}
           </Button>
         ) : null}

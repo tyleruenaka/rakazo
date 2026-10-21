@@ -14,6 +14,7 @@ import {
 } from "@rakazo/ui-web";
 import { Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SettingsGroup } from "../components/SettingsLayout";
 import { downloadArtifactBytes } from "../lib/artifact-open";
 import { useSpaceRpc } from "../lib/space-rpc";
 
@@ -67,18 +68,15 @@ export function KnowledgeSection({
 export function SpaceMemorySection() {
   const rpc = useSpaceRpc();
   return (
-    <section className="rounded-[14px] bg-card px-4 py-4" data-testid="space-memory-documents">
-      <h3 className="text-[14px] text-muted-foreground">
-        <Trans>Shared documents</Trans>
-      </h3>
-      <div className="mt-3">
+    <SettingsGroup label={<Trans>Shared documents</Trans>} testId="space-memory-documents">
+      <div className="px-3.5 py-2.5">
         <MemoryDocumentList
           load={() => rpc.memory.list({ scope: "user" })}
           exportFilename="space-memory.md"
           testId="space-memory-list"
         />
       </div>
-    </section>
+    </SettingsGroup>
   );
 }
 

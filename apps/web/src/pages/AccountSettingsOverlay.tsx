@@ -16,6 +16,7 @@ import {
   SettingsDescription,
   SettingsGroup,
   SettingsRow,
+  settingsPillClass,
 } from "../components/SettingsLayout";
 import type { ServerUpdateLoad } from "../components/SoftwareUpdateSection";
 import { hasServerUpdates, SoftwareUpdateSection } from "../components/SoftwareUpdateSection";
@@ -52,6 +53,8 @@ import { getUiAppearancePreference, setUiAppearance } from "../lib/ui-appearance
 import type { UiLocale } from "../lib/ui-locale";
 import { UI_LOCALE_LABELS, UI_LOCALES } from "../lib/ui-locale";
 import { authErrorText } from "../lib/user-error";
+
+const USE_DEVICE_ZONE = "use-device:";
 
 export type SettingsGeneralProps = {
   email?: string | null;
@@ -276,7 +279,12 @@ export function GeneralSettingsPanels({
         <SettingsGroup>
           {messagingEnabled && onOpenMessaging ? (
             <SettingsRow label={<Trans>Messaging</Trans>}>
-              <Button variant="secondary" onClick={onOpenMessaging}>
+              <Button
+                variant="secondary"
+                className={settingsPillClass}
+                aria-label={t`Manage messaging settings`}
+                onClick={onOpenMessaging}
+              >
                 <Trans>Manage</Trans>
               </Button>
             </SettingsRow>
@@ -285,6 +293,7 @@ export function GeneralSettingsPanels({
             <SettingsRow label={<Trans>Server integrations</Trans>}>
               <Button
                 variant="secondary"
+                className={settingsPillClass}
                 nativeButton={false}
                 render={<Link to="/integrations/setup" />}
               >
@@ -315,7 +324,8 @@ export function GeneralSettingsPanels({
                 ...(!timezone || !sameTimeZone(timezone, deviceTimezone)
                   ? [
                       {
-                        value: deviceTimezone,
+                        // Its own value, so the trigger and the check stay on the saved zone.
+                        value: `${USE_DEVICE_ZONE}${deviceTimezone}`,
                         label: t({
                           message: `Use ${deviceTimezone.replaceAll("_", " ")}`,
                           comment:
@@ -331,8 +341,8 @@ export function GeneralSettingsPanels({
                 })),
               ]}
               value={timezoneValue}
-              onChange={(next) => void chooseTimezone(next)}
-              renderDetail={(zone) => zoneTime(zone, locale)}
+              onChange={(next) => void chooseTimezone(next.replace(USE_DEVICE_ZONE, ""))}
+              renderDetail={(zone) => zoneTime(zone.replace(USE_DEVICE_ZONE, ""), locale)}
               search={{
                 placeholder: t`Search timezone`,
                 clearLabel: t`Clear`,
@@ -543,6 +553,7 @@ function ChangePasswordSection({ email }: { email?: string | null }) {
       <div className="flex items-center justify-end gap-3 px-3.5 py-2.5">
         {saved ? <SuccessPop label={t`Password updated`} /> : null}
         <Button
+          className={settingsPillClass}
           disabled={pending || !currentPassword || !newPassword}
           onClick={() => void changePassword()}
         >

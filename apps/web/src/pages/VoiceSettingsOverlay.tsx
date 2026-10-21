@@ -231,12 +231,12 @@ export function VoiceSettingsOverlay({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 pt-[22px] pb-7 sm:px-[32.5px] md:flex-row">
         <div className="flex min-h-0 shrink-0 flex-col md:w-[280px]">
-          <div className="mb-3 text-[13.5px] text-muted-foreground">
+          <div className="mb-3 text-[12.5px] text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
-          <div className="rk-scroll overflow-y-auto rounded-xl border border-border">
+          <div className="rk-scroll overflow-y-auto rounded-[14px] border-[0.5px] border-card-border bg-card">
             {catalog.map((entry) => {
               const connected = credentials.some((cred) => cred.provider === entry.id);
               return (
@@ -256,12 +256,12 @@ export function VoiceSettingsOverlay({
                       )
                       .finally(() => markPending(null));
                   }}
-                  className={`flex w-full items-center gap-3 border-b border-border px-3.5 py-3 text-start transition-colors last:border-0 disabled:pointer-events-none disabled:opacity-50 ${
+                  className={`flex w-full items-center gap-3 border-b-[0.5px] border-card-border px-3.5 py-3 text-start transition-colors last:border-0 disabled:pointer-events-none disabled:opacity-50 ${
                     entry.id === provider ? "bg-muted" : "hover:bg-accent"
                   }`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] text-foreground">{entry.name}</span>
+                    <span className="block truncate text-[13px] text-foreground">{entry.name}</span>
                     <span className="mt-0.5 block text-[12px] text-muted-foreground/80">
                       {entry.transcribe ? (
                         <Trans>Speak + transcribe</Trans>

@@ -8,7 +8,10 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 vi.mock("@lingui/react/macro", () => ({
-  useLingui: () => ({ t: (strings: TemplateStringsArray) => strings.join("") }),
+  useLingui: () => ({
+    t: (strings: TemplateStringsArray | { message: string }) =>
+      "message" in strings ? strings.message : strings.join(""),
+  }),
   Trans: ({ children }: { children: ReactNode }) => children,
 }));
 
@@ -108,6 +111,7 @@ import {
   getComposerEnterToSend,
   setComposerEnterToSend,
 } from "../lib/composer-enter-to-send-pref";
+import { localTimezone } from "../lib/local-timezone";
 import { getRemoteImagesEnabled } from "../lib/remote-images-preference";
 import { TOOL_ACTIVITY_STORAGE_KEY } from "../lib/tool-activity-preference";
 import { setUiAppearance } from "../lib/ui-appearance";
@@ -291,6 +295,49 @@ it("offers Grok Bot's theme and accent wording over the same stored values", asy
     expect(await pick(accent, "Black")).toEqual(["Black", "Bot color"]);
     expect(localStorage.getItem("rakazo.chatAccent")).toBe("none");
     expect(accent?.textContent).toBe("Black");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("keeps the saved zone on the timezone trigger and offers this device's zone first", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const onTimezoneChange = vi.fn(async () => undefined);
+  const device = localTimezone();
+  const saved = device === "Europe/London" ? "Asia/Tokyo" : "Europe/London";
+  const render = (timezone: string | null) =>
+    act(async () => {
+      root.render(
+        <GeneralSettingsPanels
+          name="Jamie"
+          avatarStyle="robot"
+          onAvatarStyleChange={async () => undefined}
+          timezone={timezone}
+          onTimezoneChange={onTimezoneChange}
+        />,
+      );
+    });
+  try {
+    // Before a zone is saved the device zone shows, not the "Use …" action.
+    await render(null);
+    const trigger = container.querySelector<HTMLButtonElement>('[data-testid="timezone-select"]');
+    expect(trigger?.textContent).toBe(device.replaceAll("_", " "));
+
+    await render(saved);
+    expect(trigger?.textContent).toBe(saved.replaceAll("_", " "));
+    await act(async () => trigger?.click());
+    const useDevice = document.querySelector<HTMLButtonElement>(
+      '[data-testid="timezone-use-device"]',
+    );
+    expect(useDevice?.getAttribute("aria-selected")).toBe("false");
+    expect(useDevice?.textContent).toContain(`Use ${device.replaceAll("_", " ")}`);
+    await act(async () => useDevice?.click());
+    expect(onTimezoneChange).toHaveBeenCalledWith(device);
   } finally {
     await act(async () => root.unmount());
     container.remove();

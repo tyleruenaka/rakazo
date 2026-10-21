@@ -168,7 +168,7 @@ export function ListboxSelect<T extends string>({
         }`}
       >
         {search ? (
-          <div className="flex h-[42.5px] shrink-0 items-center gap-2 border-b-[0.5px] border-control ps-4 pe-[15px]">
+          <div className="flex h-[43px] shrink-0 items-center gap-2 border-b-[0.5px] border-control ps-[15px] pe-[15px]">
             <Search
               size={14}
               strokeWidth={1.75}
@@ -191,7 +191,7 @@ export function ListboxSelect<T extends string>({
                 setHighlightedIndex(-1);
               }}
               onKeyDown={onListKeyDown}
-              className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-placeholder"
+              className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-placeholder"
             />
             <button
               type="button"
@@ -206,7 +206,7 @@ export function ListboxSelect<T extends string>({
               }}
               className="grid size-5 shrink-0 place-items-center rounded-full text-placeholder outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
             >
-              <X size={14} strokeWidth={1.5} aria-hidden />
+              <X size={16} strokeWidth={1.5} aria-hidden />
             </button>
           </div>
         ) : null}
@@ -233,7 +233,7 @@ export function ListboxSelect<T extends string>({
                   tabIndex={search ? -1 : index === highlightedIndex ? 0 : -1}
                   data-highlighted={index === highlightedIndex ? "" : undefined}
                   className={`flex w-full shrink-0 items-center gap-2 rounded-[6px] ps-2 text-start outline-none focus:bg-control data-highlighted:bg-control ${
-                    search ? "h-[30px] pe-[9px] text-[13px]" : "h-[30px] pe-[7.5px] text-[12.5px]"
+                    search ? "h-[30px] pe-[7.5px] text-[13px]" : "h-[30px] pe-[7.5px] text-[12.5px]"
                   }`}
                   onClick={() => choose(index)}
                   onMouseMove={() => setHighlightedIndex(index)}

@@ -264,13 +264,13 @@ export function SettingsOverlay({
         initialFocus={() =>
           section === "usage" ? (usageRef.current ?? panelRef.current) : panelRef.current
         }
-        className="flex h-[min(700px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(900px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-[14px] border border-settings-border bg-background p-0 ring-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[900px]"
+        className="flex h-[min(702px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(900px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-[14px] border border-settings-border bg-background p-0 ring-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[900px]"
       >
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             data-testid="settings-nav"
             aria-label={t`Settings`}
-            className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b-[0.5px] border-settings-divider px-3 py-3 md:w-[198px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e-[0.5px] md:ps-3 md:pe-[15px] md:pt-4"
+            className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b-[0.5px] border-settings-divider px-3 py-3 md:w-[198px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e-[0.5px] md:px-3 md:pt-4"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -283,7 +283,7 @@ export function SettingsOverlay({
                   aria-current={active ? "page" : undefined}
                   disabled={panelBusy}
                   onClick={() => setSection(item.id)}
-                  className={`flex h-8 shrink-0 items-center gap-2 rounded-[10px] px-2.5 text-start text-[13px] text-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 ${
+                  className={`flex h-8 shrink-0 items-center gap-[7px] rounded-[10px] px-2.5 text-start text-[13px] text-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 ${
                     active ? "bg-settings-nav" : "hover:bg-settings-nav"
                   }`}
                 >
@@ -295,7 +295,7 @@ export function SettingsOverlay({
           </nav>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[31.5px] sm:ps-[40.5px]">
+            <div className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[32.5px] sm:ps-[40.5px]">
               <DialogTitle className="shrink-0 text-[16px] leading-6 font-semibold text-foreground">
                 {sectionTitle}
               </DialogTitle>
@@ -322,7 +322,7 @@ export function SettingsOverlay({
               <DialogClose
                 aria-label={closeLabel}
                 disabled={panelBusy}
-                className="absolute end-[9px] top-[9px] grid size-8 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:opacity-50"
+                className="absolute end-[10px] top-[10px] grid size-8 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:opacity-50"
               >
                 <XIcon className="size-[17px]" strokeWidth={1.75} />
               </DialogClose>
@@ -334,7 +334,7 @@ export function SettingsOverlay({
                 className={`min-h-0 flex-1 ${
                   section === "models" || section === "voice" || section === "memory"
                     ? "flex flex-col overflow-hidden"
-                    : "rk-scroll overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 sm:px-[32.5px]"
+                    : "rk-scroll overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 [scrollbar-gutter:stable] sm:ps-[32.5px] sm:pe-[24.5px]"
                 }`}
               >
                 {section === "general" ? (

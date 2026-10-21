@@ -245,9 +245,9 @@ export function ModelBackupsSettings({
     <section
       data-testid="model-backups"
       aria-labelledby="model-backups-title"
-      className="mt-6 border-t border-border pt-5"
+      className="mt-6 border-t-[0.5px] border-card-border pt-5"
     >
-      <h3 id="model-backups-title" className="text-[13.5px] text-muted-foreground">
+      <h3 id="model-backups-title" className="text-[12.5px] text-muted-foreground">
         <Trans>Backup models</Trans>
       </h3>
       {!currentState || currentState.loading ? (
@@ -265,7 +265,7 @@ export function ModelBackupsSettings({
           ) : (
             <ol
               aria-label={t`Backup models order`}
-              className="mt-3 divide-y divide-border rounded-xl border border-border"
+              className="mt-3 divide-y-[0.5px] divide-card-border rounded-[14px] border-[0.5px] border-card-border bg-card"
             >
               {currentState.draft.map((choice, index) => {
                 const { full, available } = rowLabels(choice);
@@ -279,7 +279,7 @@ export function ModelBackupsSettings({
                       {index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] text-foreground">{full}</span>
+                      <span className="block truncate text-[13px] text-foreground">{full}</span>
                       {!available ? (
                         <span className="block text-[13px] leading-[1.5] text-muted-foreground">
                           <Trans>Not connected</Trans>
@@ -333,7 +333,7 @@ export function ModelBackupsSettings({
             </p>
           ) : null}
           <div className="mt-3 flex flex-wrap items-end gap-2">
-            <div className="min-w-0 flex-1 text-[13.5px] text-muted-foreground">
+            <div className="min-w-48 flex-1 text-[12.5px] text-muted-foreground">
               <label htmlFor="model-backup-picker">
                 <Trans>Add connected model</Trans>
               </label>

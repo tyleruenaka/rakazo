@@ -1746,6 +1746,7 @@ msgstr "Routine uitvoeren mislukt"
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "Opslaan mislukt"
@@ -2945,6 +2946,10 @@ msgstr "Facturatie beheren"
 msgid "Manage MCP servers"
 msgstr "MCP-servers beheren"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Manage messaging settings"
+msgstr "Berichtinstellingen beheren"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
 msgstr "Handmatig"
@@ -3207,6 +3212,7 @@ msgstr "Gedempt"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
@@ -4389,10 +4395,6 @@ msgstr "Alles tonen"
 msgid "Show bots"
 msgstr "Bots tonen"
 
-#: src/pages/Shell.tsx
-msgid "Show computer"
-msgstr "Computer tonen"
-
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr "Lijst tonen"
@@ -4825,6 +4827,7 @@ msgid "Timezone"
 msgstr "Tijdzone"
 
 #: src/pages/Board.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Title"
 msgstr "Titel"

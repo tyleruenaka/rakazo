@@ -4,7 +4,7 @@ import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo
 import { XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ListboxSelect } from "../components/ListboxSelect";
-import { SettingsGroup, SettingsRow } from "../components/SettingsLayout";
+import { SettingsGroup, SettingsRow, settingsPillClass } from "../components/SettingsLayout";
 import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 import { SpaceMemorySection } from "./KnowledgeSection";
@@ -156,7 +156,7 @@ export function MemorySettingsOverlay({
         </div>
       ) : null}
 
-      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 sm:px-[32.5px]">
+      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 [scrollbar-gutter:stable] sm:ps-[32.5px] sm:pe-[24.5px]">
         <div className="space-y-7">
           {error ? <p className="px-2 text-[12.5px] text-destructive">{error}</p> : null}
 
@@ -176,6 +176,7 @@ export function MemorySettingsOverlay({
               >
                 <Button
                   variant="secondary"
+                  className={settingsPillClass}
                   type="button"
                   disabled={busy}
                   onClick={() => void disconnect()}
@@ -212,7 +213,8 @@ export function MemorySettingsOverlay({
                 )}
               </SettingsRow>
               <ScopePicker value={defaultScope} disabled={busy} onChange={setDefaultScope} />
-              <div className="px-3.5 pb-2.5">
+              {/* Provider forms take the settings row type: 12.5px labels, 35-tall fields. */}
+              <div className="px-3.5 pb-2.5 [&_[data-slot=field-label]]:text-[12.5px] [&_[data-slot=field-label]]:font-normal [&_[data-slot=field-label]]:text-foreground [&_[data-slot=input]]:h-[35px] [&_[data-slot=input]]:rounded-[8px] md:[&_[data-slot=input]]:text-[12.5px]">
                 <registration.SettingsForm busy={busy} onConnect={connect} />
               </div>
             </SettingsGroup>

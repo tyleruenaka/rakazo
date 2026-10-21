@@ -730,12 +730,12 @@ export function ModelSettingsOverlay({
         type="button"
         aria-current={group.id === provider ? "true" : undefined}
         onClick={() => chooseProvider(group.id)}
-        className={`flex w-full items-center gap-3 border-b border-border px-3.5 py-3 text-start last:border-0 ${
+        className={`flex w-full items-center gap-3 border-b-[0.5px] border-card-border px-3.5 py-3 text-start last:border-0 ${
           group.id === provider ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
         }`}
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] text-foreground">{group.name}</span>
+          <span className="block truncate text-[13px] text-foreground">{group.name}</span>
           {rowSubtitle ? (
             <span className="mt-0.5 block truncate text-[12px] text-muted-foreground/80">
               {rowSubtitle}
@@ -755,7 +755,7 @@ export function ModelSettingsOverlay({
   const catalogModelConfig =
     !isOpenAiCompatible && selected ? (
       <>
-        <div className="block text-[13.5px] text-muted-foreground">
+        <div className="block text-[12.5px] text-muted-foreground">
           <span>
             <Trans>Model</Trans>
           </span>
@@ -793,7 +793,7 @@ export function ModelSettingsOverlay({
         </div>
         {catalogThinkingLevels.length ? (
           <label
-            className="mt-4 block text-[13.5px] text-muted-foreground"
+            className="mt-4 block text-[12.5px] text-muted-foreground"
             htmlFor="model-thinking-level"
           >
             <Trans>Thinking</Trans>
@@ -836,7 +836,7 @@ export function ModelSettingsOverlay({
       {subscriptionSignIn ? (
         <div className="mt-5 first:mt-0">
           {oauth ? (
-            <div className="rounded-xl border border-border px-4 py-3">
+            <div className="rounded-[14px] border-[0.5px] border-card-border bg-card px-3.5 py-2.5">
               {oauth.mode === "auth-url" ? (
                 <>
                   <p className="text-[13px] leading-[1.5] text-muted-foreground">
@@ -1005,7 +1005,7 @@ export function ModelSettingsOverlay({
           {isCloudflareGateway ? (
             <>
               <label
-                className="block text-[13.5px] text-muted-foreground"
+                className="block text-[12.5px] text-muted-foreground"
                 htmlFor="cloudflare-account-id"
               >
                 <Trans>Account ID</Trans>
@@ -1015,11 +1015,11 @@ export function ModelSettingsOverlay({
                   onChange={(event) => setAccountId(event.target.value)}
                   autoComplete="off"
                   spellCheck={false}
-                  className="mt-2 h-10 text-foreground"
+                  className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
                 />
               </label>
               <label
-                className="mt-4 block text-[13.5px] text-muted-foreground"
+                className="mt-4 block text-[12.5px] text-muted-foreground"
                 htmlFor="cloudflare-gateway-id"
               >
                 <Trans>Gateway ID</Trans>
@@ -1029,14 +1029,14 @@ export function ModelSettingsOverlay({
                   onChange={(event) => setGatewayId(event.target.value)}
                   autoComplete="off"
                   spellCheck={false}
-                  className="mt-2 h-10 text-foreground"
+                  className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
                 />
               </label>
             </>
           ) : null}
           {acceptsKey ? (
             <label
-              className={`block text-[13.5px] text-muted-foreground ${isCloudflareGateway ? "mt-4" : ""}`}
+              className={`block text-[12.5px] text-muted-foreground ${isCloudflareGateway ? "mt-4" : ""}`}
               htmlFor="model-api-key"
             >
               {credential ? (
@@ -1053,7 +1053,7 @@ export function ModelSettingsOverlay({
                 placeholder={credential?.hasKey ? t`Paste a replacement key` : "sk-…"}
                 type="password"
                 autoComplete="new-password"
-                className="mt-2 h-10 text-foreground"
+                className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
               />
             </label>
           ) : null}
@@ -1110,7 +1110,7 @@ export function ModelSettingsOverlay({
   // OpenAI-compatible connections keep an optional key behind a disclosure.
   const compatKeyBlock = isOpenAiCompatible ? (
     <div className="mt-5">
-      <details className="text-[13.5px] text-muted-foreground">
+      <details className="text-[12.5px] text-muted-foreground">
         <summary className="w-fit cursor-pointer select-none">
           <Trans>API key</Trans>
         </summary>
@@ -1121,7 +1121,7 @@ export function ModelSettingsOverlay({
           placeholder={credential?.hasKey ? t`Paste a replacement key` : t`Optional`}
           type="password"
           autoComplete="new-password"
-          className="mt-2 h-10 text-foreground"
+          className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
         />
       </details>
       <Button
@@ -1200,13 +1200,13 @@ export function ModelSettingsOverlay({
       ) : null}
 
       {me?.needsModel ? null : (
-        <div className={`mx-6 sm:mx-8 ${embedded ? "mt-4" : "mt-5"}`}>
+        <div className={`mx-6 sm:mx-[32.5px] ${embedded ? "mt-[22px]" : "mt-5"}`}>
           <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-6">
-            <span className="shrink-0 text-[13.5px] text-muted-foreground md:w-[310px]">
+            <span className="shrink-0 text-[12.5px] text-muted-foreground md:w-[310px]">
               <Trans>Active model</Trans>
             </span>
             <div className="flex min-w-0 items-baseline gap-3">
-              <span className="truncate text-[15px] text-foreground">
+              <span className="truncate text-[13px] text-foreground">
                 {currentEntry?.label ?? me?.defaultModel ?? t`Deployment default`}
               </span>
               <span className="truncate text-[13px] leading-[1.5] text-muted-foreground">
@@ -1227,9 +1227,9 @@ export function ModelSettingsOverlay({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 pt-6 pb-7 sm:px-[32.5px] md:flex-row">
         <div className="flex min-h-0 shrink-0 flex-col md:w-[310px]">
-          <div className="mb-3 text-[13.5px] text-muted-foreground">
+          <div className="mb-3 text-[12.5px] text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
           <label className="sr-only" htmlFor="model-provider-search">
@@ -1240,19 +1240,19 @@ export function ModelSettingsOverlay({
             value={providerQuery}
             onChange={(event) => setProviderQuery(event.target.value)}
             placeholder={t`Search providers`}
-            className="h-10 rounded-xl px-3.5"
+            className="h-[35px] rounded-[8px] px-3.5 md:text-[13px]"
           />
-          <div className="rk-scroll mt-3 max-h-[240px] overflow-y-auto rounded-xl border border-border md:min-h-0 md:max-h-none md:flex-1">
+          <div className="rk-scroll mt-3 max-h-[240px] overflow-y-auto rounded-[14px] border-[0.5px] border-card-border bg-card md:min-h-0 md:max-h-none md:flex-1">
             {filteredGroups.length ? (
               <>
                 {connectedGroups.length ? (
                   <>
-                    <p className="border-b border-border px-3.5 pb-1.5 pt-3 text-[12px] text-muted-foreground">
+                    <p className="border-b-[0.5px] border-card-border px-3.5 pb-1.5 pt-3 text-[12px] text-muted-foreground">
                       <Trans>Connected</Trans>
                     </p>
                     {connectedGroups.map((group) => renderProviderRow(group, true))}
                     {otherGroups.length ? (
-                      <p className="border-b border-border px-3.5 pb-1.5 pt-3 text-[12px] text-muted-foreground">
+                      <p className="border-b-[0.5px] border-card-border px-3.5 pb-1.5 pt-3 text-[12px] text-muted-foreground">
                         <Trans>All providers</Trans>
                       </p>
                     ) : null}
@@ -1285,7 +1285,7 @@ export function ModelSettingsOverlay({
           {selected ? (
             <>
               {isOpenAiCompatible ? (
-                <div className="block text-[13.5px] text-muted-foreground">
+                <div className="block text-[12.5px] text-muted-foreground">
                   <label className="block" htmlFor="model-base-url">
                     <Trans>Server URL</Trans>
                     <Input
@@ -1295,7 +1295,7 @@ export function ModelSettingsOverlay({
                       aria-label={t`OpenAI-compatible server URL`}
                       placeholder="http://127.0.0.1:8000/v1"
                       autoComplete="off"
-                      className="mt-2 h-10 text-foreground"
+                      className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
                     />
                   </label>
                   <details className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
@@ -1360,7 +1360,7 @@ export function ModelSettingsOverlay({
                         }}
                         aria-label={t`Model id`}
                         placeholder="exact-model-id"
-                        className="mt-2 h-10 text-foreground"
+                        className="mt-2 h-[35px] rounded-[8px] text-foreground md:text-[13px]"
                       />
                     )}
                     {compatibleRows.length ? (
@@ -1469,7 +1469,7 @@ export function ModelSettingsOverlay({
                   ) : null}
                   {catalogModelConfig}
                   {saveButton}
-                  <div className="mt-6 border-t border-border pt-5">
+                  <div className="mt-6 border-t-[0.5px] border-card-border pt-5">
                     {connectionControls}
                     <Button
                       type="button"
@@ -1760,7 +1760,7 @@ function ModelPicker({
               aria-expanded={open}
               aria-haspopup="listbox"
               aria-describedby={options[selectedIndex]?.images === false ? imagesHintId : undefined}
-              className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-[15px] text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+              className="flex h-[35px] w-full items-center justify-between rounded-[8px] border-[0.5px] border-input bg-transparent px-3 text-start text-[13px] text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               onKeyDown={onTriggerKeyDown}
             />
           }
@@ -1795,7 +1795,7 @@ function ModelPicker({
                 setHighlightedIndex(0);
               }}
               onKeyDown={onSearchKeyDown}
-              className="w-full border-b border-border bg-transparent px-3 py-2.5 text-[15px] text-foreground outline-none placeholder:text-muted-foreground/80"
+              className="w-full border-b-[0.5px] border-card-border bg-transparent px-3 py-2.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/80"
             />
             <div
               id={listboxId}
@@ -1806,7 +1806,7 @@ function ModelPicker({
               {groupRanges.map((group) => (
                 <div key={group.name}>
                   {groupRanges.length > 1 ? (
-                    <p className="px-3 pb-1 pt-2 text-[13.5px] text-muted-foreground">
+                    <p className="px-3 pb-1 pt-2 text-[12.5px] text-muted-foreground">
                       {group.name}
                     </p>
                   ) : null}
@@ -1875,7 +1875,7 @@ function ModelOption({
       aria-selected={option.id === value}
       aria-describedby={option.images === false ? imagesHintId : undefined}
       tabIndex={highlighted ? 0 : -1}
-      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-[15px] text-foreground outline-none hover:bg-accent focus-visible:bg-accent ${
+      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-[13px] text-foreground outline-none hover:bg-accent focus-visible:bg-accent ${
         highlighted ? "bg-accent" : ""
       }`}
       onClick={() => choose(index)}

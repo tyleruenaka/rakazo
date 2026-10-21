@@ -1746,6 +1746,7 @@ msgstr "루틴을 실행할 수 없습니다"
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "저장하지 못했습니다."
@@ -2945,6 +2946,10 @@ msgstr ""
 msgid "Manage MCP servers"
 msgstr "MCP 서버 관리"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Manage messaging settings"
+msgstr "메시징 설정 관리"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
 msgstr ""
@@ -3207,6 +3212,7 @@ msgstr ""
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
@@ -4389,10 +4395,6 @@ msgstr ""
 msgid "Show bots"
 msgstr ""
 
-#: src/pages/Shell.tsx
-msgid "Show computer"
-msgstr ""
-
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr ""
@@ -4825,6 +4827,7 @@ msgid "Timezone"
 msgstr ""
 
 #: src/pages/Board.tsx
+#: src/pages/shell/bot-panel-header.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Title"
 msgstr "역할"

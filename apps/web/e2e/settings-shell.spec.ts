@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openUserSettings, signup } from "./helpers";
+import {
+  captureScreenshot,
+  chooseOption,
+  completeOnboarding,
+  openUserSettings,
+  signup,
+} from "./helpers";
 
 for (const totalTokens of [201, null]) {
   test(`usage shows ${totalTokens === null ? "unknown" : "complete"} token totals`, async ({
@@ -80,10 +86,10 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect(settings.getByTestId("memory-settings")).toBeVisible();
   const memory = settings.getByTestId("memory-settings");
   await expect(memory.getByLabel("Provider")).toBeVisible();
-  await memory.getByLabel("Provider").selectOption("serenity");
+  await chooseOption(memory.getByRole("combobox", { name: "Provider" }), "Serenity");
   await expect(memory.getByLabel("MCP endpoint")).toBeVisible();
   await expect(memory.getByLabel("Bearer token")).toBeVisible();
-  await expect(memory.getByRole("button", { name: "Recall only" })).toBeVisible();
+  await expect(memory.getByRole("combobox", { name: "Allow writing" })).toHaveText("Recall only");
   await captureScreenshot(page, testInfo, "settings-shell-memory-serenity");
 
   await settings.getByTestId("settings-nav-voice").click();
@@ -108,7 +114,7 @@ test("Honcho memory settings empty and filled", async ({ page }, testInfo) => {
   await completeOnboarding(page);
   const settings = await openUserSettings(page, "memory");
   const memory = settings.getByTestId("memory-settings");
-  await memory.getByLabel("Provider").selectOption("honcho");
+  await chooseOption(memory.getByRole("combobox", { name: "Provider" }), "Honcho");
   await expect(memory.getByLabel("API key", { exact: true })).toBeVisible();
   await expect(memory.getByLabel("Workspace", { exact: true })).toBeVisible();
   await expect(memory.getByRole("button", { name: "Connect", exact: true })).toBeDisabled();
@@ -118,7 +124,7 @@ test("Honcho memory settings empty and filled", async ({ page }, testInfo) => {
   await memory.getByLabel("Workspace", { exact: true }).fill("team-notes");
   await expect(memory.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
   await captureScreenshot(page, testInfo, "memory-honcho-filled");
-  await memory.getByRole("button", { name: "Local", exact: true }).click();
+  await chooseOption(memory.getByRole("combobox", { name: "Connection" }), "Local");
   await expect(memory.getByLabel("Base URL", { exact: true })).toHaveValue("http://localhost:8000");
   await memory
     .getByLabel("Base URL", { exact: true })
@@ -139,23 +145,20 @@ test("Honcho memory settings empty and filled", async ({ page }, testInfo) => {
     memory.locator(".rk-scroll").evaluate((element) => {
       element.scrollTop = 0;
     });
-  await memory.getByLabel("Provider").selectOption("supermemory");
+  await chooseOption(memory.getByRole("combobox", { name: "Provider" }), "Supermemory");
   await scrollToTop();
   await expect(memory.getByLabel("Organization API key", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "memory-supermemory-cloud");
-  await memory.getByRole("button", { name: "Local", exact: true }).click();
+  await chooseOption(memory.getByRole("combobox", { name: "Connection" }), "Local");
   await expect(memory.getByLabel("Base URL", { exact: true })).toHaveValue("http://localhost:6767");
   await expect(memory.getByLabel("Instance API key", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "memory-supermemory-local");
 
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await memory.getByLabel("Provider").selectOption("honcho");
+  await chooseOption(memory.getByRole("combobox", { name: "Provider" }), "Honcho");
   await scrollToTop();
-  await expect(memory.getByRole("button", { name: "Cloud", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(memory.getByRole("combobox", { name: "Connection" })).toHaveText("Cloud");
   await expect(memory.getByLabel("API key", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "memory-honcho-cloud-dark");
   await documents.scrollIntoViewIfNeeded();

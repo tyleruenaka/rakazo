@@ -536,10 +536,7 @@ export function BotSettings({
       </label>
       <div className="mt-6 flex items-center justify-between pt-4 border-t border-border/20">
         <div className="space-y-0.5 pe-4">
-          <div
-            id={`${ids}-notify-finish-label`}
-            className="text-[13.5px] font-medium text-foreground"
-          >
+          <div id={`${ids}-notify-finish-label`} className="text-[14px] text-muted-foreground">
             <Trans>Notifications</Trans>
           </div>
           <div id={`${ids}-notify-finish-desc`} className="text-[12px] text-muted-foreground/70">

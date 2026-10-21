@@ -72,3 +72,6 @@ export function SettingsRow({
 export function SettingsDescription({ children }: { children: ReactNode }) {
   return <div className="text-[12.5px] leading-[19px] text-description">{children}</div>;
 }
+
+/** Pill buttons in settings rows: 13px text, 13px side padding, like Grok Bot's Sign Out. */
+export const settingsPillClass = "px-[13px] text-[13px]";

@@ -494,7 +494,7 @@ export function PluginsOverlay({
         alt=""
         loading="lazy"
         decoding="async"
-        className="size-10 shrink-0 rounded-[10px] border-[0.5px] border-card-border object-contain"
+        className="size-10 shrink-0 rounded-[10px] border-[0.5px] border-card-border bg-favicon-plate object-contain"
       />
     ) : (
       <div className="grid size-10 shrink-0 place-items-center rounded-[10px] border-[0.5px] border-card-border bg-accent text-sm font-semibold text-foreground">
@@ -559,7 +559,7 @@ export function PluginsOverlay({
                 alt=""
                 loading="lazy"
                 decoding="async"
-                className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
+                className="h-9 w-9 shrink-0 rounded-xl bg-favicon-plate object-contain"
               />
             ) : (
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
@@ -683,17 +683,17 @@ export function PluginsOverlay({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex h-[700px] max-h-[calc(100%-2rem)] w-[800px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-[14px] border border-popover-border bg-card p-0 ring-0 sm:max-w-[800px]"
+        className="flex h-[702px] max-h-[calc(100%-2rem)] w-[800px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-[14px] border border-popover-border bg-card p-0 ring-0 sm:max-w-[800px]"
       >
         <DialogClose
           aria-label={t`Close integrations`}
-          className="absolute end-[7px] top-[7px] z-20 grid size-8 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+          className="absolute end-[8px] top-[8px] z-20 grid size-8 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
         >
           <X className="size-[19px]" strokeWidth={1.75} />
         </DialogClose>
 
         <div
-          className="rk-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-8"
+          className="rk-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ps-8 pe-6 pb-8 [scrollbar-gutter:stable]"
           onScroll={(event) => {
             // The search row is stuck once it reaches the top: show the compact header.
             const top = searchRowRef.current?.getBoundingClientRect().top;
@@ -715,7 +715,7 @@ export function PluginsOverlay({
                         key={itemKey(app)}
                         src={app.logo}
                         alt=""
-                        className={`size-[18px] rounded-[5px] object-contain ${index ? "-ms-1" : ""}`}
+                        className={`size-[18px] rounded-[5px] bg-favicon-plate object-contain ${index ? "-ms-1" : ""}`}
                       />
                     ) : (
                       <span
@@ -736,14 +736,14 @@ export function PluginsOverlay({
           {!detailItem ? (
             <div
               ref={searchRowRef}
-              className={`sticky top-0 z-10 -mx-8 mt-[3.5px] flex shrink-0 gap-[9.5px] border-b-[0.5px] bg-card ps-8 pt-[10px] pb-[9.5px] ${
-                scrolled ? "border-input pe-[64.5px]" : "border-transparent pe-8"
+              className={`sticky top-0 z-10 -ms-8 -me-6 mt-[3.5px] flex shrink-0 gap-[9.5px] border-b-[0.5px] bg-card ps-8 pt-[10px] pb-[9.5px] ${
+                scrolled ? "border-input pe-[56.5px]" : "border-transparent pe-6"
               }`}
             >
               <div className="relative min-w-0 flex-1">
                 <Search
                   aria-hidden="true"
-                  className="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-placeholder"
+                  className="pointer-events-none absolute start-3 top-1/2 size-[15px] -translate-y-1/2 text-placeholder"
                   strokeWidth={1.75}
                 />
                 <Input

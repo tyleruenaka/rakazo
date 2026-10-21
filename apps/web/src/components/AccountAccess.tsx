@@ -7,6 +7,7 @@ import { fetchAccountSecurity, requestAccountDeletionCode } from "../lib/account
 import { authClient } from "../lib/auth";
 import { runSsoFlow } from "../lib/sso-flow";
 import { authErrorText } from "../lib/user-error";
+import { settingsPillClass } from "./SettingsLayout";
 
 /** Account actions in the Account card, at the right of the identity passed as children. */
 export function AccountAccess({
@@ -63,6 +64,7 @@ export function AccountAccess({
           {security?.sso && !security.ssoLinked ? (
             <Button
               variant="secondary"
+              className={settingsPillClass}
               disabled={pending}
               onClick={() =>
                 void action(async () => {
@@ -86,7 +88,7 @@ export function AccountAccess({
           ) : null}
           <Button
             variant="secondary"
-            className="text-destructive hover:text-destructive"
+            className={`text-destructive hover:text-destructive ${settingsPillClass}`}
             onClick={() => setOpen((value) => !value)}
           >
             <Trans>Delete account</Trans>
