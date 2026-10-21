@@ -5789,158 +5789,162 @@ const Transcript = memo(function Transcript({
           }
         }}
         // The scrollbar gutter (8) plus pe-2 lines the column up with the composer's right edge.
-        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
+        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
       >
-        {olderCursor != null ? (
-          <button
-            type="button"
-            disabled={loadingOlder}
-            onClick={() => void loadOlder()}
-            className="self-center rounded-lg px-3 py-1.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
-          >
-            {loadingOlder ? t`Loading…` : t`Load earlier messages`}
-          </button>
-        ) : null}
-        {groupVoiceChats(reactionView.visibleMessages).map((item) => {
-          if (item.kind === "voiceChat") {
-            return (
-              <div key={item.key}>
-                {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
-                  <TimeSeparator
-                    createdAt={item.messages[0].createdAt}
-                    locale={i18n.locale || "en"}
+        {/* Grok's column: min(960, chat area - 32), centered. */}
+        <div className="mx-auto flex w-full max-w-[960px] flex-col gap-4">
+          {olderCursor != null ? (
+            <button
+              type="button"
+              disabled={loadingOlder}
+              onClick={() => void loadOlder()}
+              className="self-center rounded-lg px-3 py-1.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
+            >
+              {loadingOlder ? t`Loading…` : t`Load earlier messages`}
+            </button>
+          ) : null}
+          {groupVoiceChats(reactionView.visibleMessages).map((item) => {
+            if (item.kind === "voiceChat") {
+              return (
+                <div key={item.key}>
+                  {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
+                    <TimeSeparator
+                      createdAt={item.messages[0].createdAt}
+                      locale={i18n.locale || "en"}
+                    />
+                  ) : null}
+                  <VoiceChatCard
+                    group={item}
+                    revealMessageId={scrollRequest?.messageId}
+                    onCallBack={onCallBack}
                   />
+                </div>
+              );
+            }
+            const message = item.message;
+            if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
+            const peerReceipt = isPeerReceiptBlocks(message.blocks);
+            const messageReactions = reactionView.reactions.get(message.id);
+            return (
+              <Fragment key={message.id}>
+                {separatorIds.has(message.id) ? (
+                  <TimeSeparator createdAt={message.createdAt} locale={i18n.locale || "en"} />
                 ) : null}
-                <VoiceChatCard
-                  group={item}
-                  revealMessageId={scrollRequest?.messageId}
-                  onCallBack={onCallBack}
-                />
-              </div>
-            );
-          }
-          const message = item.message;
-          if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
-          const peerReceipt = isPeerReceiptBlocks(message.blocks);
-          const messageReactions = reactionView.reactions.get(message.id);
-          return (
-            <Fragment key={message.id}>
-              {separatorIds.has(message.id) ? (
-                <TimeSeparator createdAt={message.createdAt} locale={i18n.locale || "en"} />
-              ) : null}
-              <div
-                data-message-id={message.id}
-                className={
-                  peerReceipt
-                    ? "relative py-1"
-                    : cn(
-                        "group/message relative hover:z-20",
-                        // Room for the badges above the bubble.
-                        messageReactions && "mt-[15px]",
-                      )
-                }
-              >
                 <div
+                  data-message-id={message.id}
                   className={
                     peerReceipt
-                      ? undefined
-                      : `relative flex ${message.role === "user" ? "justify-end" : "justify-start"}`
+                      ? "relative py-1"
+                      : cn(
+                          "group/message relative hover:z-20",
+                          // Room for the badges above the bubble.
+                          messageReactions && "mt-[15px]",
+                        )
                   }
                 >
                   <div
-                    data-testid={peerReceipt ? undefined : "message-bubble-frame"}
                     className={
                       peerReceipt
                         ? undefined
-                        : message.blocks.some(
-                              (block) => block.kind === "ask" || block.kind === "mcp_approval",
-                            ) || message.blocks.every(isSystemRowBlock)
-                          ? "relative w-full min-w-0 max-w-full"
-                          : `relative w-fit min-w-0 ${
-                              message.role === "user"
-                                ? "max-w-[560px] [@media(hover:none)]:max-w-[84%]"
-                                : "max-w-[560px] [@media(hover:none)]:max-w-[88%]"
-                            }`
+                        : `relative flex ${message.role === "user" ? "justify-end" : "justify-start"}`
                     }
                   >
-                    <MessageView
-                      artifactTarget={artifactTarget}
-                      message={message}
-                      canAnswer={answerableAskIds.has(message.id)}
-                      onOpenBot={onOpenBot}
-                      onOpenPeerMessages={onOpenPeerMessages}
-                      peerReplies={
-                        transcript.folded.has(message.id)
-                          ? expandedPeerMarkers.has(message.id)
-                            ? "expanded"
-                            : "collapsed"
-                          : undefined
-                      }
-                      onTogglePeerReplies={togglePeerReplies}
-                      onAnswer={onAnswer}
-                      speakerName={
+                    <div
+                      data-testid={peerReceipt ? undefined : "message-bubble-frame"}
+                      className={
                         peerReceipt
                           ? undefined
-                          : message.role === "bot"
-                            ? memberName?.(message.botId)
+                          : message.blocks.some(
+                                (block) => block.kind === "ask" || block.kind === "mcp_approval",
+                              ) || message.blocks.every(isSystemRowBlock)
+                            ? "relative w-full min-w-0 max-w-full"
+                            : `relative w-fit min-w-0 ${
+                                message.role === "user"
+                                  ? "max-w-[560px] [@media(hover:none)]:max-w-[84%]"
+                                  : "max-w-[560px] [@media(hover:none)]:max-w-[88%]"
+                              }`
+                      }
+                    >
+                      <MessageView
+                        artifactTarget={artifactTarget}
+                        message={message}
+                        canAnswer={answerableAskIds.has(message.id)}
+                        onOpenBot={onOpenBot}
+                        onOpenPeerMessages={onOpenPeerMessages}
+                        peerReplies={
+                          transcript.folded.has(message.id)
+                            ? expandedPeerMarkers.has(message.id)
+                              ? "expanded"
+                              : "collapsed"
                             : undefined
-                      }
-                      memberName={memberName}
-                      peerBot={peerBot}
-                      replyParent={
-                        message.replyToMessageId
-                          ? messageById.get(message.replyToMessageId)
-                          : undefined
-                      }
-                      onJumpToMessage={onJumpToMessage}
-                      onRefresh={onRefresh}
-                      onBotChanged={onBotChanged}
-                      onAddRoutine={onAddRoutine}
-                      voiceReady={voiceReady}
-                      speaking={speakingMessageId === message.id}
-                      onSpeak={() => onSpeak(message)}
-                      onOpenComputer={onOpenComputer}
-                      showToolActivity={showToolActivity}
-                      onReply={onReply}
-                      onReact={onReact}
-                    />
-                    {!peerReceipt && messageReactions ? (
-                      // Tapback-style badges on the bubble's top outer corner.
-                      <div
-                        data-testid="message-reactions"
-                        className={cn(
-                          "absolute -top-[22.5px] z-10 flex gap-1",
-                          message.role === "user" ? "-start-[16.5px]" : "-end-[16.5px]",
-                        )}
-                      >
-                        {[...messageReactions].map(([emoji, count]) => (
-                          <span
-                            key={emoji}
-                            className="grid h-[30px] min-w-[30px] place-items-center rounded-full border-[0.5px] border-popover-border bg-popover px-[6px] text-base ring-3 ring-background"
-                          >
-                            {emoji}
-                            {count > 1 ? ` ${count}` : ""}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
+                        }
+                        onTogglePeerReplies={togglePeerReplies}
+                        onAnswer={onAnswer}
+                        speakerName={
+                          peerReceipt
+                            ? undefined
+                            : message.role === "bot"
+                              ? memberName?.(message.botId)
+                              : undefined
+                        }
+                        memberName={memberName}
+                        peerBot={peerBot}
+                        replyParent={
+                          message.replyToMessageId
+                            ? messageById.get(message.replyToMessageId)
+                            : undefined
+                        }
+                        onJumpToMessage={onJumpToMessage}
+                        onRefresh={onRefresh}
+                        onBotChanged={onBotChanged}
+                        onAddRoutine={onAddRoutine}
+                        voiceReady={voiceReady}
+                        speaking={speakingMessageId === message.id}
+                        onSpeak={() => onSpeak(message)}
+                        onOpenComputer={onOpenComputer}
+                        showToolActivity={showToolActivity}
+                        onReply={onReply}
+                        onReact={onReact}
+                        reacted={Boolean(messageReactions)}
+                      />
+                      {!peerReceipt && messageReactions ? (
+                        // Tapback-style badges on the bubble's top outer corner.
+                        <div
+                          data-testid="message-reactions"
+                          className={cn(
+                            "absolute -top-[22.5px] z-10 flex gap-1",
+                            message.role === "user" ? "-start-[16.5px]" : "-end-[16.5px]",
+                          )}
+                        >
+                          {[...messageReactions].map(([emoji, count]) => (
+                            <span
+                              key={emoji}
+                              className="grid h-[30px] min-w-[30px] place-items-center rounded-full border-[0.5px] border-popover-border bg-popover px-[6px] text-base ring-3 ring-background"
+                            >
+                              {emoji}
+                              {count > 1 ? ` ${count}` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Fragment>
-          );
-        })}
-        {running &&
-        !messages.some(
-          (message) =>
-            message.id.startsWith("progress:") &&
-            message.blocks.some(
-              (block) =>
-                block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-            ),
-        ) ? (
-          <ActiveBotGlyph bots={workingBots} label={workingLabel} />
-        ) : null}
+              </Fragment>
+            );
+          })}
+          {running &&
+          !messages.some(
+            (message) =>
+              message.id.startsWith("progress:") &&
+              message.blocks.some(
+                (block) =>
+                  block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
+              ),
+          ) ? (
+            <ActiveBotGlyph bots={workingBots} label={workingLabel} />
+          ) : null}
+        </div>
       </div>
       {quoteDraft ? (
         <QuoteSelectionButton
@@ -6606,7 +6610,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative z-30 m-0 min-w-0 border-0 px-4 pb-4 ${
+      className={`relative z-30 m-0 mx-auto w-full min-w-0 max-w-[992px] border-0 px-4 pb-4 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
@@ -7073,7 +7077,24 @@ function slashActionLabel(id: SlashActionId) {
 
 function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   if (mention.kind === "routine") {
-    return <Clock size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
+    // Tinted with the owning bot's color, like Grok's routine rows.
+    return (
+      <Clock
+        size={16}
+        strokeWidth={1.7}
+        className="shrink-0 text-muted-foreground"
+        style={
+          mention.color
+            ? {
+                color: resolvePersonaColorDef(
+                  mention.botId ?? "bot",
+                  parseBotAvatar(mention.color, mention.botId ?? "bot").color,
+                ).light,
+              }
+            : undefined
+        }
+      />
+    );
   }
   if (mention.kind === "connector") {
     return <Puzzle size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
@@ -7134,11 +7155,13 @@ function previewMessageText(message: ThreadMessage): string {
 function MessageHoverActions({
   message,
   side,
+  reacted,
   onReply,
   onReact,
 }: {
   message: ThreadMessage;
   side: "start" | "end";
+  reacted: boolean;
   onReply: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
 }) {
@@ -7159,7 +7182,7 @@ function MessageHoverActions({
     "grid h-11 w-11 place-items-center rounded-[8px] text-muted-foreground hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:h-6 [@media(hover:hover)_and_(pointer:fine)]:w-6";
 
   return (
-    <MessageHoverMetadata pinned={moreOpen || reactionsOpen} side={side}>
+    <MessageHoverMetadata pinned={moreOpen || reactionsOpen} side={side} reacted={reacted}>
       <div
         data-testid="message-hover-actions"
         className={cn("flex items-center gap-0.5", side === "start" && "flex-row-reverse")}
@@ -7304,6 +7327,7 @@ const MessageView = memo(function MessageView({
   showToolActivity,
   onReply,
   onReact,
+  reacted,
 }: {
   artifactTarget: ArtifactTarget;
   canAnswer: boolean;
@@ -7329,6 +7353,8 @@ const MessageView = memo(function MessageView({
   showToolActivity: boolean;
   onReply: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
+  /** Reaction badges sit on the bubble's outer top corner; the toolbar starts past them. */
+  reacted: boolean;
 }) {
   const { t } = useLingui();
   const isNarration =
@@ -7385,6 +7411,7 @@ const MessageView = memo(function MessageView({
     <MessageHoverActions
       message={message}
       side={message.role === "user" ? "start" : "end"}
+      reacted={reacted}
       onReply={onReply}
       onReact={onReact}
     />

@@ -209,6 +209,7 @@ export function buildComposerMentionOptions(input: {
       id: routine.id,
       name,
       botId: routine.botId,
+      color: input.bots.find((bot) => bot.id === routine.botId)?.color,
       subtitle: routineScheduleSubtitle(routine.crons, duplicate ? routine.botName : undefined),
     });
   }

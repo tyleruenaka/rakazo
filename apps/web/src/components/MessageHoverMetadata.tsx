@@ -3,10 +3,13 @@ import type { ReactNode } from "react";
 export function MessageHoverMetadata({
   side,
   pinned = false,
+  reacted = false,
   children,
 }: {
   side: "start" | "end";
   pinned?: boolean;
+  /** Starts the rail at the reaction badges' outer edge instead of 7px from the bubble. */
+  reacted?: boolean;
   children: ReactNode;
 }) {
   // Touch shows the rail in-flow below the bubble; hover-capable pointers reveal it beside the bubble on demand.
@@ -18,7 +21,9 @@ export function MessageHoverMetadata({
     <div
       data-testid="message-hover-rail"
       className={`absolute top-1/2 z-10 flex -translate-y-1/2 items-center transition-opacity ${reveal} ${
-        side === "end" ? "start-full ms-[7px]" : "end-full me-[7px]"
+        side === "end"
+          ? `start-full ${reacted ? "ms-[16.5px]" : "ms-[7px]"}`
+          : `end-full ${reacted ? "me-[16.5px]" : "me-[7px]"}`
       } [@media(hover:none)]:static [@media(hover:none)]:mt-1 [@media(hover:none)]:w-full [@media(hover:none)]:translate-y-0 ${
         side === "end"
           ? "[@media(hover:none)]:ms-0 [@media(hover:none)]:justify-start"

@@ -103,7 +103,7 @@ export function InlineBotField({
         }}
         onBlur={() => void commit()}
         className={cn(
-          "field-sizing-content max-w-full truncate border-[0.5px] border-transparent bg-transparent text-center outline-none placeholder:text-placeholder hover:border-card hover:bg-inline-edit-hover focus:border-transparent focus:bg-transparent",
+          "field-sizing-content max-w-full truncate border-[0.5px] border-transparent bg-transparent text-center outline-none placeholder:text-placeholder hover:border-card hover:bg-inline-edit-hover focus:border-transparent focus:bg-inline-edit-hover",
           className,
         )}
       />
