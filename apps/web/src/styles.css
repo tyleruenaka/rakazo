@@ -147,9 +147,10 @@ body,
 
 /* A bot-to-bot exchange covers the chat. The transcript and composer stay mounted under it so
    their scroll position and draft survive, but are hidden from pointer, focus and screen
-   readers; its pair pill stands in for the name pill. */
-main[data-peer-open] > :not([data-peer-view], [data-chat-header]),
-main[data-peer-open] [data-name-pill] {
+   readers; its pair pill stands in for the name pill. Keyed on the view itself, so the chat
+   stays up while the view's code loads. */
+main:has(> [data-peer-view]) > :not([data-peer-view], [data-chat-header]),
+main:has(> [data-peer-view]) [data-name-pill] {
   visibility: hidden;
 }
 

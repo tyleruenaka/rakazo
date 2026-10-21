@@ -398,7 +398,7 @@ const headerButtonClass = cn(
   "app-no-drag text-control-icon",
 );
 /** A segment inside the full computer view's pill. */
-const computerSegmentClass = "h-[26px] px-2 text-[13px]";
+const computerSegmentClass = "h-[26px] border-0 px-2 text-[13px]";
 const THREAD_SNAPSHOT_TIMEOUT_MS = 2_000;
 /** Bound Settings leave so a hung voice status refresh cannot block dismissal. */
 const VOICE_STATUS_REFRESH_TIMEOUT_MS = 10_000;
@@ -4113,7 +4113,6 @@ function SpaceShell() {
         aria-hidden={mobileSidebarOpen || undefined}
         inert={mobileSidebarOpen}
         data-bot-accent={botAccent ? "" : undefined}
-        data-peer-open={peerConversation && active ? "" : undefined}
         style={botAccent ? ({ "--bot-accent": botAccent } as CSSProperties) : undefined}
         className="relative isolate flex min-w-0 flex-1 flex-col bg-background"
       >
@@ -7387,7 +7386,7 @@ export function ComputerControlPill({
       {recording ? null : (
         <span
           className={cn(
-            "flex items-center gap-1.5 ps-[9px] pe-2.5 text-[13px]",
+            "flex items-center gap-1.5 ps-[9px] pe-1.5 text-[13px]",
             !hasControl
               ? "text-muted-foreground"
               : takeoverRequested

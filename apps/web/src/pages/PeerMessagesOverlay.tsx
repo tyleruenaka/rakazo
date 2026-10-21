@@ -82,16 +82,24 @@ export function PeerMessagesOverlay({
     };
   }, [botId, reloadKey]);
 
-  // The opener is hidden under this view: focus Close Chat, and hand focus back on close.
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  // The opener is hidden under this view: focus Close Chat, and hand focus back on close. The
+  // opener is read in a layout effect, before the browser drops focus from the hidden chat, and
+  // focused again after the view has left the DOM and the chat shows again.
+  const openerRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    // Keep the first opener: a re-run (React's dev double effects) would find Close Chat.
+    openerRef.current ??=
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape" && !event.defaultPrevented) onCloseRef.current();
     }
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      const opener = openerRef.current;
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
@@ -127,7 +135,7 @@ export function PeerMessagesOverlay({
           size={16}
           strokeWidth={1.5}
           aria-hidden="true"
-          className="shrink-0 text-chat-placeholder"
+          className="-ms-1 shrink-0 text-chat-placeholder"
         />
         <BotAvatar color={peerBotColor} identity={peerBotId} size={24} />
         <span className="min-w-0 truncate" dir="auto">
@@ -210,7 +218,7 @@ export function PeerMessagesOverlay({
         <Button
           ref={closeRef}
           variant="ghost"
-          className="h-8 rounded-full bg-muted px-4 text-[14px] text-foreground hover:bg-accent"
+          className="h-8 rounded-full border-0 bg-muted px-4 text-[14px] text-foreground hover:bg-accent"
           onClick={onClose}
         >
           <Trans>Close Chat</Trans>
