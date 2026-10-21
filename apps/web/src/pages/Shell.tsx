@@ -139,6 +139,7 @@ import type {
   CSSProperties,
   DragEvent,
   MutableRefObject,
+  ReactNode,
   RefObject,
 } from "react";
 import {
@@ -4303,59 +4304,61 @@ function SpaceShell() {
             sideInset={chatSideInset}
           />
         )}
-        {recordingSkill ? (
-          <div className="px-6 pb-2 text-center text-[13px] text-destructive">
-            <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
-          </div>
-        ) : null}
-        {active || activeGroup ? (
-          <Composer
-            key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
-            draftKey={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
-            enterToSend={enterToSend}
-            sideInset={chatSideInset}
-            activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
-            running={composerRunning}
-            disabled={Boolean(recordingSkill)}
-            pendingAttachments={activePendingAttachments}
-            attachmentNotice={attachmentNotice}
-            sendError={sendError}
-            onOpenModels={() => openSettings("models")}
-            runError={displayedRunError}
-            runErrorId={displayedRunErrorId}
-            onRunErrorPresented={handleRunErrorPresented}
-            onDismissError={dismissComposerError}
-            sending={sending}
-            fileInputRef={fileInputRef}
-            onAttachmentPick={onAttachmentPick}
-            onRemoveAttachment={removeAttachment}
-            onSend={sendMessage}
-            onStop={stopRun}
-            phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
-            dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
-            artifactTarget={transcriptArtifactTarget}
-            replyTarget={activeReplyTarget}
-            replyQuote={activeReplyQuote}
-            replyTargetName={replyTargetName}
-            onClearReply={clearReply}
-            mentionTargets={composerMentionTargets}
-            agentSkills={agentSkills}
-            onSlashOpen={refreshAgentSkills}
-            onSlashAction={(action) => {
-              if (action === "chat-settings") {
-                setPanel(inGroup ? "group-settings" : "settings");
-                return;
-              }
-              if (action === "settings-general") {
-                openSettings("general");
-                return;
-              }
-              if (action === "settings-usage") {
-                openSettings("usage");
-              }
-            }}
-          />
-        ) : null}
+        <ComposerDock scrollRef={messageScroll}>
+          {recordingSkill ? (
+            <div className="pointer-events-auto bg-background px-6 pb-2 text-center text-[13px] text-destructive">
+              <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
+            </div>
+          ) : null}
+          {active || activeGroup ? (
+            <Composer
+              key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
+              draftKey={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
+              enterToSend={enterToSend}
+              sideInset={chatSideInset}
+              activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
+              running={composerRunning}
+              disabled={Boolean(recordingSkill)}
+              pendingAttachments={activePendingAttachments}
+              attachmentNotice={attachmentNotice}
+              sendError={sendError}
+              onOpenModels={() => openSettings("models")}
+              runError={displayedRunError}
+              runErrorId={displayedRunErrorId}
+              onRunErrorPresented={handleRunErrorPresented}
+              onDismissError={dismissComposerError}
+              sending={sending}
+              fileInputRef={fileInputRef}
+              onAttachmentPick={onAttachmentPick}
+              onRemoveAttachment={removeAttachment}
+              onSend={sendMessage}
+              onStop={stopRun}
+              phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
+              dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
+              artifactTarget={transcriptArtifactTarget}
+              replyTarget={activeReplyTarget}
+              replyQuote={activeReplyQuote}
+              replyTargetName={replyTargetName}
+              onClearReply={clearReply}
+              mentionTargets={composerMentionTargets}
+              agentSkills={agentSkills}
+              onSlashOpen={refreshAgentSkills}
+              onSlashAction={(action) => {
+                if (action === "chat-settings") {
+                  setPanel(inGroup ? "group-settings" : "settings");
+                  return;
+                }
+                if (action === "settings-general") {
+                  openSettings("general");
+                  return;
+                }
+                if (action === "settings-usage") {
+                  openSettings("usage");
+                }
+              }}
+            />
+          ) : null}
+        </ComposerDock>
         {/* A bot-to-bot exchange takes the chat area; the transcript and composer stay mounted. */}
         {peerConversation && active ? (
           <Suspense fallback={null}>
@@ -5512,6 +5515,45 @@ function isSystemRowBlock(block: ThreadMessage["blocks"][number]) {
   return block.kind === "meta" || block.kind === "handoff" || block.kind === "channel_message";
 }
 
+/**
+ * Floats the composer over the transcript, which scrolls under it. The dock's live height goes
+ * to `--rk-composer-height` on the chat area, where the transcript pads its end and places the
+ * jump button; a transcript resting at its end stays there as the composer grows or shrinks.
+ */
+export function ComposerDock({
+  scrollRef,
+  children,
+}: {
+  scrollRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  const dockRef = useCallback(
+    (dock: HTMLDivElement | null) => {
+      const area = dock?.parentElement;
+      if (!dock || !area) return;
+      const update = () => {
+        const scroller = scrollRef.current;
+        const atEnd = scroller ? transcriptIsNearEnd(scroller) : false;
+        area.style.setProperty("--rk-composer-height", `${dock.offsetHeight}px`);
+        if (scroller && atEnd) scroller.scrollTop = scroller.scrollHeight;
+      };
+      update();
+      const observer = new ResizeObserver(update);
+      observer.observe(dock);
+      return () => observer.disconnect();
+    },
+    [scrollRef],
+  );
+  return (
+    <div
+      ref={dockRef}
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col"
+    >
+      {children}
+    </div>
+  );
+}
+
 const Transcript = memo(function Transcript({
   scrollRef,
   scrollRequest,
@@ -5863,11 +5905,13 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        style={
-          sideInset ? { paddingInlineStart: sideInset, paddingInlineEnd: sideInset - 8 } : undefined
-        }
+        style={{
+          // The last message rests 54px above the floating composer.
+          paddingBottom: "calc(var(--rk-composer-height, 0px) + 54px)",
+          ...(sideInset ? { paddingInlineStart: sideInset, paddingInlineEnd: sideInset - 8 } : {}),
+        }}
         // The scrollbar gutter (8) plus pe-2 lines the column up with the composer's right edge.
-        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
+        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pt-[60px] [scrollbar-gutter:stable]"
       >
         {/* Grok's column: min(960, chat area - 32), centered. */}
         <div className="mx-auto flex w-full max-w-[960px] flex-col gap-4">
@@ -6041,7 +6085,8 @@ const Transcript = memo(function Transcript({
         aria-hidden={atEnd}
         tabIndex={atEnd ? -1 : 0}
         onClick={jumpToLatest}
-        className={`absolute bottom-2 left-1/2 z-20 grid size-8 -translate-x-1/2 place-items-center rounded-full border-[0.5px] border-popover-border bg-card text-foreground shadow-[0_2px_8px_rgb(0_0_0/0.07)] transition-[opacity,transform,background-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-accent motion-reduce:transition-none dark:border-input dark:shadow-none ${
+        style={{ bottom: "calc(var(--rk-composer-height, 0px) + 8px)" }}
+        className={`absolute left-1/2 z-20 grid size-8 -translate-x-1/2 place-items-center rounded-full border-[0.5px] border-popover-border bg-card text-foreground shadow-[0_2px_8px_rgb(0_0_0/0.07)] transition-[opacity,transform,background-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-accent motion-reduce:transition-none dark:border-input dark:shadow-none ${
           atEnd ? "pointer-events-none translate-y-2 opacity-0" : "translate-y-0 opacity-100"
         }`}
       >
@@ -6692,7 +6737,7 @@ export const Composer = memo(function Composer({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={sideInset ? { paddingInline: sideInset, maxWidth: 960 + 2 * sideInset } : undefined}
-      className={`relative z-30 m-0 mx-auto w-full min-w-0 max-w-[992px] border-0 px-4 pb-4 ${
+      className={`pointer-events-auto relative m-0 mx-auto w-full min-w-0 max-w-[992px] border-0 px-4 pb-4 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
@@ -6704,7 +6749,7 @@ export const Composer = memo(function Composer({
           ref={runErrorRef}
           role="alert"
           data-testid="composer-error"
-          className="mb-3 flex items-center gap-2 rounded-[14px] border border-destructive/40 bg-destructive/10 px-4 py-2 text-[13px] text-destructive"
+          className="mb-3 flex items-center gap-2 rounded-[14px] border border-destructive/40 bg-background bg-linear-to-r from-destructive/10 to-destructive/10 px-4 py-2 text-[13px] text-destructive"
         >
           <div className="min-w-0 flex-1">
             {sendError === MODEL_REQUIRED_SEND_ERROR ? (
@@ -6760,7 +6805,7 @@ export const Composer = memo(function Composer({
         />
       ) : null}
       {attachmentNotice ? (
-        <div className="mb-3 rounded-[14px] border border-warning/40 bg-warning/10 px-4 py-2 text-[13px] text-warning">
+        <div className="mb-3 rounded-[14px] border border-warning/40 bg-background bg-linear-to-r from-warning/10 to-warning/10 px-4 py-2 text-[13px] text-warning">
           {attachmentNotice}
         </div>
       ) : null}
