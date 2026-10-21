@@ -95,6 +95,17 @@ body,
     0 1px 4px rgb(0 0 0 / 0.04);
 }
 
+/* An attached file card: a translucent half-pixel ring outside it, plus a soft shadow in light. */
+.rk-attachment-card {
+  box-shadow: 0 0 0 0.5px var(--attachment-ring);
+}
+[data-theme="light"] .rk-attachment-card {
+  box-shadow:
+    0 0 0 0.5px var(--attachment-ring),
+    0 1px 4px rgb(28 28 28 / 0.07),
+    0 6px 12px rgb(28 28 28 / 0.035);
+}
+
 /* The transcript fades out under the floating header. At the bottom it is cut 38px up (the
    composer's 16px bottom padding plus half its 44px bar), like Grok: messages show past the
    bar's top corners, but nothing below its bottom corners or in the strip under it. */

@@ -45,6 +45,16 @@
   --color-computer-icon: var(--computer-icon);
   --color-computer-icon-hover: var(--computer-icon-hover);
   --color-card-ring: var(--card-ring);
+  --color-attachment: var(--attachment);
+  --color-attachment-ring: var(--attachment-ring);
+  --color-attachment-border: var(--attachment-border);
+  --color-file-icon: var(--file-icon);
+  --color-file-icon-border: var(--file-icon-border);
+  --color-file-icon-glyph: var(--file-icon-glyph);
+  --color-file-pdf: var(--file-pdf);
+  --color-file-sheet: var(--file-sheet);
+  --color-media-play: var(--media-play);
+  --color-media-play-foreground: var(--media-play-foreground);
   --color-code: var(--code);
   --color-code-foreground: var(--code-foreground);
   --color-markdown-marker: var(--markdown-marker);

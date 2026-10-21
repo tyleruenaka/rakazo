@@ -82,6 +82,21 @@ export type ColorTokens = {
   computerIconHover: string;
   /** Ring just outside a card in the transcript. */
   cardRing: string;
+  /** Attached file card in the composer and the transcript, and its translucent ring. */
+  attachment: string;
+  attachmentRing: string;
+  /** Hairline inside an attached image tile. */
+  attachmentBorder: string;
+  /** Page-shaped file type icon on an attachment card: fill, hairline and glyph. */
+  fileIcon: string;
+  fileIconBorder: string;
+  fileIconGlyph: string;
+  /** Band along the bottom of the PDF and spreadsheet file icons. */
+  filePdf: string;
+  fileSheet: string;
+  /** Play disc over an attached video's first frame. Dark in both themes. */
+  mediaPlay: string;
+  mediaPlayForeground: string;
   /** Inline code chip and code block fill in a chat message. */
   code: string;
   codeForeground: string;
@@ -188,6 +203,16 @@ export const darkTokens = {
   computerIcon: "#DCDCDC",
   computerIconHover: "#FFFFFF",
   cardRing: "#1B1B1B",
+  attachment: "#252525",
+  attachmentRing: "rgba(255, 255, 255, 0.12)",
+  attachmentBorder: "#353535",
+  fileIcon: "#343434",
+  fileIconBorder: "#464646",
+  fileIconGlyph: "#626262",
+  filePdf: "#E84447",
+  fileSheet: "#5AC078",
+  mediaPlay: "rgba(18, 18, 18, 0.85)",
+  mediaPlayForeground: "#F5F5F5",
   code: "#202020",
   codeForeground: "#ADADAD",
   markdownMarker: "#919191",
@@ -276,6 +301,16 @@ export const lightTokens = {
   computerIcon: "#DCDCDC",
   computerIconHover: "#FFFFFF",
   cardRing: "#EDEDED",
+  attachment: "#FFFFFF",
+  attachmentRing: "rgba(28, 28, 28, 0.08)",
+  attachmentBorder: "#E3E3E3",
+  fileIcon: "#FFFFFF",
+  fileIconBorder: "#DEDEDE",
+  fileIconGlyph: "#D6D6D6",
+  filePdf: "#E74347",
+  fileSheet: "#5AC078",
+  mediaPlay: "rgba(18, 18, 18, 0.85)",
+  mediaPlayForeground: "#F5F5F5",
   code: "#E7E7E7",
   codeForeground: "#5D5D5D",
   markdownMarker: "#797979",

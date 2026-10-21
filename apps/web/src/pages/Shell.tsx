@@ -117,7 +117,6 @@ import {
   Monitor,
   MoreHorizontal,
   PanelLeftClose,
-  Paperclip,
   Pencil,
   Phone,
   Plus,
@@ -335,6 +334,7 @@ import { BotCreatePicker } from "./shell/bot-picker";
 import { BotRail, RailItem, railGroups } from "./shell/bot-rail";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
+import { ComposerAttachments } from "./shell/composer-attachments";
 import {
   ClearConversationDialog,
   DeleteBotDialog,
@@ -2430,7 +2430,10 @@ function SpaceShell() {
           id: `${file.name}-${file.size}-${file.lastModified}-${next.length}`,
           threadKey,
           file,
-          previewUrl: mimeType.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+          previewUrl:
+            mimeType.startsWith("image/") || mimeType === "video/mp4"
+              ? URL.createObjectURL(file)
+              : undefined,
         });
       }
       if (next.length) setPendingAttachments((current) => [...current, ...next]);
@@ -6682,7 +6685,11 @@ export const Composer = memo(function Composer({
 
   const showComposerPlaceholder =
     draft.length === 0 && selectedSkill === null && selectedMentions.length === 0;
-  const expanded = composerExpanded || selectedSkill !== null || selectedMentions.length > 0;
+  const expanded =
+    composerExpanded ||
+    selectedSkill !== null ||
+    selectedMentions.length > 0 ||
+    pendingAttachments.length > 0;
 
   useLayoutEffect(() => {
     if (previousExpandedRef.current === expanded) return;
@@ -6856,40 +6863,6 @@ export const Composer = memo(function Composer({
           {attachmentNotice}
         </div>
       ) : null}
-      {pendingAttachments.length ? (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {pendingAttachments.map((attachment) => (
-            <div
-              key={attachment.id}
-              className="flex items-center gap-2 rounded-full border-[0.5px] border-popover-border bg-card px-3 py-1.5 text-[13px] text-foreground/75"
-            >
-              {attachment.previewUrl ? (
-                <img
-                  src={attachment.previewUrl}
-                  alt={attachment.file.name}
-                  className="h-8 w-8 rounded object-cover"
-                />
-              ) : (
-                <Paperclip size={14} strokeWidth={1.8} />
-              )}
-              <span className="max-w-[180px] truncate" dir="auto">
-                {attachment.file.name}
-              </span>
-              <button
-                type="button"
-                aria-label={t`Remove ${attachment.file.name}`}
-                onClick={() => {
-                  markEdited();
-                  onRemoveAttachment(attachment);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={13} strokeWidth={2} />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
       <div
         ref={composerBarRef}
         data-testid="composer-bar"
@@ -7021,6 +6994,15 @@ export const Composer = memo(function Composer({
             expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
           }`}
         >
+          {pendingAttachments.length ? (
+            <ComposerAttachments
+              attachments={pendingAttachments}
+              onRemove={(attachment) => {
+                markEdited();
+                onRemoveAttachment(attachment);
+              }}
+            />
+          ) : null}
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
@@ -7132,9 +7114,11 @@ export const Composer = memo(function Composer({
             disabled={disabled}
             placeholder={
               showComposerPlaceholder
-                ? activeName
-                  ? t`Message ${activeName}`
-                  : t`Message…`
+                ? pendingAttachments.length
+                  ? t`Add a message, or hit send`
+                  : activeName
+                    ? t`Message ${activeName}`
+                    : t`Message…`
                 : undefined
             }
             aria-label={activeName ? t`Message ${activeName}` : t`Message`}
@@ -7771,7 +7755,8 @@ const MessageView = memo(function MessageView({
                 ariaLabel={label}
                 color={peerBot(peerBotId)?.color ?? FALLBACK_BOT_COLOR}
                 identity={peerBotId}
-                label={label}
+                peer={peer}
+                sent={sent}
                 onClick={() => onOpenPeerMessages({ peerBotId, peerBotName: peer })}
                 replies={
                   !sent && peerReplies

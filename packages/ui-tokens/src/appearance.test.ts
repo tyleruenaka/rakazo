@@ -45,8 +45,8 @@ describe("appearance preference", () => {
   it("returns distinct light and dark token sets", () => {
     expect(tokensForAppearance("dark")).toBe(darkTokens);
     expect(tokensForAppearance("light")).toBe(lightTokens);
-    // Same in both themes on purpose: white plates, the full computer view's dark backdrop, and
-    // the pencil over a dimmed avatar.
+    // Same in both themes on purpose: white plates, the full computer view's dark backdrop, the
+    // pencil over a dimmed avatar, the spreadsheet icon's green band and the video play disc.
     const shared = new Set<keyof ColorTokens>([
       "destructiveForeground",
       "faviconPlate",
@@ -54,6 +54,9 @@ describe("appearance preference", () => {
       "computerBackdrop",
       "computerIcon",
       "computerIconHover",
+      "fileSheet",
+      "mediaPlay",
+      "mediaPlayForeground",
     ]);
     for (const key of Object.keys(darkTokens) as (keyof ColorTokens)[]) {
       if (shared.has(key)) continue;

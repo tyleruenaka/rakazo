@@ -604,6 +604,83 @@ it("hides call dictation until the server enables it", () => {
   expect(container?.querySelector('button[aria-label="Hold to talk"]')).toBeNull();
 });
 
+describe("composer attachments", () => {
+  const image = {
+    id: "shot",
+    threadKey: "bot-1",
+    file: new File(["png"], "shot.png", { type: "image/png" }),
+    previewUrl: "blob:shot",
+  };
+  const pdf = {
+    id: "report",
+    threadKey: "bot-1",
+    file: new File(["x".repeat(9933)], "report.pdf", { type: "application/pdf" }),
+  };
+
+  it("shows picked files inside the composer, above the text, in one scrolling row", () => {
+    const onRemoveAttachment = vi.fn();
+    const textarea = renderComposer(async () => true, {
+      pendingAttachments: [image, pdf],
+      onRemoveAttachment,
+    });
+    const bar = container?.querySelector('[data-testid="composer-bar"]');
+    const row = bar?.querySelector('[data-testid="composer-attachments"]');
+    expect(row).not.toBeNull();
+    expect(bar?.getAttribute("data-expanded")).toBe("true");
+    expect(row!.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row?.className).toContain("flex-nowrap");
+    expect(row?.className).toContain("overflow-x-auto");
+    expect(row?.className).toContain("no-scrollbar");
+
+    const tile = row?.querySelector('[data-testid="composer-attachment-tile"]');
+    expect(tile?.className).toContain("size-18");
+    expect(tile?.className).toContain("rounded-xl");
+    expect(tile?.querySelector("img")?.getAttribute("src")).toBe("blob:shot");
+    expect(tile?.querySelector("img")?.className).toContain("object-cover");
+    const disc = tile?.querySelector<HTMLButtonElement>('button[aria-label="Remove shot.png"]');
+    expect(disc?.className).toContain("size-5");
+    expect(disc?.className).toContain("opacity-0");
+    expect(disc?.className).toContain("group-hover/attachment:opacity-100");
+
+    const card = row?.querySelector('[data-testid="composer-attachment-card"]');
+    expect(card?.className).toContain("rounded-[22px]");
+    expect(card?.className).toContain("max-w-[354px]");
+    expect(card?.textContent).toBe("report.pdf9.7kB");
+    expect(card?.querySelector('[data-testid="file-icon-band"]')?.className).toContain(
+      "bg-file-pdf",
+    );
+    // A file card only removes; it has no open action.
+    expect(card?.querySelectorAll("button")).toHaveLength(1);
+    act(() =>
+      card?.querySelector<HTMLButtonElement>('button[aria-label="Remove report.pdf"]')?.click(),
+    );
+    expect(onRemoveAttachment).toHaveBeenCalledWith(pdf);
+  });
+
+  it("asks for an optional message and allows sending only the attachments", async () => {
+    const onSend = vi.fn(async () => true);
+    const textarea = renderComposer(onSend, { pendingAttachments: [image] });
+    expect(textarea.placeholder).toBe("Add a message, or hit send");
+    const send = container?.querySelector<HTMLButtonElement>('button[aria-label="Send"]');
+    expect(send?.disabled).toBe(false);
+    await act(async () => send?.click());
+    expect(onSend).toHaveBeenCalledOnce();
+
+    rerenderComposer({ pendingAttachments: [] });
+    expect(textarea.placeholder).toBe("Message Ada");
+    expect(container?.querySelector('[data-testid="composer-attachments"]')).toBeNull();
+  });
+
+  it("opens an image tile in the image viewer", async () => {
+    renderComposer(async () => true, { pendingAttachments: [image] });
+    await act(async () =>
+      container?.querySelector<HTMLButtonElement>('button[aria-label="Open shot.png"]')?.click(),
+    );
+    const viewer = document.querySelector('[role="dialog"]');
+    expect(viewer?.querySelector('img[src="blob:shot"]')?.getAttribute("alt")).toBe("shot.png");
+  });
+});
+
 describe("ComputerControlPill", () => {
   function renderPill(overrides: Partial<ComponentProps<typeof ComputerControlPill>> = {}) {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
