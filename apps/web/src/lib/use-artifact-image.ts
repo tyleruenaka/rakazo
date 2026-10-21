@@ -1,4 +1,3 @@
-import type { ArtifactWithContent } from "@rakazo/contracts";
 import { useEffect, useState } from "react";
 import type { ArtifactTarget } from "./artifact-open";
 import { decodeArtifactBase64 } from "./artifact-open";
@@ -20,7 +19,7 @@ function releaseUnusedDownload(key: string, download: ImageDownload) {
   if (downloads.get(key) === download) downloads.delete(key);
 }
 
-function acquireDownload(key: string, load: () => Promise<ArtifactWithContent>) {
+function acquireDownload(key: string, load: () => Promise<Blob>) {
   let download = downloads.get(key);
   if (!download) {
     const entry: ImageDownload = {
@@ -28,11 +27,8 @@ function acquireDownload(key: string, load: () => Promise<ArtifactWithContent>) 
       objectUrl: null,
       settled: false,
       promise: load()
-        .then((artifact) => {
-          const bytes = decodeArtifactBase64(artifact.contentBase64);
-          entry.objectUrl = URL.createObjectURL(
-            new Blob([new Uint8Array(bytes)], { type: artifact.mimeType }),
-          );
+        .then((blob) => {
+          entry.objectUrl = URL.createObjectURL(blob);
           return entry.objectUrl;
         })
         .catch((error) => {
@@ -72,7 +68,9 @@ export function useArtifactImage(
     let cancelled = false;
     const scope = botId ? { botId } : { groupId: groupId! };
     const key = JSON.stringify([botId ? "bot" : "group", botId ?? groupId, artifactId]);
-    const download = acquireDownload(key, () => rpc.artifacts.get({ ...scope, artifactId }));
+    const download = acquireDownload(key, () =>
+      rpc.artifacts.get({ ...scope, artifactId }).then(artifactBlob),
+    );
     void download.promise
       .then((objectUrl) => {
         if (!cancelled) setSrc(objectUrl);
@@ -86,8 +84,59 @@ export function useArtifactImage(
   return src;
 }
 
-/** Image of the newest version of a space artifact, as listed on the Artifacts screen. */
-export function useLatestArtifactImage(
+function artifactBlob(artifact: { contentBase64: string; mimeType: string }): Blob {
+  const bytes = decodeArtifactBase64(artifact.contentBase64);
+  return new Blob([new Uint8Array(bytes)], { type: artifact.mimeType });
+}
+
+const THUMBNAIL_CACHE = "rakazo-artifact-thumbnails-v1";
+/** Shortest side in device pixels: covers a grid card at 2x without upscaling. */
+const THUMBNAIL_EDGE = 480;
+
+async function openThumbnailCache(): Promise<Cache | null> {
+  if (typeof caches === "undefined") return null;
+  return caches.open(THUMBNAIL_CACHE).catch(() => null);
+}
+
+/** Forget every stored thumbnail, e.g. when the user signs out. */
+export async function clearArtifactThumbnails(): Promise<void> {
+  if (typeof caches !== "undefined") await caches.delete(THUMBNAIL_CACHE).catch(() => false);
+}
+
+async function shrinkImage(blob: Blob): Promise<Blob> {
+  if (typeof createImageBitmap === "undefined") return blob;
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const scale = THUMBNAIL_EDGE / Math.min(bitmap.width, bitmap.height);
+    if (scale >= 1) {
+      bitmap.close();
+      return blob;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      return blob;
+    }
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return await new Promise((resolve) =>
+      canvas.toBlob((small) => resolve(small ?? blob), "image/webp", 0.85),
+    );
+  } catch {
+    return blob;
+  }
+}
+
+/**
+ * Small picture of the newest version of a space artifact, as listed on the Artifacts screen.
+ * The server only serves whole files, so each version is downloaded once, shrunk, and kept in
+ * Cache Storage; a version's bytes never change, so the cache needs no invalidation.
+ */
+export function useArtifactThumbnail(
   artifact: { id: string; version: number; versionCount: number },
   enabled = true,
 ) {
@@ -97,11 +146,19 @@ export function useLatestArtifactImage(
     setSrc(null);
     if (!enabled) return;
     let cancelled = false;
-    // Listed ids are the family root; later versions live under their own id.
-    const download = acquireDownload(JSON.stringify(["space", id, version]), async () => {
+    const download = acquireDownload(JSON.stringify(["thumbnail", id, version]), async () => {
+      const cache = await openThumbnailCache();
+      const cacheKey = `/artifact-thumbnails/${encodeURIComponent(id)}/${version}`;
+      const stored = await cache?.match(cacheKey);
+      if (stored) return stored.blob();
+      // Listed ids are the family root; later versions live under their own id.
       const latestId =
         versionCount > 1 ? ((await rpc.artifacts.listVersions({ familyId: id }))[0]?.id ?? id) : id;
-      return rpc.artifacts.getById({ artifactId: latestId });
+      const thumbnail = await shrinkImage(
+        artifactBlob(await rpc.artifacts.getById({ artifactId: latestId })),
+      );
+      await cache?.put(cacheKey, new Response(thumbnail)).catch(() => undefined);
+      return thumbnail;
     });
     void download.promise
       .then((objectUrl) => {

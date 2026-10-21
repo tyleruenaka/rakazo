@@ -289,6 +289,7 @@ export function ArtifactsPage() {
             </div>
             <NativeSelect
               aria-label={t`Filter by date`}
+              size="sm"
               className="w-auto text-[13px]"
               value={dateFilter}
               onChange={(event) => setDateFilter(event.target.value as DateFilter)}
@@ -553,7 +554,7 @@ function IndexPane({
 }
 
 const chipClass =
-  "flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-control px-3 text-[13px] text-foreground transition-colors hover:bg-popover-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground";
+  "flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-control px-2.5 text-[13px] text-foreground transition-colors hover:bg-popover-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground";
 
 function FilterChip({
   active,

@@ -60,7 +60,7 @@ export function BotLibrary({ botId }: { botId: string }) {
 
   if (loadError || items?.length === 0) {
     return (
-      <p className="mx-auto mt-[39px] max-w-[245px] text-center text-[13px] leading-[18px] text-caption">
+      <p className="mx-auto mt-[36px] max-w-[245px] text-center text-[13px] leading-[18px] text-caption">
         {loadError ?? <Trans>Files this Bot makes show up here</Trans>}
       </p>
     );
@@ -75,7 +75,7 @@ export function BotLibrary({ botId }: { botId: string }) {
             <button
               type="button"
               onClick={() => setPreviewing(item)}
-              className="group flex h-9 w-full items-center gap-2 rounded-[8px] ps-2 pe-3 text-start outline-none hover:bg-card-hover focus-visible:bg-card-hover"
+              className="group flex h-9 w-full items-center gap-[9px] rounded-[8px] ps-[9px] pe-3 text-start outline-none hover:bg-card-hover focus-visible:bg-card-hover"
             >
               <ArtifactThumbnail
                 artifact={item}

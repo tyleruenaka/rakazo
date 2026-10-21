@@ -5,9 +5,15 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ArtifactTarget } from "./artifact-open";
 import { rpc } from "./rpc";
-import { useArtifactImage } from "./use-artifact-image";
+import {
+  clearArtifactThumbnails,
+  useArtifactImage,
+  useArtifactThumbnail,
+} from "./use-artifact-image";
 
-vi.mock("./rpc", () => ({ rpc: { artifacts: { get: vi.fn() } } }));
+vi.mock("./rpc", () => ({
+  rpc: { artifacts: { get: vi.fn(), getById: vi.fn(), listVersions: vi.fn() } },
+}));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -128,4 +134,40 @@ it("retries a failed download while its original consumer stays mounted", async 
   expect(rpc.artifacts.get).toHaveBeenCalledTimes(2);
   expect(container.querySelectorAll("img")).toHaveLength(1);
   expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:photo");
+});
+
+function Thumbnail() {
+  const src = useArtifactThumbnail({ id: "shot", version: 2, versionCount: 2 });
+  return src ? <img src={src} alt="" /> : null;
+}
+
+it("downloads a thumbnail once and serves later visits from Cache Storage", async () => {
+  const stored = new Map<string, unknown>();
+  const cache = {
+    match: vi.fn(async (key: string) =>
+      stored.has(key)
+        ? { blob: async () => new Blob(["small"], { type: "image/webp" }) }
+        : undefined,
+    ),
+    put: vi.fn(async (key: string, value: unknown) => void stored.set(key, value)),
+  };
+  const deleteCache = vi.fn(async () => true);
+  vi.stubGlobal("caches", { open: vi.fn(async () => cache), delete: deleteCache });
+  vi.mocked(rpc.artifacts.listVersions).mockResolvedValue([
+    { id: "shot-v2", version: 2, name: "shot.png", createdAt: "2026-10-20T10:00:00.000Z" },
+  ]);
+  vi.mocked(rpc.artifacts.getById).mockResolvedValue(artifact as never);
+
+  await act(async () => root.render(<Thumbnail />));
+  expect(rpc.artifacts.getById).toHaveBeenCalledExactlyOnceWith({ artifactId: "shot-v2" });
+  expect(cache.put).toHaveBeenCalledWith("/artifact-thumbnails/shot/2", expect.anything());
+  expect(container.querySelector("img")).not.toBeNull();
+
+  act(() => root.render(null));
+  await act(async () => root.render(<Thumbnail />));
+  expect(rpc.artifacts.getById).toHaveBeenCalledOnce();
+  expect(container.querySelector("img")).not.toBeNull();
+
+  await clearArtifactThumbnails();
+  expect(deleteCache).toHaveBeenCalledWith("rakazo-artifact-thumbnails-v1");
 });

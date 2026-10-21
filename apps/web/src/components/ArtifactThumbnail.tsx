@@ -3,7 +3,7 @@ import { cn } from "@rakazo/ui-web";
 import { File, FileAudio, FileCode, FileText, FileVideo, ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { artifactKind } from "../lib/artifact-kind";
-import { useLatestArtifactImage } from "../lib/use-artifact-image";
+import { useArtifactThumbnail } from "../lib/use-artifact-image";
 
 type ThumbnailArtifact = {
   id: string;
@@ -25,7 +25,7 @@ export function ArtifactThumbnail({
   const isImage = artifactKind(artifact.mimeType) === "image";
   const [visible, setVisible] = useState(false);
   const container = useRef<HTMLSpanElement>(null);
-  const src = useLatestArtifactImage(artifact, isImage && visible);
+  const src = useArtifactThumbnail(artifact, isImage && visible);
 
   // Fetch pictures only once they scroll near the viewport.
   useEffect(() => {
