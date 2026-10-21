@@ -238,8 +238,8 @@ export function routineTriggerSummary(routine: Routine): string {
 export function RoutineListHeader({ onCreate }: { onCreate: () => void }) {
   const { t } = useLingui();
   return (
-    <div className="mt-[30px] mb-3 flex items-center justify-between gap-3">
-      <div className="text-sm text-muted-foreground">
+    <div className="mb-2 mt-6 flex items-center justify-between gap-3 ps-3">
+      <div className="text-[14px] text-muted-foreground">
         <Trans>Routines</Trans>
       </div>
       <Button
@@ -268,7 +268,7 @@ export function RoutineListRow({
   onStop: () => void;
 }) {
   return (
-    <div className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2.5 hover:bg-accent">
+    <div className="flex w-full items-center gap-2 px-4 py-2 hover:bg-accent">
       <button
         type="button"
         onClick={onOpen}
@@ -282,10 +282,10 @@ export function RoutineListRow({
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14.5px] font-medium text-foreground" dir="auto">
+          <span className="block truncate text-[14px] text-foreground" dir="auto">
             {routine.name}
           </span>
-          <span className="block truncate text-[12.5px] text-muted-foreground/80">
+          <span className="block truncate text-[13px] text-muted-foreground">
             {routineTriggerSummary(routine)}
             {routine.modelProvider && routine.modelId ? ` · ${routine.modelId}` : ""}
           </span>

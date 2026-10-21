@@ -181,9 +181,9 @@ export function MemorySettingsOverlay({
               <Trans>Loading memory settings…</Trans>
             </p>
           ) : config ? (
-            <section className="rounded-xl border border-border px-4 py-4">
+            <section className="rounded-[14px] bg-card px-4 py-4">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[15px] font-medium text-foreground">
+                <h3 className="text-[14px] text-muted-foreground">
                   {registration?.name ?? config.provider}
                 </h3>
                 <span className="text-[13px] text-success">
@@ -215,7 +215,7 @@ export function MemorySettingsOverlay({
               </Button>
             </section>
           ) : registration ? (
-            <section className="rounded-xl border border-border px-4 py-4">
+            <section className="rounded-[14px] bg-card px-4 py-4">
               <h3 id={providerSelectId} className="text-[15px] font-medium text-foreground">
                 <Trans>Provider</Trans>
               </h3>

@@ -5,6 +5,7 @@ import { App } from "./App";
 import { DesktopUpdatesProvider } from "./components/DesktopUpdates";
 import { I18nBootstrap } from "./components/I18nBootstrap";
 import { applyUiDirection } from "./lib/apply-ui-direction";
+import { applyChatAccent } from "./lib/chat-accent";
 import { reportCaughtReactError, startMonitoring } from "./lib/monitoring";
 import { markAfterPaint, markOnce } from "./lib/performance";
 import { installPreloadRecovery } from "./lib/preload-recovery";
@@ -17,6 +18,7 @@ void startMonitoring();
 installPreloadRecovery();
 applyUiDirection(resolveUiLocale());
 applyUiAppearance();
+applyChatAccent();
 
 function PerformanceProbe() {
   useLayoutEffect(() => {

@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "rakazo:right-panel-width";
 const MIN_WIDTH = 320;
-const DEFAULT_WIDTH = 384;
+const DEFAULT_WIDTH = 368;
 const ABSOLUTE_MAX = 1000;
-/** Desktop bots sidebar width (`md:w-[316px]` in Shell). */
-const BOTS_SIDEBAR_WIDTH = 316;
+/** Desktop bots sidebar width (`md:w-[294px]` in Shell). */
+const BOTS_SIDEBAR_WIDTH = 294;
 const MIN_CHAT_WIDTH = 320;
 
 function maximumWidth(reservedLeadingPx: number) {
@@ -78,7 +78,7 @@ export function ResizableSidePanel({
       data-testid="side-panel"
       data-panel={panel}
       style={{ "--panel-width": `${width}px` } as CSSProperties}
-      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background md:relative ${dragging ? "" : "transition-[width] duration-150 ease-out"} ${open ? "w-full max-w-[384px] border-s border-sidebar-border md:w-(--panel-width) md:max-w-none" : "pointer-events-none w-0"}`}
+      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background md:relative ${dragging ? "" : "transition-[width] duration-150 ease-out"} ${open ? "w-full max-w-[368px] border-s-[0.5px] border-sidebar-border md:w-(--panel-width) md:max-w-none" : "pointer-events-none w-0"}`}
     >
       {open ? (
         <hr

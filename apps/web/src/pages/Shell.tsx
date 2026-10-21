@@ -87,6 +87,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  parseBotAvatar,
   resolvePersonaColorDef,
 } from "@rakazo/ui-web";
 import {
@@ -120,7 +121,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { ClipboardEvent, DragEvent, MutableRefObject, RefObject } from "react";
+import type { ClipboardEvent, CSSProperties, DragEvent, MutableRefObject, RefObject } from "react";
 import {
   Fragment,
   memo,
@@ -499,6 +500,7 @@ function SpaceShell() {
     setBotsSidebarCollapsed(readBotsSidebarCollapsed(userId));
   }, [userId]);
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<ThreadSnapshot | null>(null);
@@ -3030,6 +3032,10 @@ function SpaceShell() {
     showComputerRecoveryHint;
 
   const { label: userName, initial: initials } = accountDisplay(session.data?.user ?? {}, t`You`);
+  const botAccent =
+    active && !inGroup
+      ? resolvePersonaColorDef(active.id, parseBotAvatar(active.color, active.id).color).hex
+      : undefined;
 
   const shell = (
     <div
@@ -3091,7 +3097,7 @@ function SpaceShell() {
           type="button"
           aria-label={t`Close navigation`}
           onClick={() => setMobileSidebarOpen(false)}
-          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),316px)] z-30 bg-overlay md:hidden"
+          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),294px)] z-30 bg-overlay md:hidden"
         />
       ) : null}
       <aside
@@ -3100,17 +3106,17 @@ function SpaceShell() {
         data-bots-sidebar-density={botsSidebarDensity}
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
         inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
-        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[316px] shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
+        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[294px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
         } ${
           botsSidebarCollapsed
             ? "md:w-0 md:max-w-0 md:overflow-hidden md:border-e-0 md:opacity-0 md:pointer-events-none"
-            : "md:w-[316px]"
+            : "md:w-[294px]"
         }`}
       >
-        <div className="app-drag flex items-center justify-between px-[18px] pb-3 pt-4">
+        <div className="app-drag flex items-center justify-between pb-2 pe-4 ps-[18px] pt-3">
           <WindowChrome />
-          <div className="relative flex items-center gap-2.5">
+          <div className="relative flex items-center gap-2">
             <button
               type="button"
               aria-label={t`Activity`}
@@ -3118,14 +3124,14 @@ function SpaceShell() {
               title={t`Activity`}
               data-activity-mode={activityMode ? "on" : "off"}
               onClick={toggleActivityMode}
-              className={`app-no-drag flex h-7 w-7 items-center justify-center rounded-full ${
+              className={`app-no-drag flex size-9 items-center justify-center rounded-full ${
                 activityMode
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground/70 hover:text-foreground/75"
+                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
               }`}
             >
               <Bell
-                size={15}
+                size={17}
                 strokeWidth={1.8}
                 fill={activityMode ? "currentColor" : "none"}
                 aria-hidden="true"
@@ -3133,21 +3139,32 @@ function SpaceShell() {
             </button>
             <button
               type="button"
-              className="app-no-drag hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground/75 md:inline-flex"
+              className="app-no-drag hidden size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground md:inline-flex"
               aria-label={t`Minimize bots`}
               title={t`Minimize bots`}
               data-testid="minimize-bots-sidebar"
               onClick={() => setBotsSidebarCollapsedPref(true)}
             >
-              <PanelLeftClose size={15} strokeWidth={1.8} aria-hidden="true" />
+              <PanelLeftClose size={17} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={t`Search`}
+              aria-expanded={searchOpen || activityMode || query.length > 0}
+              title={t`Search`}
+              onClick={() => setSearchOpen((open) => !open)}
+              className="app-no-drag flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
+            >
+              <Search size={18} strokeWidth={1.8} aria-hidden="true" />
             </button>
             <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
               <PopoverTrigger
-                className="app-no-drag text-[21px] text-muted-foreground/70 hover:text-foreground/75"
+                className="app-no-drag flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
                 title={t`Create`}
+                aria-label={t`Create`}
                 data-testid="create-menu-trigger"
               >
-                +
+                <Plus size={20} strokeWidth={1.7} aria-hidden="true" />
               </PopoverTrigger>
               {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
               {createMenuOpen ? (
@@ -3193,52 +3210,62 @@ function SpaceShell() {
             </Popover>
           </div>
         </div>
-        <InputGroup
-          data-testid="sidebar-search"
-          className="mx-2.5 mb-3 w-auto rounded-xl bg-card dark:bg-input border border-border text-muted-foreground focus-within:border-ring"
-        >
-          <InputGroupAddon>
-            <Search size={16} strokeWidth={1.8} aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={activityMode ? activityFilters.query : query}
-            onChange={(e) => {
-              if (activityMode) setActivityFilters({ ...activityFilters, query: e.target.value });
-              else setQuery(e.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (activityMode && event.key === "Escape") {
-                setActivityFilters({ ...activityFilters, query: "" });
-              }
-            }}
-            placeholder={activityMode ? t`Search runs` : t`Search`}
-            aria-label={activityMode ? t`Search runs` : t`Search`}
-            autoComplete="off"
-            name="sidebar-search"
-          />
-          {activityMode ? (
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                size="icon-sm"
-                aria-label={t`Filters`}
-                aria-expanded={activityFiltersExpanded}
-                aria-controls={activityFiltersId}
-                onClick={() => setActivityFiltersExpanded((expanded) => !expanded)}
-                className="relative rounded-lg"
-              >
-                <SlidersHorizontal size={16} aria-hidden="true" />
-                {activityFilterCount > 0 ? (
-                  <span
-                    data-testid="activity-filter-indicator"
-                    aria-hidden="true"
-                    className="absolute end-1 top-1 size-1.5 rounded-full bg-primary"
-                  />
-                ) : null}
-              </InputGroupButton>
+        {searchOpen || activityMode || query.length > 0 ? (
+          <InputGroup
+            data-testid="sidebar-search"
+            className="mx-3 mb-2 h-9 w-auto rounded-full border border-border bg-card text-muted-foreground focus-within:border-ring"
+          >
+            <InputGroupAddon>
+              <Search size={16} strokeWidth={1.8} aria-hidden="true" />
             </InputGroupAddon>
-          ) : null}
-        </InputGroup>
-        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2.5">
+            <InputGroupInput
+              value={activityMode ? activityFilters.query : query}
+              onChange={(e) => {
+                if (activityMode) setActivityFilters({ ...activityFilters, query: e.target.value });
+                else setQuery(e.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (activityMode && event.key === "Escape") {
+                  setActivityFilters({ ...activityFilters, query: "" });
+                } else if (event.key === "Escape") {
+                  setQuery("");
+                  setSearchOpen(false);
+                }
+              }}
+              onBlur={() => {
+                if (!query) setSearchOpen(false);
+              }}
+              autoFocus={searchOpen && !activityMode}
+              placeholder={activityMode ? t`Search runs` : t`Search`}
+              aria-label={activityMode ? t`Search runs` : t`Search`}
+              autoComplete="off"
+              name="sidebar-search"
+              className="text-[14px]"
+            />
+            {activityMode ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-sm"
+                  aria-label={t`Filters`}
+                  aria-expanded={activityFiltersExpanded}
+                  aria-controls={activityFiltersId}
+                  onClick={() => setActivityFiltersExpanded((expanded) => !expanded)}
+                  className="relative rounded-lg"
+                >
+                  <SlidersHorizontal size={16} aria-hidden="true" />
+                  {activityFilterCount > 0 ? (
+                    <span
+                      data-testid="activity-filter-indicator"
+                      aria-hidden="true"
+                      className="absolute end-1 top-1 size-1.5 rounded-full bg-primary"
+                    />
+                  ) : null}
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+        ) : null}
+        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2.5">
           {showSpaceSearch ? (
             <SpaceSearchResults
               hits={searchHits}
@@ -3287,7 +3314,7 @@ function SpaceShell() {
                   <div
                     key={group.key}
                     data-sidebar-group={group.key}
-                    className="flex flex-col gap-0.5"
+                    className="flex flex-col gap-1"
                   >
                     {group.title || hasSpaceActions ? (
                       // biome-ignore lint/a11y/useSemanticElements: groups sidebar controls, not form fields; Move to remains the keyboard alternative.
@@ -3296,8 +3323,8 @@ function SpaceShell() {
                         data-roster-drop={rosterDropKey === headerDropKey ? "true" : undefined}
                         className={`${
                           group.title && hasSpaceActions
-                            ? "grid pt-3 pb-0.5"
-                            : `flex items-center pt-3 pb-0.5${group.title ? "" : " justify-end"}`
+                            ? "grid pt-[11px] pb-1"
+                            : `flex items-center pt-[11px] pb-1${group.title ? "" : " justify-end"}`
                         } rounded-lg ${rosterDropKey === headerDropKey ? "bg-sidebar-accent" : ""}`}
                         onDragOver={(event) => {
                           if (!headerDropTarget || !rosterDropAction(headerDropTarget, false))
@@ -3318,7 +3345,7 @@ function SpaceShell() {
                         {group.title ? (
                           <button
                             type="button"
-                            className={`flex min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full pe-8" : "flex-1"}`}
+                            className={`group/section flex min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-1 text-[12px] leading-4 text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full pe-8" : "flex-1"}`}
                             onClick={() => {
                               if (group.emptySpaceId) {
                                 openSpaceChat(group.emptySpaceId, "/onboarding");
@@ -3378,11 +3405,11 @@ function SpaceShell() {
                               <ChevronDown
                                 size={14}
                                 strokeWidth={1.8}
-                                className={
+                                className={`transition-[transform,opacity] ${
                                   collapsed
-                                    ? "-rotate-90 transition-transform"
-                                    : "transition-transform"
-                                }
+                                    ? "-rotate-90"
+                                    : "opacity-0 group-hover/section:opacity-100 group-focus-visible/section:opacity-100"
+                                }`}
                                 aria-hidden="true"
                               />
                             )}
@@ -3413,7 +3440,7 @@ function SpaceShell() {
                       </div>
                     ) : null}
                     <Collapsible open={!collapsed} className="contents">
-                      <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-0.5 overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
+                      <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-1 overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
                         {nestedRows.map(({ item, depth, hasChildren, parentId }) => {
                           const parentCollapsed =
                             hasChildren && collapsedRosterParents.has(item.chat.id);
@@ -3575,7 +3602,7 @@ function SpaceShell() {
                                 className={`flex w-full items-center ${
                                   compact
                                     ? "min-h-11 gap-2 rounded-xl px-2.5 py-1.5"
-                                    : "gap-3 rounded-xl px-2.5 py-[10px]"
+                                    : "gap-1.5 rounded-xl px-2.5 py-2"
                                 } text-start ${
                                   item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
                                 } ${
@@ -3607,14 +3634,12 @@ function SpaceShell() {
                                   />
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                                       <span
                                         dir="auto"
                                         data-roster-bot-name={item.kind === "bot" ? "" : undefined}
-                                        className={`min-w-0 truncate text-[14px] text-foreground ${
-                                          item.chat.unread ? "font-semibold" : "font-medium"
-                                        }`}
+                                        className="min-w-0 max-w-full shrink-0 truncate text-[14px] leading-5 text-foreground"
                                       >
                                         {item.chat.name}
                                       </span>
@@ -3623,28 +3648,19 @@ function SpaceShell() {
                                           <Trans> (unread)</Trans>
                                         </span>
                                       ) : null}
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1.5">
-                                      {!compact ? (
-                                        <span className="text-[11.5px] text-muted-foreground/60 tabular-nums">
-                                          {formatRosterTime(item.chat.updatedAt)}
+                                      {!compact && item.kind === "bot" && item.chat.title ? (
+                                        <span className="min-w-0 truncate rounded-[5px] bg-foreground/[0.03] px-[5px] py-[3px] text-[11px] leading-[13px] text-muted-foreground">
+                                          {item.chat.title}
                                         </span>
                                       ) : null}
-                                      {item.chat.unread ? (
-                                        <span
-                                          aria-hidden="true"
-                                          className="inline-block h-2 w-2 rounded-full bg-foreground"
-                                        />
-                                      ) : null}
                                     </div>
+                                    {item.chat.unread ? (
+                                      <span
+                                        aria-hidden="true"
+                                        className="me-1 inline-block size-2 shrink-0 rounded-full bg-unread"
+                                      />
+                                    ) : null}
                                   </div>
-                                  {!compact && item.kind === "bot" && item.chat.title ? (
-                                    <div className="mt-1 flex">
-                                      <span className="max-w-full truncate rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
-                                        {item.chat.title}
-                                      </span>
-                                    </div>
-                                  ) : null}
                                   {compact ? (
                                     compactStatusLabel ? (
                                       <div
@@ -3674,12 +3690,10 @@ function SpaceShell() {
                                     <div
                                       dir="auto"
                                       data-roster-preview={!workStatusLabel ? "true" : undefined}
-                                      className={`mt-1 line-clamp-2 text-[12.5px] break-words whitespace-normal ${
+                                      className={`truncate text-[13px] leading-[18px] ${
                                         workStatusLabel
-                                          ? "font-semibold text-status-working"
-                                          : item.chat.unread
-                                            ? "font-medium text-foreground/75"
-                                            : "text-muted-foreground/60"
+                                          ? "font-medium text-status-working"
+                                          : "text-muted-foreground"
                                       }`}
                                     >
                                       {rosterLine}
@@ -3833,7 +3847,7 @@ function SpaceShell() {
           aria-label={botsSidebarCollapsed ? t`Show bots` : t`Hide bots`}
           aria-pressed={!botsSidebarCollapsed}
           className={`absolute inset-y-0 z-50 hidden w-2 cursor-ew-resize touch-none border-0 bg-transparent p-0 md:block ${
-            botsSidebarCollapsed ? "start-0" : "start-[308px]"
+            botsSidebarCollapsed ? "start-0" : "start-[286px]"
           }`}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -3876,7 +3890,9 @@ function SpaceShell() {
         data-space-switch="main"
         aria-hidden={mobileSidebarOpen || undefined}
         inert={mobileSidebarOpen}
-        className="isolate flex min-w-0 flex-1 flex-col bg-background"
+        data-bot-accent={botAccent ? "" : undefined}
+        style={botAccent ? ({ "--bot-accent": botAccent } as CSSProperties) : undefined}
+        className="relative isolate flex min-w-0 flex-1 flex-col bg-background"
       >
         {/* Inside main so the composer and its menus stay above it. */}
         {!mobileSidebarOpen ? (
@@ -3886,7 +3902,7 @@ function SpaceShell() {
             className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
           />
         ) : null}
-        <div className="app-drag flex items-center justify-between border-b border-sidebar-border px-3 py-[17px] md:px-[22px]">
+        <div className="app-drag absolute inset-x-0 top-0 z-20 flex h-[60px] items-start justify-between px-4 pt-3">
           <div className="flex min-w-0 items-center gap-2">
             {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
             {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
@@ -3894,9 +3910,9 @@ function SpaceShell() {
               type="button"
               aria-label={t`Open navigation`}
               onClick={() => setMobileSidebarOpen(true)}
-              className="app-no-drag grid h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:hidden"
+              className="app-no-drag grid size-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent md:hidden"
             >
-              <Menu size={19} strokeWidth={1.7} />
+              <Menu size={18} strokeWidth={1.7} />
             </button>
             {botsSidebarCollapsed ? (
               <button
@@ -3905,32 +3921,32 @@ function SpaceShell() {
                 aria-label={t`Show bots`}
                 title={t`Show bots`}
                 onClick={() => setBotsSidebarCollapsedPref(false)}
-                className="app-no-drag hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:grid"
+                className="app-no-drag hidden size-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent md:grid"
               >
-                <PanelLeftOpen size={19} strokeWidth={1.7} aria-hidden="true" />
+                <PanelLeftOpen size={18} strokeWidth={1.7} aria-hidden="true" />
               </button>
             ) : null}
             <button
               type="button"
               data-testid="bot-settings-trigger"
               onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
-              className="app-no-drag flex min-w-0 items-center gap-3"
+              className="app-no-drag absolute start-1/2 top-3 flex h-9 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-1.5 rounded-full border-[0.5px] border-border bg-card ps-2 pe-3.5 rtl:translate-x-1/2"
             >
               {inGroup ? (
                 <GroupAvatar
                   members={activeSnapshot?.members ?? activeGroup?.members ?? []}
-                  size={26}
+                  size={24}
                 />
               ) : active ? (
                 <BotAvatar
                   color={active.color}
                   identity={active.id}
-                  size={26}
+                  size={24}
                   status={active.status}
                 />
               ) : null}
               <span className="min-w-0">
-                <span className="block truncate text-[16px] font-medium text-foreground" dir="auto">
+                <span className="block truncate text-[15px] text-foreground" dir="auto">
                   {inGroup
                     ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
                     : (active?.name ?? t`Select a bot`)}
@@ -3938,7 +3954,7 @@ function SpaceShell() {
               </span>
             </button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {bootstrapMe?.phoneCallsEnabled && !inGroup && active ? (
               <button
                 type="button"
@@ -3953,9 +3969,9 @@ function SpaceShell() {
                   callBot(active);
                 }}
                 data-active={call?.botId === active.id ? "" : undefined}
-                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent data-active:bg-accent"
+                className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
               >
-                <Phone size={17} strokeWidth={1.6} className="text-foreground/75" />
+                <Phone size={17} strokeWidth={1.6} />
               </button>
             ) : null}
             {!inGroup && active ? (
@@ -3973,9 +3989,9 @@ function SpaceShell() {
                   }
                 }}
                 data-active={panel === "computer" ? "" : undefined}
-                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent data-active:bg-accent"
+                className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
               >
-                <Monitor size={18} strokeWidth={1.6} className="text-foreground/75" />
+                <Monitor size={17} strokeWidth={1.6} />
               </button>
             ) : null}
           </div>
@@ -4101,22 +4117,13 @@ function SpaceShell() {
         panel={panel ?? "closed"}
       >
         {panel && (active || activeGroup || panel === "create") ? (
-          <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px]">
+          <div className="rk-scroll h-full w-full overflow-y-auto px-4 pb-4 pt-3">
             {panel !== "routine" &&
             panel !== "create" &&
             panel !== "create-group" &&
             panel !== "group-settings" ? (
-              <div className="mb-4 flex items-center justify-between">
-                <span className="text-[13.5px] text-muted-foreground">
-                  {panel === "settings" ? (
-                    <Trans>Settings</Trans>
-                  ) : active ? (
-                    (computer?.state ?? active.status)
-                  ) : (
-                    <Trans>Group</Trans>
-                  )}
-                </span>
-                <div className="flex gap-1">
+              <div className="app-drag flex items-center justify-end">
+                <div className="app-no-drag flex items-center gap-2">
                   {active &&
                   panel === "computer" &&
                   !computerOpen &&
@@ -4130,29 +4137,48 @@ function SpaceShell() {
                     />
                   ) : null}
                   {active ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
+                    <button
+                      type="button"
                       aria-label={panel === "settings" ? t`Show computer` : t`Show settings`}
+                      aria-pressed={panel === "settings"}
                       onClick={() => setPanel(panel === "settings" ? "computer" : "settings")}
-                      className={panel === "settings" ? "text-foreground" : "text-muted-foreground"}
+                      className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent aria-pressed:bg-accent"
                     >
-                      <Settings size={16} strokeWidth={1.7} />
-                    </Button>
+                      <Settings size={17} strokeWidth={1.7} />
+                    </button>
                   ) : null}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
+                  <button
+                    type="button"
                     aria-label={t`Close panel`}
                     onClick={() => setPanel(null)}
+                    className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
                   >
-                    <X size={16} strokeWidth={1.8} />
-                  </Button>
+                    <X size={18} strokeWidth={1.7} />
+                  </button>
                 </div>
               </div>
             ) : null}
             {panel === "computer" && active ? (
               <div>
+                <div className="flex flex-col items-center pb-6 pt-3">
+                  <BotAvatar
+                    color={active.color}
+                    identity={active.id}
+                    size={64}
+                    status={active.status}
+                  />
+                  <span className="mt-4 max-w-full truncate text-[18px] text-foreground" dir="auto">
+                    {active.name}
+                  </span>
+                  {active.title ? (
+                    <span
+                      className="mt-1 max-w-full truncate text-[12px] text-muted-foreground"
+                      dir="auto"
+                    >
+                      {active.title}
+                    </span>
+                  ) : null}
+                </div>
                 <div
                   data-testid="computer-preview"
                   className={`group relative rounded-[14px] bg-background ${
@@ -4217,8 +4243,9 @@ function SpaceShell() {
                     </button>
                   ) : null}
                 </div>
-                <p className="mt-2 truncate text-[13.5px] text-muted-foreground" dir="auto">
-                  {t`${active.name}'s screen`}
+                <p className="mt-2 flex gap-2 px-1 text-[13px] text-muted-foreground" dir="auto">
+                  <span className="min-w-0 truncate">{t`${active.name}'s screen`}</span>
+                  <span className="ms-auto shrink-0">{computer?.state ?? active.status}</span>
                 </p>
                 <RoutineListHeader
                   onCreate={() => {
@@ -4229,25 +4256,29 @@ function SpaceShell() {
                     setPanel("routine");
                   }}
                 />
-                {activeRoutines.map((routine) => {
-                  const routineRunning =
-                    snapshot?.run?.routineId === routine.id && isActive(snapshot.run.status);
-                  return (
-                    <RoutineListRow
-                      key={routine.id}
-                      routine={routine}
-                      running={routineRunning}
-                      onOpen={() => {
-                        setRoutineDraft(draftFromRoutine(routine));
-                        setRoutineWebhookSecret(null);
-                        setEditingRoutine(routine);
-                        setRoutineError(null);
-                        setPanel("routine");
-                      }}
-                      onStop={() => void stopRun()}
-                    />
-                  );
-                })}
+                {activeRoutines.length > 0 ? (
+                  <div className="overflow-hidden rounded-[14px] bg-card py-1">
+                    {activeRoutines.map((routine) => {
+                      const routineRunning =
+                        snapshot?.run?.routineId === routine.id && isActive(snapshot.run.status);
+                      return (
+                        <RoutineListRow
+                          key={routine.id}
+                          routine={routine}
+                          running={routineRunning}
+                          onOpen={() => {
+                            setRoutineDraft(draftFromRoutine(routine));
+                            setRoutineWebhookSecret(null);
+                            setEditingRoutine(routine);
+                            setRoutineError(null);
+                            setPanel("routine");
+                          }}
+                          onStop={() => void stopRun()}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {panel === "create-group" ? (
@@ -5548,7 +5579,7 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        className="rk-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-5 md:px-7 md:py-6"
+        className="rk-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4 pt-[60px]"
       >
         {olderCursor != null ? (
           <button
@@ -5609,8 +5640,8 @@ const Transcript = memo(function Transcript({
                           ? "relative w-full min-w-0 max-w-full"
                           : `relative w-fit min-w-0 ${
                               message.role === "user"
-                                ? "max-w-[min(84%,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[84%]"
-                                : "max-w-[min(88%,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[88%]"
+                                ? "max-w-[min(560px,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[84%]"
+                                : "max-w-[min(560px,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[88%]"
                             }`
                     }
                   >
@@ -6328,7 +6359,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative z-30 m-0 min-w-0 border-0 px-3 pb-4 pt-3 md:px-6 md:pb-6 ${
+      className={`relative z-30 m-0 min-w-0 border-0 px-4 pb-4 pt-2 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
@@ -6522,8 +6553,8 @@ export const Composer = memo(function Composer({
         ref={composerBarRef}
         data-testid="composer-bar"
         data-expanded={expanded}
-        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-[26px] border border-border bg-background pe-2.5 ps-3 transition-colors focus-within:border-ring ${
-          expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
+        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-[22px] border-[0.5px] border-border bg-card px-2 shadow-sm ${
+          expanded ? "gap-x-2 gap-y-2 pb-2 pt-3" : "gap-x-3.5 py-2"
         }`}
       >
         <input
@@ -6541,11 +6572,11 @@ export const Composer = memo(function Composer({
           aria-label={t`Attach file`}
           disabled={disabled}
           onClick={() => fileInputRef.current?.click()}
-          className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+          className={`col-start-1 size-7 shrink-0 rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
             expanded ? "row-start-2" : ""
           }`}
         >
-          <Plus size={16} strokeWidth={2} />
+          <Plus size={16} strokeWidth={1.8} />
         </Button>
         <div
           ref={composerFieldRef}
@@ -6672,7 +6703,7 @@ export const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="rk-scroll max-h-25 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[15.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="rk-scroll max-h-25 min-h-[20px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14px] leading-5 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-40"
           />
         </div>
         <div
@@ -6693,7 +6724,7 @@ export const Composer = memo(function Composer({
                 aria-label={t`Send`}
                 disabled={sending || !canSend || disabled}
                 onClick={send}
-                className="size-8 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95"
+                className="rk-accent-button size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95"
               >
                 <ArrowUp size={16} strokeWidth={2.2} />
               </Button>
@@ -6703,7 +6734,7 @@ export const Composer = memo(function Composer({
                 aria-label={t`Stop`}
                 disabled={sending}
                 onClick={() => void onStop()}
-                className="size-8 rounded-full border border-border bg-muted text-foreground/80 shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+                className="size-7 rounded-full bg-secondary text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Square size={11} strokeWidth={0} fill="currentColor" />
               </Button>
@@ -6718,7 +6749,7 @@ export const Composer = memo(function Composer({
                 aria-label={t`Send`}
                 disabled={sending || !canSend || disabled}
                 onClick={send}
-                className="size-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95 disabled:bg-white/10 disabled:text-muted-foreground/30 disabled:shadow-none"
+                className="rk-accent-button size-7 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-secondary disabled:text-muted-foreground/50"
               >
                 <ArrowUp size={16} strokeWidth={2.2} />
               </Button>
@@ -6831,37 +6862,6 @@ function previewMessageText(message: ThreadMessage): string {
   const attachment = replyAttachment(message.blocks);
   if (attachment) return attachment.kind === "image" ? t`Photo` : attachment.name || t`Attachment`;
   return t`Message`;
-}
-
-function formatRosterTime(isoDate?: string | null): string {
-  if (!isoDate) return "";
-  try {
-    const d = new Date(isoDate);
-    if (Number.isNaN(d.getTime())) return "";
-    const locale = i18n.locale || "en";
-    const now = new Date();
-    const isToday =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-    if (isToday) {
-      return d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
-    }
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    const isYesterday =
-      d.getDate() === yesterday.getDate() &&
-      d.getMonth() === yesterday.getMonth() &&
-      d.getFullYear() === yesterday.getFullYear();
-    if (isYesterday) return t`Yesterday`;
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 7) {
-      return d.toLocaleDateString(locale, { weekday: "short" });
-    }
-    return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
-  } catch {
-    return "";
-  }
 }
 
 function MessageHoverActions({
@@ -7135,7 +7135,7 @@ const MessageView = memo(function MessageView({
           <div className="flex w-fit max-w-full justify-start [@media(hover:none)]:w-full">
             <div
               data-testid="message-bot-bubble"
-              className="max-w-full space-y-2.5 rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+              className="max-w-full space-y-2.5 rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
               dir="auto"
             >
               {visibleNarrationBlocks.map((block, i) => {
@@ -7276,7 +7276,7 @@ const MessageView = memo(function MessageView({
               >
                 <div
                   data-testid="message-bot-bubble"
-                  className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                  className="max-w-full rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
                   dir="auto"
                 >
                   <ChatMarkdown streaming>{block.text}</ChatMarkdown>
@@ -7432,7 +7432,7 @@ const MessageView = memo(function MessageView({
                 <div
                   data-testid="message-user-bubble"
                   data-quote-message-id={quoteMessageId}
-                  className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-[20px] bg-chat-user px-[18px] py-3 text-[15.5px] leading-[1.45] text-chat-user-foreground"
+                  className="rk-user-bubble max-w-full whitespace-pre-wrap wrap-anywhere rounded-[18px] bg-chat-user px-3 py-[7px] text-[14px] leading-[22px] text-chat-user-foreground"
                   dir="auto"
                 >
                   <LinkifiedText>{block.text}</LinkifiedText>
@@ -7449,7 +7449,7 @@ const MessageView = memo(function MessageView({
               >
                 <div
                   data-testid="message-bot-bubble"
-                  className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                  className="max-w-full rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
                   dir="auto"
                 >
                   <div data-quote-message-id={quoteMessageId}>
@@ -7460,7 +7460,7 @@ const MessageView = memo(function MessageView({
                       type="button"
                       aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
                       onClick={onSpeak}
-                      className="mt-2 text-[12px] text-muted-foreground hover:text-foreground"
+                      className="mb-0.5 mt-1 block text-[12px] text-muted-foreground hover:text-foreground"
                     >
                       {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
                     </button>

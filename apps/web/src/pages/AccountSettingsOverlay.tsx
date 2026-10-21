@@ -29,6 +29,8 @@ import {
   setBotsSidebarDensity,
   subscribeBotsSidebarDensity,
 } from "../lib/bots-sidebar-density-pref";
+import type { ChatAccent } from "../lib/chat-accent";
+import { getChatAccent, setChatAccent } from "../lib/chat-accent";
 import {
   getComposerEnterToSend,
   setComposerEnterToSend,
@@ -83,6 +85,7 @@ export function GeneralSettingsPanels({
   const [accountSecurity, setAccountSecurity] = useState<AccountSecurity | null>(null);
   const [locale, setLocale] = useState<UiLocale>(() => getActiveUiLocale());
   const localeRequestRef = useRef(0);
+  const [chatAccent, setChatAccentState] = useState<ChatAccent>(getChatAccent);
   const [appearance, setAppearance] = useState<AppearancePreference>(() =>
     getUiAppearancePreference(),
   );
@@ -155,8 +158,8 @@ export function GeneralSettingsPanels({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+      <section className="rounded-[14px] bg-card px-4 py-4">
+        <h3 className="text-[14px] text-muted-foreground">
           <Trans>Account</Trans>
         </h3>
         <p className="mt-3 text-[14px] text-foreground/75">{account.label}</p>
@@ -170,8 +173,8 @@ export function GeneralSettingsPanels({
       ) : null}
 
       {messagingEnabled && onOpenMessaging ? (
-        <section className="rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+        <section className="rounded-[14px] bg-card px-4 py-4">
+          <h3 className="text-[14px] text-muted-foreground">
             <Trans>Messaging</Trans>
           </h3>
           <Button variant="secondary" className="mt-3 rounded-full" onClick={onOpenMessaging}>
@@ -180,8 +183,8 @@ export function GeneralSettingsPanels({
         </section>
       ) : null}
 
-      <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+      <section className="rounded-[14px] bg-card px-4 py-4">
+        <h3 className="text-[14px] text-muted-foreground">
           <Trans>Appearance</Trans>
         </h3>
         <AppearancePicker
@@ -191,6 +194,36 @@ export function GeneralSettingsPanels({
             setUiAppearance(next);
           }}
         />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-[13px] text-foreground/75">
+            <Trans>Accent</Trans>
+          </span>
+          <fieldset
+            aria-label={t`Accent`}
+            className="grid min-w-0 grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+          >
+            <Toggle
+              pressed={chatAccent === "bot"}
+              onPressedChange={() => {
+                setChatAccentState("bot");
+                setChatAccent("bot");
+              }}
+              className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
+            >
+              <Trans>Bot color</Trans>
+            </Toggle>
+            <Toggle
+              pressed={chatAccent === "none"}
+              onPressedChange={() => {
+                setChatAccentState("none");
+                setChatAccent("none");
+              }}
+              className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
+            >
+              <Trans>None</Trans>
+            </Toggle>
+          </fieldset>
+        </div>
         <div className="mt-4 flex items-center justify-between gap-3">
           <span id={sidebarDensityLabelId} className="text-[13px] text-foreground/75">
             <Trans>Sidebar density</Trans>
@@ -220,18 +253,15 @@ export function GeneralSettingsPanels({
         </div>
       </section>
 
-      <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+      <section className="rounded-[14px] bg-card px-4 py-4">
+        <h3 className="text-[14px] text-muted-foreground">
           <Trans>Language</Trans>
         </h3>
         <UiLocalePicker value={locale} onChange={chooseLocale} />
       </section>
 
       {onTimezoneChange ? (
-        <section
-          className="rounded-xl border border-border px-4 py-4"
-          data-testid="timezone-settings"
-        >
+        <section className="rounded-[14px] bg-card px-4 py-4" data-testid="timezone-settings">
           <h3 id={timezoneId} className="text-[15px] font-medium text-foreground">
             <Trans>Timezone</Trans>
           </h3>
@@ -271,11 +301,8 @@ export function GeneralSettingsPanels({
         </section>
       ) : null}
 
-      <section
-        className="rounded-xl border border-border px-4 py-4"
-        data-testid="avatar-style-select"
-      >
-        <h3 className="text-[15px] font-medium text-foreground">
+      <section className="rounded-[14px] bg-card px-4 py-4" data-testid="avatar-style-select">
+        <h3 className="text-[14px] text-muted-foreground">
           <Trans>Avatars</Trans>
         </h3>
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -410,9 +437,9 @@ export function UsageSettingsPanel({
       ref={panelRef}
       tabIndex={-1}
       data-testid="usage-settings"
-      className="rounded-xl border border-border px-4 py-4 outline-none"
+      className="rounded-[14px] bg-card px-4 py-4 outline-none"
     >
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-[14px] text-muted-foreground">
         <Trans>Usage</Trans>
       </h3>
       {usage ? (
@@ -439,11 +466,8 @@ export function ComputerSettingsPanel({
   onRecoveryDismissed?: () => void;
 }) {
   return (
-    <div
-      data-testid="computers-setup-settings"
-      className="rounded-xl border border-border px-4 py-4"
-    >
-      <h3 className="text-[15px] font-medium text-foreground">
+    <div data-testid="computers-setup-settings" className="rounded-[14px] bg-card px-4 py-4">
+      <h3 className="text-[14px] text-muted-foreground">
         <Trans>Computers</Trans>
       </h3>
       <ComputersUnavailableHint
@@ -505,8 +529,8 @@ function ChangePasswordSection({ email }: { email?: string | null }) {
   }
 
   return (
-    <section className="rounded-xl border border-border px-4 py-4">
-      <h3 className="text-[15px] font-medium text-foreground">
+    <section className="rounded-[14px] bg-card px-4 py-4">
+      <h3 className="text-[14px] text-muted-foreground">
         <Trans>Password</Trans>
       </h3>
       <div className="mt-3 grid gap-3">

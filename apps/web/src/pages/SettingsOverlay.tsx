@@ -264,13 +264,13 @@ export function SettingsOverlay({
         initialFocus={() =>
           section === "usage" ? (usageRef.current ?? panelRef.current) : panelRef.current
         }
-        className="flex h-[min(760px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(1080px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[1080px]"
+        className="flex h-[min(700px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(900px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-[20px] border-[0.5px] border-border bg-background p-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[900px]"
       >
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             data-testid="settings-nav"
             aria-label={t`Settings`}
-            className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-border px-3 py-3 md:w-[200px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e md:px-3 md:py-4"
+            className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-border px-3 py-3 md:w-[200px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e-[0.5px] md:px-3 md:py-4"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -283,10 +283,8 @@ export function SettingsOverlay({
                   aria-current={active ? "page" : undefined}
                   disabled={panelBusy}
                   onClick={() => setSection(item.id)}
-                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-start text-[13.5px] transition-colors disabled:pointer-events-none disabled:opacity-50 ${
-                    active
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-start text-[15px] text-foreground transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+                    active ? "bg-accent" : "hover:bg-accent"
                   }`}
                 >
                   <Icon className="size-4 shrink-0" strokeWidth={1.75} />
@@ -299,7 +297,7 @@ export function SettingsOverlay({
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-7">
               <div className="flex min-w-0 flex-col gap-2">
-                <DialogTitle className="text-2xl font-medium text-foreground">
+                <DialogTitle className="text-[20px] font-normal text-foreground">
                   {sectionTitle}
                 </DialogTitle>
                 {!spaceScoped ? null : space && spaces.length > 1 && onSpaceChange ? (

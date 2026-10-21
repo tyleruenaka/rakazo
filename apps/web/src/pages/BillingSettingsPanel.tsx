@@ -68,11 +68,11 @@ export function BillingSettingsPanel() {
   const seats = status?.seats ?? 0;
 
   return (
-    <div data-testid="billing-settings" className="rounded-xl border border-border px-4 py-4">
+    <div data-testid="billing-settings" className="rounded-[14px] bg-card px-4 py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {status ? (
-            <h3 className="text-[15px] font-medium text-foreground">{stateLabel}</h3>
+            <h3 className="text-[14px] text-muted-foreground">{stateLabel}</h3>
           ) : error ? null : (
             <Skeleton className="h-5 w-24" />
           )}

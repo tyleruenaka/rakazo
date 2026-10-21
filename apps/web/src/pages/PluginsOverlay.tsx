@@ -448,7 +448,7 @@ export function PluginsOverlay({
         <Button
           type="button"
           variant="secondary"
-          className="rounded-full"
+          className="h-8 rounded-full px-4 text-[14px] font-normal"
           size="sm"
           disabled={connecting}
           onClick={(event) => {
@@ -464,7 +464,7 @@ export function PluginsOverlay({
       <Button
         type="button"
         variant="secondary"
-        className="rounded-full"
+        className="h-8 rounded-full px-4 text-[14px] font-normal"
         size="sm"
         disabled={connecting}
         onClick={(event) => {
@@ -491,23 +491,23 @@ export function PluginsOverlay({
         alt=""
         loading="lazy"
         decoding="async"
-        className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
+        className="size-10 shrink-0 rounded-[10px] bg-accent object-contain"
       />
     ) : (
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
+      <div className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-accent text-sm font-semibold text-foreground">
         {label[0]}
       </div>
     );
     const title = (
       <div className="min-w-0 flex-1 text-start">
-        <div className="truncate text-[15px] font-medium text-foreground">{label}</div>
+        <div className="truncate text-[15px] text-foreground">{label}</div>
       </div>
     );
     return (
       <div
         key={itemKey(item)}
         data-testid={tileTestId ? `connection-tile-${item.slug.toLowerCase()}` : undefined}
-        className="flex min-w-0 items-center gap-3 rounded-xl px-2.5 py-2"
+        className="flex min-w-0 items-center gap-3 rounded-xl py-3"
       >
         {connected ? (
           <button
@@ -680,10 +680,10 @@ export function PluginsOverlay({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex h-[760px] max-h-[calc(100%-2rem)] w-[1080px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 sm:max-w-[1080px]"
+        className="flex h-[700px] max-h-[calc(100%-2rem)] w-[800px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-[20px] border-[0.5px] border-border bg-card p-0 sm:max-w-[800px]"
       >
-        <DialogHeader className="flex-row items-start justify-between px-8 pt-7">
-          <DialogTitle className="text-2xl text-foreground">
+        <DialogHeader className="flex-row items-center justify-between px-8 pt-7">
+          <DialogTitle className="text-[18px] font-normal text-foreground">
             <Trans>Integrations</Trans>
           </DialogTitle>
           <DialogClose
@@ -704,7 +704,7 @@ export function PluginsOverlay({
               }}
               aria-label={t`Search apps`}
               placeholder={t`Search apps`}
-              className="h-11 rounded-xl px-4 md:text-[15px]"
+              className="h-9 rounded-full bg-transparent px-4 md:text-[15px] dark:bg-transparent"
             />
           </div>
         ) : null}
@@ -724,8 +724,8 @@ export function PluginsOverlay({
           className="rk-scroll flex-1 overflow-y-auto px-8 py-6"
         >
           <Button
-            variant="outline"
-            className="mb-4"
+            variant="secondary"
+            className="mb-4 h-8 rounded-full px-4 text-[14px] font-normal"
             onClick={() => setSetupOpen((current) => !current)}
           >
             <Trans>Browse MCP servers</Trans>
@@ -756,7 +756,7 @@ export function PluginsOverlay({
                       <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
                     </p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-x-10">
                       {featuredTiles.map((tile) => {
                         const item = tile.item;
                         const key = item ? itemKey(item) : tile.id;
@@ -806,7 +806,7 @@ export function PluginsOverlay({
                 </p>
               ) : null}
               {visible.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-x-10">
                   {rendered.map((item) =>
                     renderCatalogTile(item, item.name, item.logo, {
                       // Avoid duplicate connection-tile-* ids while featured is also shown.

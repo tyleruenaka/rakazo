@@ -160,8 +160,8 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
 
         {error ? <p className="mt-4 text-[13px] text-destructive">{error}</p> : null}
 
-        <section className="mt-8 rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+        <section className="mt-8 rounded-[14px] bg-card px-4 py-4">
+          <h3 className="text-[14px] text-muted-foreground">
             <Trans>Chat apps</Trans>
           </h3>
           {status ? (
@@ -238,8 +238,8 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
           ) : null}
         </section>
 
-        <section className="mt-5 rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+        <section className="mt-5 rounded-[14px] bg-card px-4 py-4">
+          <h3 className="text-[14px] text-muted-foreground">
             <Trans>Channels</Trans>
           </h3>
           {channels.length === 0 ? (
@@ -309,8 +309,8 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
           )}
         </section>
 
-        <section className="mt-5 rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+        <section className="mt-5 rounded-[14px] bg-card px-4 py-4">
+          <h3 className="text-[14px] text-muted-foreground">
             <Trans>Agent connections</Trans>
           </h3>
           {connections.length === 0 ? (
@@ -384,8 +384,8 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
           )}
         </section>
 
-        <section className="mt-5 rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+        <section className="mt-5 rounded-[14px] bg-card px-4 py-4">
+          <h3 className="text-[14px] text-muted-foreground">
             <Trans>Team conversations</Trans>
           </h3>
           {externalConversations.length === 0 ? (

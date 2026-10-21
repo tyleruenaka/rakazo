@@ -84,7 +84,7 @@ export function SidebarFooter({
   return (
     <div
       data-testid="sidebar-footer"
-      className="flex shrink-0 items-center gap-2 bg-transparent px-2.5 py-3"
+      className="flex shrink-0 items-center gap-2 bg-transparent px-4 pb-4 pt-2"
     >
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger
@@ -110,7 +110,7 @@ export function SidebarFooter({
             side="top"
             sideOffset={8}
             align="start"
-            className="max-h-(--available-height) w-[295px] max-w-[calc(100vw-69px)] gap-0 overflow-y-auto p-1 *:shrink-0 data-closed:animate-none"
+            className="max-h-(--available-height) w-[260px] max-w-[calc(100vw-69px)] gap-0 overflow-y-auto rounded-[14px] p-1.5 *:shrink-0 data-closed:animate-none"
           >
             <div
               data-testid="account-menu-header"
@@ -123,14 +123,14 @@ export function SidebarFooter({
             </div>
             <Button
               variant="ghost"
-              className="h-9 w-full justify-start gap-2.5 font-normal"
+              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
               onClick={onUsage}
             >
               <Gauge className="text-muted-foreground" strokeWidth={1.75} />
               <Trans>Usage</Trans>
             </Button>
             <a
-              className={`${buttonVariants({ variant: "ghost" })} h-9 w-full justify-start gap-2.5 font-normal`}
+              className={`${buttonVariants({ variant: "ghost" })} h-8 w-full justify-start gap-2.5 text-[15px] font-normal`}
               href={
                 /Android/i.test(navigator.userAgent)
                   ? "https://github.com/elie222/rakazo/releases/download/android/rakazo.apk"
@@ -143,7 +143,7 @@ export function SidebarFooter({
               <Trans>Get the mobile app</Trans>
             </a>
             <a
-              className={`${buttonVariants({ variant: "ghost" })} h-9 w-full justify-start gap-2.5 font-normal`}
+              className={`${buttonVariants({ variant: "ghost" })} h-8 w-full justify-start gap-2.5 text-[15px] font-normal`}
               href="https://github.com/elie222/rakazo/blob/main/docs/self-host.md"
               target="_blank"
               rel="noreferrer"
@@ -154,7 +154,7 @@ export function SidebarFooter({
             {onBoard ? (
               <Button
                 variant="ghost"
-                className="h-9 w-full justify-start gap-2.5 font-normal"
+                className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
                 onClick={onBoard}
               >
                 <SquareKanban className="text-muted-foreground" strokeWidth={1.75} />
@@ -163,7 +163,7 @@ export function SidebarFooter({
             ) : null}
             <Button
               variant="ghost"
-              className="h-9 w-full justify-start gap-2.5 font-normal"
+              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
               onClick={onArtifacts}
             >
               <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
@@ -171,7 +171,7 @@ export function SidebarFooter({
             </Button>
             <Button
               variant="ghost"
-              className="h-9 w-full justify-start gap-2.5 font-normal"
+              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
               aria-label={t`Settings`}
               onClick={onSettings}
             >
@@ -181,7 +181,7 @@ export function SidebarFooter({
             <div className="my-1 border-t border-border" />
             <Button
               variant="ghost"
-              className="h-9 w-full justify-start gap-2.5 font-normal"
+              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
               disabled={signingOut}
               onClick={onLogOut}
             >
@@ -200,16 +200,16 @@ export function SidebarFooter({
         variant="outline"
         ref={pillRef}
         onClick={onIntegrations}
-        className="h-9 min-w-0 flex-1 justify-between rounded-full bg-sidebar-accent hover:border-foreground/30 hover:bg-sidebar-accent"
+        className="h-9 min-w-0 flex-1 justify-center gap-2 rounded-full border-border bg-card text-[15px] font-normal hover:bg-accent dark:bg-card dark:hover:bg-accent"
       >
         <span ref={labelRef} className="min-w-0 truncate">
           <Trans>Connect apps</Trans>
         </span>
-        <span aria-hidden="true" className="flex shrink-0 items-center -space-x-1.5">
+        <span aria-hidden="true" className="flex shrink-0 items-center -space-x-1">
           {logos.slice(0, markCount).map((app) => (
             <span
               key={app.name}
-              className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-muted text-xs font-medium text-foreground ring-2 ring-sidebar-accent dark:border-foreground/15 dark:bg-sidebar-accent dark:bg-linear-to-b dark:from-foreground/10 dark:to-foreground/10"
+              className="grid size-[18px] shrink-0 place-items-center overflow-hidden rounded-[5px] bg-muted text-[10px] font-medium text-foreground ring-2 ring-card"
             >
               {app.logo && !failedLogos.includes(app.logo) ? (
                 <img

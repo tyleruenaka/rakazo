@@ -67,11 +67,8 @@ export function KnowledgeSection({
 export function SpaceMemorySection() {
   const rpc = useSpaceRpc();
   return (
-    <section
-      className="rounded-xl border border-border px-4 py-4"
-      data-testid="space-memory-documents"
-    >
-      <h3 className="text-[15px] font-medium text-foreground">
+    <section className="rounded-[14px] bg-card px-4 py-4" data-testid="space-memory-documents">
+      <h3 className="text-[14px] text-muted-foreground">
         <Trans>Shared documents</Trans>
       </h3>
       <div className="mt-3">
