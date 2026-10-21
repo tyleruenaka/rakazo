@@ -1,27 +1,94 @@
+// @vitest-environment jsdom
+
+import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@lingui/react/macro", () => ({
+  Trans: ({ children }: { children: ReactNode }) => children,
+}));
+
 import { ActiveBotGlyph, CollaborationMarker } from "./CollaborationMarker";
 
+function chipOf(html: string) {
+  const host = new DOMParser().parseFromString(html, "text/html").body;
+  const chip = host.querySelector<HTMLButtonElement>('[data-testid="peer-receipt-chip"]');
+  if (!chip) throw new Error("peer chip not found");
+  return { host, chip };
+}
+
 describe("collaboration transcript markers", () => {
-  it("shows a centered peer event with its avatar and full label", () => {
+  it("keeps the label outside a chip holding only the peer's avatar and name", () => {
     const html = renderToString(
       <CollaborationMarker
         ariaLabel="Message from Research"
         color="#14B8A6"
         identity="research"
-        label="Message from Research"
+        peer="Research"
+        sent={false}
         onClick={() => undefined}
       />,
     );
+    const { host, chip } = chipOf(html);
 
-    expect(html).toContain('data-testid="peer-receipt-chip"');
-    expect(html).toContain('aria-label="Message from Research"');
-    expect(html).toContain('class="flex items-center justify-center gap-1"');
-    expect(html).toContain('class="inline-flex h-4 max-w-full');
-    expect(html).toContain('class="truncate"');
-    expect(html).toContain("rakazo-organic-avatar");
-    expect(html).toContain("Message from Research");
+    expect(host.textContent).toBe("Message from Research");
+    expect(chip.textContent).toBe("Research");
+    expect(chip.getAttribute("aria-label")).toBe("Message from Research");
+    expect(chip.title).toBe("Research");
+    expect(chip.querySelector(".rakazo-organic-avatar")).not.toBeNull();
+    expect(chip.querySelector(".truncate")?.textContent).toBe("Research");
     expect(html).not.toContain("{peer}");
+  });
+
+  it("names the outgoing exchange the same way", () => {
+    const { host, chip } = chipOf(
+      renderToString(
+        <CollaborationMarker
+          ariaLabel="Messaged Otto"
+          color="#14B8A6"
+          identity="otto"
+          peer="Otto"
+          sent
+          onClick={() => undefined}
+        />,
+      ),
+    );
+    expect(host.textContent).toBe("Messaged Otto");
+    expect(chip.textContent).toBe("Otto");
+  });
+
+  it("styles the chip as a 24px pill that fills on hover and keyboard focus", () => {
+    const { chip } = chipOf(
+      renderToString(
+        <CollaborationMarker
+          ariaLabel="Message from Research"
+          color="#14B8A6"
+          identity="research"
+          peer="Research"
+          sent={false}
+          onClick={() => undefined}
+        />,
+      ),
+    );
+    const classes = chip.className.split(" ");
+    for (const name of [
+      "h-6",
+      "rounded-full",
+      "ps-1",
+      "pe-1.5",
+      "gap-1",
+      "text-muted-foreground",
+      "hover:bg-muted",
+      "hover:text-foreground",
+      "focus-visible:bg-muted",
+      "focus-visible:text-foreground",
+      "outline-none",
+      "transition-colors",
+      "duration-[120ms]",
+    ]) {
+      expect(classes).toContain(name);
+    }
+    expect(chip.className).not.toContain("underline");
   });
 
   it("adds a collapsed toggle only when the marker has folded replies", () => {
@@ -31,7 +98,8 @@ describe("collaboration transcript markers", () => {
           ariaLabel="Message from Research"
           color="#14B8A6"
           identity="research"
-          label="Message from Research"
+          peer="Research"
+          sent={false}
           onClick={() => undefined}
           replies={replies}
         />,

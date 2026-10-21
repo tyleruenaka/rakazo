@@ -51,7 +51,8 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     .filter({ hasText: "Researcher" })
     .first();
   await expect(chip).toBeVisible({ timeout: 30_000 });
-  await expect(chip.getByText(/Messaged|Message from/)).toBeVisible();
+  // The label sits beside the chip; the chip holds only the peer's avatar and name.
+  await expect(chip.locator("..")).toContainText(/(Messaged|Message from) Researcher/);
   await expect(chip).toHaveAccessibleName(/Messaged Researcher|Message from Researcher/);
   await expect(chip.locator(".rakazo-organic-avatar")).toBeVisible();
   await expect(chip).not.toContainText("{peer}");
@@ -135,9 +136,7 @@ async function openFoldedPeerReply(page: Page, name: string) {
 
   // Researcher's reply comes back to Chief as a peer run: marker plus the woken run's text.
   const transcript = page.getByTestId("transcript");
-  const marker = transcript
-    .getByTestId("peer-receipt-chip")
-    .filter({ hasText: "Message from Researcher" });
+  const marker = transcript.getByRole("button", { name: "Message from Researcher", exact: true });
   await expect(marker).toBeVisible({ timeout: 60_000 });
   await expect(transcript.getByText("messaging that bot now.")).toBeVisible();
   const reply = transcript.getByText(foldedReplyText);
@@ -176,7 +175,7 @@ test("folds a peer run's reply under its marker and keeps its ask inline", async
     researcherTranscript.locator("p").filter({ hasText: /^Which city should I use\?$/ }),
   ).toBeVisible({ timeout: 60_000 });
   await expect(
-    researcherTranscript.getByTestId("peer-receipt-chip").filter({ hasText: "Message from Chief" }),
+    researcherTranscript.getByRole("button", { name: "Message from Chief", exact: true }),
   ).toHaveCount(2);
   await expect(researcherTranscript.getByText("i need a decision before i continue.")).toHaveCount(
     0,

@@ -529,7 +529,6 @@ export function ArtifactImage({
   artifactId: string;
   name: string;
 }) {
-  const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -569,27 +568,39 @@ export function ArtifactImage({
           {name}
         </div>
       )}
-      {src ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent
-            showCloseButton={false}
-            className="w-auto max-w-none bg-transparent p-0 ring-0 sm:max-w-none"
-          >
-            <DialogTitle className="sr-only">{name}</DialogTitle>
-            <DialogClose
-              aria-label={t`Close image preview`}
-              render={<Button variant="ghost" size="icon-sm" className="absolute end-2 top-2" />}
-            >
-              <X />
-            </DialogClose>
-            <img
-              src={src}
-              alt={name}
-              className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain"
-            />
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      {src ? <ImagePreviewDialog src={src} name={name} open={open} onOpenChange={setOpen} /> : null}
     </div>
+  );
+}
+
+/** The full-size view of an image, shared by sent images and the composer's image tiles. */
+export function ImagePreviewDialog({
+  src,
+  name,
+  open,
+  onOpenChange,
+}: {
+  src: string;
+  name: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="w-auto max-w-none bg-transparent p-0 ring-0 sm:max-w-none"
+      >
+        <DialogTitle className="sr-only">{name}</DialogTitle>
+        <DialogClose
+          aria-label={t`Close image preview`}
+          render={<Button variant="ghost" size="icon-sm" className="absolute end-2 top-2" />}
+        >
+          <X />
+        </DialogClose>
+        <img src={src} alt={name} className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain" />
+      </DialogContent>
+    </Dialog>
   );
 }

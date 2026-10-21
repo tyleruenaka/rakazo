@@ -194,3 +194,47 @@ it("keeps controls when automatic playback is rejected", async () => {
   expect(container.querySelector("audio")?.hasAttribute("controls")).toBe(true);
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
+it("shows a sent file as a card with its type icon, name and size", async () => {
+  await act(async () =>
+    root?.render(
+      <ArtifactFileCard
+        target={{ botId: "bot-1" }}
+        artifactId="sheet-1"
+        name="tracker.csv"
+        mimeType="text/csv"
+        size={51_200}
+      />,
+    ),
+  );
+  const card = container.querySelector<HTMLButtonElement>("button.rk-attachment-card");
+  expect(card?.textContent).toBe("tracker.csv50kB");
+  expect(card?.className).toContain("rounded-[22px]");
+  expect(card?.querySelector('[data-testid="file-icon-band"]')?.className).toContain(
+    "bg-file-sheet",
+  );
+  await act(async () => card?.click());
+  expect(mocks.download).toHaveBeenCalledWith(
+    { botId: "bot-1" },
+    "sheet-1",
+    "tracker.csv",
+    "text/csv",
+  );
+});
+it("reveals a previewable card's download action on hover", async () => {
+  await act(async () =>
+    root?.render(
+      <ArtifactFileCard
+        target={{ botId: "bot-1" }}
+        artifactId="report-1"
+        name="report.pdf"
+        mimeType="application/pdf"
+        size={9933}
+      />,
+    ),
+  );
+  const preview = container.querySelector('button[aria-label="Preview report.pdf"]');
+  expect(preview?.textContent).toBe("report.pdf9.7kB");
+  const download = container.querySelector('button[aria-label="Download report.pdf"]');
+  expect(download?.className).toContain("opacity-0");
+  expect(download?.className).toContain("group-hover/attachment:opacity-100");
+});

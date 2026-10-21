@@ -1,15 +1,14 @@
-import { i18n } from "@lingui/core";
-import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import { isAttachmentAudioMimeType } from "@rakazo/contracts";
-import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
-import { Code2, Download, FileText, Play, X } from "lucide-react";
+import { Button, cn, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
+import { Download, Play, X } from "lucide-react";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { downloadArtifact, downloadArtifactBytes, fetchArtifactBytes } from "../lib/artifact-open";
 import { errorText } from "../lib/user-error";
+import { AttachmentCardAction, AttachmentSummary, attachmentCardClass } from "./AttachmentCard";
 import { PdfViewer } from "./PdfViewer";
 import { SandboxedHtmlViewer } from "./SandboxedHtmlViewer";
 
@@ -48,7 +47,9 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
 
   if (isAttachmentAudioMimeType(props.mimeType)) {
     return (
-      <div className="rk-chat-card bg-card min-w-[280px] p-4 text-foreground">
+      <div
+        className={cn(attachmentCardClass, "h-auto w-[354px] max-w-full flex-col items-stretch")}
+      >
         <AudioArtifactPreview
           key={JSON.stringify([props.target, props.artifactId, props.mimeType])}
           {...props}
@@ -61,16 +62,13 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
 
   if (!previewable) {
     return (
-      <div>
+      <div className="w-[354px] max-w-full">
         <button
           type="button"
           onClick={() => void startDownload()}
-          className="rk-chat-card bg-card px-4 py-3 text-left text-[14px] text-foreground hover:bg-accent"
+          className={cn(attachmentCardClass, "w-full")}
         >
-          <div className="font-medium">{props.name}</div>
-          <div className="mt-1 text-muted-foreground">
-            {props.mimeType} · {formatBytes(props.size)}
-          </div>
+          <AttachmentSummary name={props.name} mimeType={props.mimeType} size={props.size} />
         </button>
         {downloadError ? <DownloadError message={downloadError} /> : null}
       </div>
@@ -79,38 +77,24 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
 
   return (
     <>
-      <div>
-        <div className="rk-chat-card bg-card flex min-w-[280px] overflow-hidden text-left text-foreground">
+      <div className="w-[354px] max-w-full">
+        <div className={attachmentCardClass}>
           <button
             ref={previewButton}
             type="button"
             aria-label={t`Preview ${props.name}`}
             onClick={() => setPreviewOpen(true)}
-            className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-accent"
+            className="-my-4 -ms-4 flex min-w-0 flex-1 items-center gap-2.5 self-stretch rounded-s-[22px] py-4 ps-4 text-start"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-muted text-foreground">
-              {props.mimeType === "text/html" ? (
-                <Code2 size={21} strokeWidth={1.8} />
-              ) : (
-                <FileText size={21} strokeWidth={1.8} />
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-[14px] font-medium">{props.name}</span>
-              <span className="mt-0.5 block text-[13px] text-muted-foreground">
-                {formatBytes(props.size)}
-              </span>
-            </span>
+            <AttachmentSummary name={props.name} mimeType={props.mimeType} size={props.size} />
           </button>
-          <button
-            type="button"
+          <AttachmentCardAction
             aria-label={t`Download ${props.name}`}
             title={t`Download ${props.name}`}
             onClick={() => void startDownload()}
-            className="grid w-14 shrink-0 place-items-center border-l border-border text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <Download size={19} strokeWidth={1.8} />
-          </button>
+            <Download size={16} strokeWidth={1.8} aria-hidden="true" />
+          </AttachmentCardAction>
         </div>
         {downloadError ? <DownloadError message={downloadError} /> : null}
       </div>
@@ -357,16 +341,4 @@ function DownloadError({ message }: { message: string }) {
       {message}
     </div>
   );
-}
-
-function formatBytes(size: number) {
-  const locale = i18n.locale || "en";
-  if (size < 1024) return t`${size} B`;
-  const format = (value: number) =>
-    new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(value);
-  if (size < 1024 * 1024) return t`${format(size / 1024)} KB`;
-  return t`${format(size / (1024 * 1024))} MB`;
 }
