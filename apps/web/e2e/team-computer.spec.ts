@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   activeBotId,
   captureScreenshot,
+  chooseOption,
   completeOnboarding,
   createNamedBot,
   realSandboxTimeout,
@@ -306,9 +307,10 @@ async function setComputerMode(
   await advanced.evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
   });
-  await settings
-    .getByRole("button", { name: mode === "team" ? "Team" : "Private", exact: true })
-    .click();
+  await chooseOption(
+    settings.getByRole("combobox", { name: "Computer", exact: true }),
+    mode === "team" ? "Team" : "Private",
+  );
   await settings.getByRole("button", { name: "Save", exact: true }).click();
   await expect
     .poll(async () => {

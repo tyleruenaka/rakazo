@@ -70,6 +70,28 @@ vi.mock("@rakazo/ui-web", () => ({
     </button>
   ),
 }));
+// The Settings dropdown sits in a portal popup; a native select keeps its value and options inspectable.
+vi.mock("../../components/ListboxSelect", () => ({
+  ListboxSelect: ({
+    label,
+    options,
+    value,
+    onChange,
+  }: {
+    label: string;
+    options: Array<{ value: string; label: string }>;
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)}>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
+}));
 vi.mock("./avatar-studio-popover", () => ({ AvatarStudioPopover: () => null }));
 vi.mock("./bot-credentials", () => ({ BotCredentialsSection: () => null }));
 vi.mock("../ScratchpadSection", () => ({ ScratchpadSection: () => null }));

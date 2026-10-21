@@ -38,7 +38,7 @@ export function KnowledgeSection({
   const rpc = useSpaceRpc();
   const { t } = useLingui();
   return (
-    <section className="mt-6" data-testid="bot-knowledge">
+    <section className="px-3.5 py-2.5" data-testid="bot-knowledge">
       <Tabs defaultValue="memory">
         <TabsList aria-label={t`Knowledge`}>
           <TabsTrigger value="memory">

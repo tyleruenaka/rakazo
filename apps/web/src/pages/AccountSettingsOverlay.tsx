@@ -172,10 +172,6 @@ export function GeneralSettingsPanels({
         </AccountAccess>
       </SettingsGroup>
 
-      {accountSecurity?.hasPassword && accountSecurity.passwordChangeEnabled !== false ? (
-        <ChangePasswordSection email={email} />
-      ) : null}
-
       <SettingsGroup label={<Trans>Appearance</Trans>}>
         <SettingsRow label={<Trans>Theme</Trans>}>
           <ListboxSelect
@@ -408,6 +404,10 @@ export function GeneralSettingsPanels({
           </SettingsRow>
         </SettingsCard>
       </details>
+
+      {accountSecurity?.hasPassword && accountSecurity.passwordChangeEnabled !== false ? (
+        <ChangePasswordSection email={email} />
+      ) : null}
     </div>
   );
 }

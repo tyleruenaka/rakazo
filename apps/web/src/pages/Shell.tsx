@@ -710,6 +710,9 @@ function SpaceShell() {
   const [rosterDropKey, setRosterDropKey] = useState<string | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [botsSidebarCollapsed, setBotsSidebarCollapsed] = useState(false);
+  const restoreBotsButtonRef = useRef<HTMLButtonElement>(null);
+  // Distance from the chat's leading edge to past "Show bots", while it floats over the chat.
+  const [chatSideInset, setChatSideInset] = useState<number | null>(null);
   const focusPromptAbortRef = useRef<AbortController | null>(null);
   const focusPromptBotIdRef = useRef<string | null>(null);
   const botsSidebarEdgeDragRef = useRef<{ startX: number; mode: "expand" | "collapse" } | null>(
@@ -728,6 +731,29 @@ function SpaceShell() {
     desktop.addEventListener("change", closeMobileSidebar);
     return () => desktop.removeEventListener("change", closeMobileSidebar);
   }, []);
+
+  useLayoutEffect(() => {
+    const button = restoreBotsButtonRef.current;
+    const main = button?.closest("main");
+    if (!button || !main) {
+      setChatSideInset(null);
+      return;
+    }
+    const measure = () => {
+      const buttonBox = button.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+      const end =
+        getComputedStyle(main).direction === "rtl"
+          ? mainBox.right - buttonBox.left
+          : buttonBox.right - mainBox.left;
+      // Hidden below md, where the column keeps its usual 16px sides.
+      setChatSideInset(buttonBox.width ? Math.ceil(end) + 16 : null);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(button);
+    return () => observer.disconnect();
+  }, [botsSidebarCollapsed]);
   const [activityMode, setActivityMode] = useState(readActivityMode);
   const [activityFilters, setActivityFilters] = useState<ActivityListFilters>(emptyActivityFilters);
   const [activityFiltersExpanded, setActivityFiltersExpanded] = useState(false);
@@ -4104,6 +4130,7 @@ function SpaceShell() {
                   render={
                     <button
                       type="button"
+                      ref={restoreBotsButtonRef}
                       data-testid="restore-bots-sidebar"
                       aria-label={t`Show bots`}
                       onClick={() => setBotsSidebarCollapsedPref(false)}
@@ -4255,6 +4282,7 @@ function SpaceShell() {
             speakingMessageId={speakingMessageId}
             onSpeak={speakMessage}
             onOpenComputer={onOpenComputer}
+            sideInset={chatSideInset}
           />
         )}
         {recordingSkill ? (
@@ -4267,6 +4295,7 @@ function SpaceShell() {
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             draftKey={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             enterToSend={enterToSend}
+            sideInset={chatSideInset}
             activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
             running={composerRunning}
             disabled={Boolean(recordingSkill)}
@@ -5484,6 +5513,7 @@ const Transcript = memo(function Transcript({
   speakingMessageId,
   onSpeak,
   onOpenComputer,
+  sideInset,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollRequest: { messageId: string; nonce: number } | null;
@@ -5515,6 +5545,8 @@ const Transcript = memo(function Transcript({
   speakingMessageId: string | null;
   onSpeak: (message: ThreadMessage) => void;
   onOpenComputer: (botId?: string) => void;
+  /** Both side paddings, wider than 16 while "Show bots" floats over the chat. */
+  sideInset: number | null;
 }) {
   const { t } = useLingui();
   const [atEnd, setAtEnd] = useState(true);
@@ -5802,6 +5834,9 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
+        style={
+          sideInset ? { paddingInlineStart: sideInset, paddingInlineEnd: sideInset - 8 } : undefined
+        }
         // The scrollbar gutter (8) plus pe-2 lines the column up with the composer's right edge.
         className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
       >
@@ -6101,6 +6136,7 @@ export const Composer = memo(function Composer({
   onSlashAction,
   draftKey,
   enterToSend,
+  sideInset,
 }: {
   activeName?: string;
   running: boolean;
@@ -6133,6 +6169,8 @@ export const Composer = memo(function Composer({
   onSlashAction?: (action: SlashActionId) => void;
   draftKey: string;
   enterToSend: boolean;
+  /** Both side paddings, wider than 16 while "Show bots" floats over the chat. */
+  sideInset?: number | null;
 }) {
   const { t } = useLingui();
   const [draft, setDraft] = useState(() => readComposerDraft(draftKey));
@@ -6624,6 +6662,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      style={sideInset ? { paddingInline: sideInset, maxWidth: 960 + 2 * sideInset } : undefined}
       className={`relative z-30 m-0 mx-auto w-full min-w-0 max-w-[992px] border-0 px-4 pb-4 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}

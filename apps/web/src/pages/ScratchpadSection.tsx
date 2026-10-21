@@ -2,8 +2,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { ScratchpadItem } from "@rakazo/contracts";
 import { Button, Checkbox, Input } from "@rakazo/ui-web";
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SettingsGroup, settingsPillClass } from "../components/SettingsLayout";
 import { rpc } from "../lib/rpc";
 
 export function ScratchpadSection({ botId }: { botId: string }) {
@@ -101,20 +101,14 @@ export function ScratchpadSection({ botId }: { botId: string }) {
   }
 
   return (
-    <div className="mt-6" data-testid="bot-scratchpad">
-      <div className="mb-3 text-[14px] text-muted-foreground">
-        <Trans>Open work</Trans>
-      </div>
+    <SettingsGroup label={<Trans>Open work</Trans>} testId="bot-scratchpad">
       {items.length === 0 ? (
-        <div className="py-1 text-[13.5px] text-muted-foreground/80">
+        <div className="px-3.5 py-2.5 text-[12.5px] leading-[19px] text-description">
           <Trans>None yet</Trans>
         </div>
       ) : (
         items.map((item) => (
-          <div
-            key={item.id}
-            className="flex w-full items-start gap-2 rounded-xl px-2.5 py-2.5 hover:bg-accent"
-          >
+          <div key={item.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
             <Checkbox
               aria-label={item.status === "done" ? t`Reopen` : t`Complete`}
               checked={item.status === "done"}
@@ -123,57 +117,57 @@ export function ScratchpadSection({ botId }: { botId: string }) {
               className="mt-0.5"
             />
             <div className="min-w-0 flex-1">
-              <div
-                className={`text-start text-[14.5px] ${item.status === "done" ? "text-muted-foreground/80 line-through" : "text-foreground"}`}
-                dir="auto"
-              >
-                {item.title}
-              </div>
-              {item.notes ? (
-                <div className="mt-0.5 text-[12.5px] text-muted-foreground/80" dir="auto">
-                  {item.notes}
+              <div className="flex items-start gap-1">
+                <div
+                  className={`min-w-0 flex-1 text-start text-[12.5px] leading-[19px] ${item.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}
+                  dir="auto"
+                >
+                  {item.title}
                 </div>
-              ) : null}
+                <span className="shrink-0 text-[12px] leading-[19px] text-muted-foreground">
+                  {item.status}
+                </span>
+                {item.status === "open" ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    aria-label={t`Park`}
+                    disabled={busy}
+                    onClick={() => void setStatus(item, "parked")}
+                    className="-my-0.5 shrink-0 text-muted-foreground"
+                  >
+                    <Trans>Park</Trans>
+                  </Button>
+                ) : item.status === "parked" ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    aria-label={t`Reopen`}
+                    disabled={busy}
+                    onClick={() => void setStatus(item, "open")}
+                    className="-my-0.5 shrink-0 text-muted-foreground"
+                  >
+                    <Trans>Open</Trans>
+                  </Button>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t`Remove`}
+                  disabled={busy}
+                  onClick={() => void removeItem(item)}
+                  className="-my-0.5 shrink-0 text-muted-foreground"
+                >
+                  <X />
+                </Button>
+              </div>
+              {item.notes ? <ClampedNotes text={item.notes} /> : null}
             </div>
-            <span className="shrink-0 text-[12px] text-muted-foreground/80">{item.status}</span>
-            {item.status === "open" ? (
-              <Button
-                variant="ghost"
-                size="xs"
-                aria-label={t`Park`}
-                disabled={busy}
-                onClick={() => void setStatus(item, "parked")}
-                className="shrink-0 text-muted-foreground/70"
-              >
-                <Trans>Park</Trans>
-              </Button>
-            ) : item.status === "parked" ? (
-              <Button
-                variant="ghost"
-                size="xs"
-                aria-label={t`Reopen`}
-                disabled={busy}
-                onClick={() => void setStatus(item, "open")}
-                className="shrink-0 text-muted-foreground/70"
-              >
-                <Trans>Open</Trans>
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t`Remove`}
-              disabled={busy}
-              onClick={() => void removeItem(item)}
-              className="shrink-0 text-muted-foreground/70"
-            >
-              <X />
-            </Button>
           </div>
         ))
       )}
       <form
-        className="mt-2 flex items-center gap-2"
+        className="flex items-center gap-2 px-3.5 py-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           void addItem();
@@ -189,14 +183,52 @@ export function ScratchpadSection({ botId }: { botId: string }) {
         />
         <Button
           variant="secondary"
-          className="rounded-full"
+          className={`rounded-full ${settingsPillClass}`}
           disabled={busy || !draft.trim()}
           onClick={() => void addItem()}
         >
           <Trans>Add</Trans>
         </Button>
       </form>
-      {error ? <div className="mt-2 text-[13px] text-destructive">{error}</div> : null}
-    </div>
+      {error ? <div className="px-3.5 pb-2.5 text-[12.5px] text-destructive">{error}</div> : null}
+    </SettingsGroup>
+  );
+}
+
+/** Long notes show three lines until "Show more"; the full text stays in the DOM. */
+function ClampedNotes({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element || expanded || typeof ResizeObserver === "undefined") return;
+    const measure = () => setClamped(element.scrollHeight > element.clientHeight);
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => observer.disconnect();
+  }, [expanded, text]);
+
+  return (
+    <>
+      <div
+        ref={ref}
+        className={`mt-0.5 text-[12.5px] leading-[19px] text-description ${expanded ? "" : "line-clamp-3"}`}
+        dir="auto"
+      >
+        {text}
+      </div>
+      {clamped && !expanded ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="text-[12px] leading-[19px] text-muted-foreground hover:text-foreground"
+        >
+          <Trans>Show more</Trans>
+        </button>
+      ) : null}
+    </>
   );
 }

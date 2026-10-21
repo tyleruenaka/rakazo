@@ -173,17 +173,15 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await advanced.evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
   });
-  // NativeSelect sits inside a wrapping <label>, so label text includes option
-  // copy and getByLabel(..., { exact: true }) misses the control. Use the
-  // combobox accessible name, matching other model E2E tests.
   const model = settings.getByRole("combobox", { name: "Model", exact: true });
   await expect(model).toBeVisible();
   await expect(model).toContainText("arbitrary-model");
-  // Value key — not a /arbitrary-model/ label match, which also hits "Space default (arbitrary-model)".
-  await model.selectOption("openai-compatible::arbitrary-model");
+  // The connection's row ("<connection> · arbitrary-model"), not "Space default (arbitrary-model)".
+  await model.click();
+  await page.getByRole("option", { name: / · arbitrary-model$/ }).click();
   const thinking = settings.getByRole("combobox", { name: "Thinking", exact: true });
   await expect(thinking).toBeVisible();
-  await thinking.selectOption("low");
+  await chooseOption(thinking, "Low");
   await thinking.scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "openai-compatible-thinking");
   const saved = page.waitForResponse(
@@ -197,7 +195,7 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await advanced.evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
   });
-  await expect(thinking).toHaveValue("low");
+  await expect(thinking).toHaveText("Low");
 });
 
 function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -362,26 +360,13 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
       (element as HTMLDetailsElement).open = true;
     });
-    // The Model select sits inside its wrapping <label>, so the label text includes
-    // option copy and getByLabel(..., { exact: true }) misses it. Use the role name.
     const botModel = settings.getByRole("combobox", { name: "Model", exact: true });
-    await expect(botModel.locator("option")).toContainText([LOCAL_MODEL_ID, SECOND_MODEL_ID]);
-    await botModel.selectOption(`openai-compatible::${SECOND_MODEL_ID}`);
-    // Native select popups are outside Playwright's screenshots. Render the
-    // same options as an expanded native list for the CI screenshot, then restore.
-    // An expanded select is a listbox, so keep a role-independent handle.
-    const botModelSelect = settings.locator(`[id="${await botModel.getAttribute("id")}"]`);
-    await botModelSelect.evaluate((select: HTMLSelectElement) => {
-      select.size = select.options.length;
-      select.style.height = "auto";
-    });
-    await botModelSelect.scrollIntoViewIfNeeded();
+    await botModel.scrollIntoViewIfNeeded();
+    await botModel.click();
+    await expect(page.getByRole("option")).toContainText([LOCAL_MODEL_ID, SECOND_MODEL_ID]);
     await captureScreenshot(page, testInfo, "openai-compatible-model-picker");
-    await botModelSelect.evaluate((select: HTMLSelectElement) => {
-      select.size = 0;
-      select.style.removeProperty("height");
-    });
-    await settings.getByRole("combobox", { name: "Thinking", exact: true }).selectOption("high");
+    await page.getByRole("option", { name: new RegExp(` · ${SECOND_MODEL_ID}$`) }).click();
+    await chooseOption(settings.getByRole("combobox", { name: "Thinking", exact: true }), "High");
     const botSaved = page.waitForResponse(
       (response) => response.url().includes("/rpc/bots/update") && response.ok(),
     );

@@ -6,6 +6,7 @@ import { Button, Textarea } from "@rakazo/ui-web";
 import { useId, useState } from "react";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
+import { SettingsGroup } from "./SettingsLayout";
 
 export function InstructionSettings({ bot }: { bot: Bot }) {
   const id = useId();
@@ -41,9 +42,14 @@ export function InstructionSettings({ bot }: { bot: Bot }) {
     }
   }
   return (
-    <div className="mt-4 space-y-3">
-      <label htmlFor={`${id}-instructions`} className="block text-sm">
-        <Trans>Instructions</Trans>
+    <SettingsGroup
+      label={
+        <label htmlFor={`${id}-instructions`}>
+          <Trans>Instructions</Trans>
+        </label>
+      }
+    >
+      <div className="space-y-3 px-3.5 py-2.5 text-[12.5px]">
         <Textarea
           id={`${id}-instructions`}
           value={instructions}
@@ -57,49 +63,49 @@ export function InstructionSettings({ bot }: { bot: Bot }) {
               );
           }}
         />
-      </label>
-      {current.instructionHistory?.length ? (
-        <details>
-          <summary className="cursor-pointer text-sm">
-            <Trans>Instruction history</Trans>
-          </summary>
-          {current.instructionHistory.map((version) => (
-            <div key={version.id} className="mt-2 text-sm">
-              <details>
-                <summary>
-                  {new Date(version.createdAt).toLocaleString()} · {version.reason}
-                </summary>
-                <pre className="whitespace-pre-wrap">{version.instructions}</pre>
-              </details>
-              <Button
-                variant="outline"
-                disabled={pending}
-                onClick={() =>
-                  void save(() =>
-                    rpc.bots.restoreInstructions({
-                      botId: bot.id,
-                      versionId: version.id,
-                      expectedInstructions: current.instructions,
-                    }),
-                  )
-                }
-              >
-                <Trans>Restore</Trans>
-              </Button>
-            </div>
-          ))}
-        </details>
-      ) : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {conflict ? (
-        <Button
-          variant="outline"
-          disabled={pending}
-          onClick={() => void save(() => rpc.bots.get({ botId: bot.id }))}
-        >
-          <Trans>Reload</Trans>
-        </Button>
-      ) : null}
-    </div>
+        {current.instructionHistory?.length ? (
+          <details>
+            <summary className="cursor-pointer text-muted-foreground">
+              <Trans>Instruction history</Trans>
+            </summary>
+            {current.instructionHistory.map((version) => (
+              <div key={version.id} className="mt-2">
+                <details>
+                  <summary>
+                    {new Date(version.createdAt).toLocaleString()} · {version.reason}
+                  </summary>
+                  <pre className="whitespace-pre-wrap">{version.instructions}</pre>
+                </details>
+                <Button
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() =>
+                    void save(() =>
+                      rpc.bots.restoreInstructions({
+                        botId: bot.id,
+                        versionId: version.id,
+                        expectedInstructions: current.instructions,
+                      }),
+                    )
+                  }
+                >
+                  <Trans>Restore</Trans>
+                </Button>
+              </div>
+            ))}
+          </details>
+        ) : null}
+        {error ? <p className="text-destructive">{error}</p> : null}
+        {conflict ? (
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => void save(() => rpc.bots.get({ botId: bot.id }))}
+          >
+            <Trans>Reload</Trans>
+          </Button>
+        ) : null}
+      </div>
+    </SettingsGroup>
   );
 }
