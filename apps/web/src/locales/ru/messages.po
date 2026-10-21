@@ -19,6 +19,11 @@ msgstr ""
 msgid " (unread)"
 msgstr " (непрочитано)"
 
+#. placeholder {0}: summary.messageCount
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{0, plural, one {# message with} other {# messages with}}"
+msgstr ""
+
 #. placeholder {0}: health.toolCount
 #: src/components/McpServerHealthLine.tsx
 msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
@@ -119,6 +124,14 @@ msgstr "Компьютер {botName}"
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} зарезервирована и не может использоваться как переменная команды. Выберите другое имя."
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots"
+msgstr ""
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots, show list"
+msgstr ""
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -637,6 +650,10 @@ msgstr "Существующий пир Honcho для чтения. Rakazo ни�
 msgid "An integration tool"
 msgstr "Инструмент интеграции"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "and"
+msgstr ""
+
 #: src/lib/activity-list-filters.ts
 msgid "Another agent"
 msgstr "Другой агент"
@@ -944,6 +961,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Bots are working"
 msgstr "Боты работают"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Bots in this exchange"
+msgstr ""
 
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
@@ -3189,6 +3210,10 @@ msgstr "Сообщение от другого агента"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Сообщение…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged"
+msgstr ""
 
 #: src/components/ai/CollaborationMarker.tsx
 msgid "Messaged {chip}"
@@ -5513,3 +5538,11 @@ msgstr "Ваш OpenRouter"
 #: src/pages/Welcome.tsx
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Ваша команда постоянно работающих агентов<0/>, которым вы можете дать настоящую работу."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider is out of credit."
+msgstr "У вашего голосового провайдера закончились кредиты."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider key was rejected."
+msgstr "Ваш голосовой провайдер отклонил ключ."

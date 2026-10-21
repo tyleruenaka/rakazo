@@ -19,6 +19,11 @@ msgstr ""
 msgid " (unread)"
 msgstr " (unread)"
 
+#. placeholder {0}: summary.messageCount
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{0, plural, one {# message with} other {# messages with}}"
+msgstr "{0, plural, one {# message with} other {# messages with}}"
+
 #. placeholder {0}: health.toolCount
 #: src/components/McpServerHealthLine.tsx
 msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
@@ -119,6 +124,14 @@ msgstr "{botName}’s computer"
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots"
+msgstr "{count} Bots"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots, show list"
+msgstr "{count} Bots, show list"
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -637,6 +650,10 @@ msgstr "An existing Honcho peer to read from. Rakazo never writes to it."
 msgid "An integration tool"
 msgstr "An integration tool"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "and"
+msgstr "and"
+
 #: src/lib/activity-list-filters.ts
 msgid "Another agent"
 msgstr "Another agent"
@@ -944,6 +961,10 @@ msgstr "Bots"
 #: src/pages/Shell.tsx
 msgid "Bots are working"
 msgstr "Bots are working"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Bots in this exchange"
+msgstr "Bots in this exchange"
 
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
@@ -3189,6 +3210,10 @@ msgstr "Message from another agent"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Message…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged"
+msgstr "Messaged"
 
 #: src/components/ai/CollaborationMarker.tsx
 msgid "Messaged {chip}"
@@ -5513,3 +5538,11 @@ msgstr "Your OpenRouter"
 #: src/pages/Welcome.tsx
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Your team of always-on agents<0/>that you can give real work to."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider is out of credit."
+msgstr "Your voice provider is out of credit."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider key was rejected."
+msgstr "Your voice provider key was rejected."

@@ -953,6 +953,7 @@ describe("MessageView alignment", () => {
         <MessageView
           artifactTarget={{ botId: "bot-1" }}
           canAnswer={false}
+          canDismiss={false}
           message={{
             id: "m1",
             threadId: "t1",

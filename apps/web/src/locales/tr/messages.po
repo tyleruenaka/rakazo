@@ -19,6 +19,11 @@ msgstr ""
 msgid " (unread)"
 msgstr " (okunmadı)"
 
+#. placeholder {0}: summary.messageCount
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{0, plural, one {# message with} other {# messages with}}"
+msgstr ""
+
 #. placeholder {0}: health.toolCount
 #: src/components/McpServerHealthLine.tsx
 msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
@@ -119,6 +124,14 @@ msgstr "{botName} adlı botun bilgisayarı"
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} ayrılmıştır ve komut değişkeni olarak kullanılamaz. Başka bir ad seçin."
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots"
+msgstr ""
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots, show list"
+msgstr ""
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -637,6 +650,10 @@ msgstr "Verilerin okunacağı mevcut bir Honcho eşi. Rakazo bu eşe asla veri y
 msgid "An integration tool"
 msgstr "Bir entegrasyon aracı"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "and"
+msgstr ""
+
 #: src/lib/activity-list-filters.ts
 msgid "Another agent"
 msgstr "Başka bir Agent"
@@ -944,6 +961,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Bots are working"
 msgstr "Botlar çalışıyor"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Bots in this exchange"
+msgstr ""
 
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
@@ -3189,6 +3210,10 @@ msgstr "Başka bir Agent'tan mesaj"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Mesaj…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged"
+msgstr ""
 
 #: src/components/ai/CollaborationMarker.tsx
 msgid "Messaged {chip}"
@@ -5513,3 +5538,11 @@ msgstr "OpenRouter sağlayıcınız"
 #: src/pages/Welcome.tsx
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Gerçek işler verebileceğin,<0/>her zaman açık agent takımın."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider is out of credit."
+msgstr "Ses sağlayıcınızın kredisi bitti."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider key was rejected."
+msgstr "Ses sağlayıcınız anahtarı reddetti."

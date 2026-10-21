@@ -19,6 +19,11 @@ msgstr ""
 msgid " (unread)"
 msgstr " (ungelesen)"
 
+#. placeholder {0}: summary.messageCount
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{0, plural, one {# message with} other {# messages with}}"
+msgstr ""
+
 #. placeholder {0}: health.toolCount
 #: src/components/McpServerHealthLine.tsx
 msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
@@ -119,6 +124,14 @@ msgstr "Computer von {botName}"
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} ist reserviert und kann nicht als Befehlsvariable verwendet werden. Wähle einen anderen Namen."
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots"
+msgstr ""
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots, show list"
+msgstr ""
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -637,6 +650,10 @@ msgstr "Ein bestehender Honcho-Peer, aus dem gelesen wird. Rakazo schreibt niema
 msgid "An integration tool"
 msgstr "Ein Integrationstool"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "and"
+msgstr ""
+
 #: src/lib/activity-list-filters.ts
 msgid "Another agent"
 msgstr "Ein anderer Agent"
@@ -944,6 +961,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Bots are working"
 msgstr "Bots arbeiten"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Bots in this exchange"
+msgstr ""
 
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
@@ -3189,6 +3210,10 @@ msgstr "Nachricht von einem anderen Agenten"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Nachricht…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged"
+msgstr ""
 
 #: src/components/ai/CollaborationMarker.tsx
 msgid "Messaged {chip}"
@@ -5513,3 +5538,11 @@ msgstr "Dein OpenRouter"
 #: src/pages/Welcome.tsx
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Dein Team aus jederzeit verfügbaren Agents<0/>für echte Aufgaben."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider is out of credit."
+msgstr "Dein Stimmanbieter hat kein Guthaben mehr."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider key was rejected."
+msgstr "Der Schlüssel deines Stimmanbieters wurde abgelehnt."

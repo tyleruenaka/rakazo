@@ -19,6 +19,11 @@ msgstr ""
 msgid " (unread)"
 msgstr " (ongelezen)"
 
+#. placeholder {0}: summary.messageCount
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{0, plural, one {# message with} other {# messages with}}"
+msgstr ""
+
 #. placeholder {0}: health.toolCount
 #: src/components/McpServerHealthLine.tsx
 msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
@@ -119,6 +124,14 @@ msgstr "de computer van {botName}"
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} is gereserveerd en kan niet als commandovariabele worden gebruikt. Kies een andere naam."
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots"
+msgstr ""
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "{count} Bots, show list"
+msgstr ""
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -637,6 +650,10 @@ msgstr "Een bestaande Honcho-peer om uit te lezen. Rakazo schrijft er nooit naar
 msgid "An integration tool"
 msgstr "Een integratietool"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "and"
+msgstr ""
+
 #: src/lib/activity-list-filters.ts
 msgid "Another agent"
 msgstr "Een andere agent"
@@ -944,6 +961,10 @@ msgstr "Bots"
 #: src/pages/Shell.tsx
 msgid "Bots are working"
 msgstr "Bots zijn aan het werk"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Bots in this exchange"
+msgstr ""
 
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
@@ -3189,6 +3210,10 @@ msgstr "Bericht van een andere agent"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Bericht…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged"
+msgstr ""
 
 #: src/components/ai/CollaborationMarker.tsx
 msgid "Messaged {chip}"
@@ -5513,3 +5538,11 @@ msgstr "Jouw OpenRouter"
 #: src/pages/Welcome.tsx
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Je team van altijd actieve agents<0/>dat je echt werk kunt geven."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider is out of credit."
+msgstr "Je spraakaanbieder heeft geen tegoed meer."
+
+#: src/lib/user-error.ts
+msgid "Your voice provider key was rejected."
+msgstr "Je spraakaanbieder heeft de sleutel geweigerd."

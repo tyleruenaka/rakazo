@@ -1,4 +1,4 @@
-export interface GrokColorDef {
+export interface BotColorDef {
   id: string;
   name: string;
   light: string;
@@ -7,7 +7,7 @@ export interface GrokColorDef {
   hex: string;
 }
 
-export const GROK_COLOR_LIST: GrokColorDef[] = [
+export const BOT_COLOR_LIST: BotColorDef[] = [
   {
     id: "white",
     name: "Staff White",
@@ -102,7 +102,7 @@ export const GROK_COLOR_LIST: GrokColorDef[] = [
  * Avatar Studio swatches: Grok Bot's palette as CSS sRGB (white, brown, red, orange, amber,
  * green, teal, blue, purple, pink, grey). Stored colors outside it still resolve above.
  */
-export const GROK_BOT_COLORS = [
+export const BOT_AVATAR_COLORS = [
   "#FFFFFF",
   "#A16C39",
   "#FC2D3E",
@@ -117,7 +117,7 @@ export const GROK_BOT_COLORS = [
 ];
 
 /** Shared identity color for Avatar Studio reset/fallback (Executive Violet). */
-export const DEFAULT_GROK_BOT_COLOR = GROK_COLOR_LIST.find((color) => color.id === "violet")!.hex;
+export const DEFAULT_BOT_AVATAR_COLOR = BOT_COLOR_LIST.find((color) => color.id === "violet")!.hex;
 
 export function shippedHash(value: string): number {
   let hash = 2166136261;
@@ -140,12 +140,12 @@ export function shippedRandom(seed: number): () => number {
 export function resolvePersonaColorDef(
   identity: string,
   explicitColor?: string | null,
-): GrokColorDef {
+): BotColorDef {
   if (explicitColor) {
     const clean = explicitColor.toLowerCase();
-    const foundById = GROK_COLOR_LIST.find((c) => c.id === clean || c.name.toLowerCase() === clean);
+    const foundById = BOT_COLOR_LIST.find((c) => c.id === clean || c.name.toLowerCase() === clean);
     if (foundById) return foundById;
-    const foundByHex = GROK_COLOR_LIST.find((c) => c.hex.toLowerCase() === clean);
+    const foundByHex = BOT_COLOR_LIST.find((c) => c.hex.toLowerCase() === clean);
     if (foundByHex) return foundByHex;
     // If custom hex, synthesize gradient
     if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(explicitColor)) {
@@ -161,8 +161,8 @@ export function resolvePersonaColorDef(
     }
   }
   const seed = (shippedHash(identity) ^ Math.imul(1, 2654435769)) >>> 0;
-  const index = Math.floor(shippedRandom((seed ^ 2654435769) >>> 0)() * GROK_COLOR_LIST.length);
-  return GROK_COLOR_LIST[index % GROK_COLOR_LIST.length] ?? GROK_COLOR_LIST[0]!;
+  const index = Math.floor(shippedRandom((seed ^ 2654435769) >>> 0)() * BOT_COLOR_LIST.length);
+  return BOT_COLOR_LIST[index % BOT_COLOR_LIST.length] ?? BOT_COLOR_LIST[0]!;
 }
 
 function expandHex(hex: string): string {
