@@ -22,7 +22,7 @@ export function ArtifactPreviewPane({
 }: {
   artifactId: string;
   maximized?: boolean;
-  /** The Artifacts screen hides its list to maximize; a dialog passes onClose instead. */
+  /** The Artifacts screen hides its list to maximize. */
   onToggleMaximize?: () => void;
   onClose?: () => void;
 }) {

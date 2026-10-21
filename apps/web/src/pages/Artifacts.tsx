@@ -152,6 +152,18 @@ export function ArtifactsPage() {
     setMaximized(false);
   }, [artifactId]);
 
+  useEffect(() => {
+    if (!artifactId) return;
+    // Menus and the delete confirmation take Escape first and mark it handled.
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented && !event.isComposing) {
+        navigate("/app/artifacts");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [artifactId, navigate]);
+
   const botsById = useMemo(() => new Map(bots.map((bot) => [bot.id, bot])), [bots]);
 
   const filteredItems = useMemo(() => {
@@ -334,6 +346,7 @@ export function ArtifactsPage() {
               artifactId={artifactId}
               maximized={maximized}
               onToggleMaximize={() => setMaximized((value) => !value)}
+              onClose={() => navigate("/app/artifacts")}
             />
           </>
         ) : (

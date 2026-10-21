@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ listSpace: vi.fn() }));
@@ -43,6 +43,17 @@ vi.mock("@rakazo/ui-web", () => {
     resolvePersonaColorDef: () => ({ hex: "#000000" }),
   };
 });
+
+vi.mock("../components/ArtifactPreviewPane", () => ({
+  ArtifactPreviewPane: ({ artifactId, onClose }: { artifactId: string; onClose?: () => void }) => (
+    <div data-testid="artifact-preview">
+      {artifactId}
+      <button type="button" onClick={onClose}>
+        Close
+      </button>
+    </div>
+  ),
+}));
 
 import { ArtifactsPage } from "./Artifacts";
 
@@ -234,6 +245,66 @@ it("still offers Load more when filters match nothing on the loaded page", async
     });
   } finally {
     await page.cleanup();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("closes the preview back to the grid with Escape or Close, unless Escape was handled", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  api.listSpace.mockResolvedValue({
+    items: [artifact("Q3 Content Calendar", "artifact-1")],
+    nextCursor: null,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const preview = () => container.querySelector("[data-testid='artifact-preview']");
+  const pressEscape = (handled: boolean) =>
+    act(async () => {
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      });
+      if (handled) event.preventDefault();
+      window.dispatchEvent(event);
+    });
+  const open = () =>
+    act(async () =>
+      container.querySelector<HTMLAnchorElement>("a[href='/app/artifacts/artifact-1']")?.click(),
+    );
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/app/artifacts/artifact-1"]}>
+          <Routes>
+            <Route path="/app/artifacts" element={<ArtifactsPage />} />
+            <Route path="/app/artifacts/:artifactId" element={<ArtifactsPage />} />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    );
+    expect(preview()).not.toBeNull();
+
+    // An open menu or the delete confirmation marks its Escape handled; the preview stays.
+    await pressEscape(true);
+    expect(preview()).not.toBeNull();
+
+    await pressEscape(false);
+    expect(preview()).toBeNull();
+    expect(container.textContent).toContain("Q3 Content Calendar");
+
+    await open();
+    expect(preview()).not.toBeNull();
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Close")
+        ?.click(),
+    );
+    expect(preview()).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
     vi.unstubAllGlobals();
   }
 });
