@@ -51,26 +51,31 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     .filter({ hasText: "Researcher" })
     .first();
   await expect(chip).toBeVisible({ timeout: 30_000 });
-  // The label sits beside the chip; the chip holds only the peer's avatar and name.
-  await expect(chip.locator("..")).toContainText(/(Messaged|Message from) Researcher/);
-  await expect(chip).toHaveAccessibleName(/Messaged Researcher|Message from Researcher/);
+  // The label sits beside the chip; the chip holds only the peer's avatar and name. Markers
+  // next to each other share one row ("2 messages with Researcher").
+  await expect(chip.locator("..")).toContainText(/(Messaged|Message from|with) ?Researcher/);
+  await expect(chip).toHaveAccessibleName(/Researcher/);
   await expect(chip.locator(".rakazo-organic-avatar")).toBeVisible();
   await expect(chip).not.toContainText("{peer}");
   // User bubble still contains the phrase; peer body must not appear outside the chip.
   await expect(chip).not.toContainText("peer-exchange-alpha");
   await expect(transcript.getByText("peer-exchange-alpha")).toHaveCount(1);
-  const assertChipLeftAligned = async () => {
+  const assertChipCentered = async () => {
     const transcriptBox = await transcript.boundingBox();
     const chipBox = await chip.boundingBox();
+    const labelBox = await chip.locator("..").boundingBox();
     expect(transcriptBox).not.toBeNull();
     expect(chipBox).not.toBeNull();
-    // Transcript padding is 16px mobile / 28px desktop; centering must fail this assertion.
-    expect(chipBox!.x - transcriptBox!.x).toBeLessThanOrEqual(32);
+    expect(labelBox).not.toBeNull();
+    // Like Grok, the label and chip sit centered in the column, whatever the message's role;
+    // the slack covers the folded-replies toggle beside them.
+    const center = transcriptBox!.x + transcriptBox!.width / 2;
+    expect(Math.abs(labelBox!.x + labelBox!.width / 2 - center)).toBeLessThanOrEqual(16);
     // Stay under 75% of the transcript width so the chip cannot become a full-width bar.
     expect(chipBox!.width).toBeLessThan(transcriptBox!.width * 0.75);
   };
 
-  await assertChipLeftAligned();
+  await assertChipCentered();
   await expect(composer).toBeVisible();
   await captureScreenshot(page, testInfo, "peer-chip-desktop");
 
@@ -78,7 +83,7 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
   await chip.scrollIntoViewIfNeeded();
   await expect(chip).toBeVisible();
   await expect(composer).toBeVisible();
-  await assertChipLeftAligned();
+  await assertChipCentered();
   await captureScreenshot(page, testInfo, "peer-chip-mobile");
 
   await chip.focus();

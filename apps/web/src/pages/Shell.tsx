@@ -42,6 +42,7 @@ import {
   cronFromPreset,
   expandPeerReplies,
   foldPeerReplies,
+  groupPeerMarkers,
   groupVoiceChats,
   inferAttachmentMimeType,
   isActive,
@@ -158,7 +159,11 @@ import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
-import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import {
+  ActiveBotGlyph,
+  CollaborationMarker,
+  CollaborationMarkerGroup,
+} from "../components/ai/CollaborationMarker";
 import { Shimmer } from "../components/ai/primitives";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
@@ -6019,7 +6024,37 @@ const Transcript = memo(function Transcript({
               {loadingOlder ? t`Loading…` : t`Load earlier messages`}
             </button>
           ) : null}
-          {groupVoiceChats(reactionView.visibleMessages).map((item) => {
+          {groupPeerMarkers(
+            groupVoiceChats(reactionView.visibleMessages).filter(
+              (item) =>
+                item.kind !== "message" ||
+                messageHasVisibleBlocks(item.message.blocks, showToolActivity),
+            ),
+            // A marker whose folded replies expand right below it keeps its own row.
+            (message) => transcript.folded.has(message.id),
+          ).map((item) => {
+            if (item.kind === "peerMarkers") {
+              const [first, ...rest] = item.messages;
+              return (
+                <Fragment key={item.key}>
+                  {first && separatorIds.has(first.id) ? (
+                    <TimeSeparator createdAt={first.createdAt} locale={i18n.locale || "en"} />
+                  ) : null}
+                  <div data-message-id={item.key} className="relative py-1">
+                    {rest.map((message) => (
+                      <span key={message.id} data-message-id={message.id} className="sr-only" />
+                    ))}
+                    <CollaborationMarkerGroup
+                      summary={item.summary}
+                      peerColor={(botId) => peerBot(botId)?.color ?? FALLBACK_BOT_COLOR}
+                      onOpen={(peer) =>
+                        onOpenPeerMessages({ peerBotId: peer.id, peerBotName: peer.name })
+                      }
+                    />
+                  </div>
+                </Fragment>
+              );
+            }
             if (item.kind === "voiceChat") {
               return (
                 <div key={item.key}>
@@ -6038,7 +6073,6 @@ const Transcript = memo(function Transcript({
               );
             }
             const message = item.message;
-            if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
             const peerReceipt = isPeerReceiptBlocks(message.blocks);
             const messageReactions = reactionView.reactions.get(message.id);
             return (
@@ -7589,7 +7623,7 @@ export function ComputerControlPill({
   );
 }
 
-const MessageView = memo(function MessageView({
+export const MessageView = memo(function MessageView({
   artifactTarget,
   canAnswer,
   message,
@@ -7673,6 +7707,11 @@ const MessageView = memo(function MessageView({
     />
   );
   const bubbleReplyLine = replyPlacement === "in-bubble" ? replyLine : null;
+  // A user's bubbles end under a wider reply line; centered rows and markers keep the full row.
+  const endAligned =
+    message.role === "user" &&
+    !message.blocks.every(isSystemRowBlock) &&
+    !isPeerReceiptBlocks(message.blocks);
 
   const speakerBot = message.botId ? peerBot?.(message.botId) : undefined;
   const speakerColorDef = useMemo(
@@ -7782,7 +7821,7 @@ const MessageView = memo(function MessageView({
   return (
     <>
       {messageContext}
-      <div className={cn("relative flex flex-col gap-2", message.role === "user" && "items-end")}>
+      <div className={cn("relative flex flex-col gap-2", endAligned && "items-end")}>
         {message.blocks.map((block, i) => {
           if (block.kind === "steps" && shouldRenderToolCard(block, showToolActivity)) {
             return (
