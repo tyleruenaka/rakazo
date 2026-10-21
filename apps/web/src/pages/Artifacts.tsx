@@ -1,7 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChatMarkdown } from "@rakazo/chat-ui/web";
-import type { Artifact, ArtifactVersion, Bot } from "@rakazo/contracts";
-import { isAttachmentImageMimeType } from "@rakazo/contracts";
+import type { Artifact, Bot } from "@rakazo/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,33 +11,21 @@ import {
   AlertDialogTitle,
   BotAvatar,
   Button,
+  cn,
   NativeSelect,
   NativeSelectOption,
-  parseBotAvatar,
-  resolvePersonaColorDef,
 } from "@rakazo/ui-web";
-import {
-  ChevronLeft,
-  Download,
-  Filter,
-  LayoutGrid,
-  List,
-  Lock,
-  Maximize2,
-  Minimize2,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { ChevronLeft, Filter, LayoutGrid, List, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { PdfViewer } from "../components/PdfViewer";
-import { SandboxedHtmlViewer } from "../components/SandboxedHtmlViewer";
-import { decodeArtifactBase64, downloadArtifactBytes } from "../lib/artifact-open";
+import { ArtifactPreviewPane } from "../components/ArtifactPreviewPane";
+import { ArtifactThumbnail } from "../components/ArtifactThumbnail";
+import type { ArtifactKind } from "../lib/artifact-kind";
+import { ARTIFACT_KINDS, filterArtifactsByKind } from "../lib/artifact-kind";
 import { takeInitialBootstrap } from "../lib/bootstrap";
 import { desktopBridge } from "../lib/desktop";
 import { formatRelativeTime } from "../lib/relative-time";
 import { rpc } from "../lib/rpc";
-import { useObjectUrl } from "../lib/use-object-url";
 import { errorText } from "../lib/user-error";
 import { WindowChrome } from "./WindowChrome";
 
@@ -95,6 +81,14 @@ export function ArtifactsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [kindFilter, setKindFilter] = useState<ArtifactKind | "all">("all");
+  const kindLabels: Record<ArtifactKind, string> = {
+    image: t`Images`,
+    document: t`Documents`,
+    code: t`Code`,
+    media: t`Media`,
+    other: t`Other`,
+  };
   const [maximized, setMaximized] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ArtifactSummary | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -164,7 +158,7 @@ export function ArtifactsPage() {
     if (!items) return null;
     const now = new Date();
     const query = searchQuery.trim().toLowerCase();
-    return items.filter((item) => {
+    return filterArtifactsByKind(items, kindFilter).filter((item) => {
       if (!matchesCalendarDateFilter(item.createdAt, dateFilter, now)) return false;
       if (!query) return true;
       return (
@@ -172,16 +166,17 @@ export function ArtifactsPage() {
         (item.description?.toLowerCase().includes(query) ?? false)
       );
     });
-  }, [items, searchQuery, dateFilter]);
+  }, [items, searchQuery, dateFilter, kindFilter]);
 
-  const clientFilterActive = searchQuery.trim().length > 0 || dateFilter !== "all";
+  const clientFilterActive =
+    searchQuery.trim().length > 0 || dateFilter !== "all" || kindFilter !== "all";
   const autoFetchedCursorRef = useRef<string | null>(null);
 
   useEffect(() => {
     autoFetchedCursorRef.current = null;
-  }, [searchQuery, dateFilter, activeBotId]);
+  }, [searchQuery, dateFilter, kindFilter, activeBotId]);
 
-  // Search and date filters only see loaded pages, so keep paging until something matches.
+  // Search, date and type filters only see loaded pages, so keep paging until something matches.
   useEffect(() => {
     if (!clientFilterActive || !nextCursor || loadingMore || items === null) return;
     if (filteredItems && filteredItems.length > 0) return;
@@ -213,7 +208,7 @@ export function ArtifactsPage() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-background text-foreground/90">
-      <header className="app-drag border-b border-border px-4 py-4 md:px-6">
+      <header className="app-drag border-b-[0.5px] border-border px-4 py-4 md:px-6">
         {/* Wraps so window controls and the way back stay on screen with Filters. */}
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex items-center gap-2">
@@ -226,26 +221,23 @@ export function ArtifactsPage() {
               <ChevronLeft size={16} strokeWidth={1.9} aria-hidden="true" />
               <Trans>Bots</Trans>
             </Link>
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-[17px] font-medium">
               <Trans>Artifacts</Trans>
             </h1>
           </div>
           <div className="app-no-drag flex shrink-0 items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               aria-pressed={filtersOpen}
               onClick={() => setFiltersOpen((open) => !open)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                filtersOpen
-                  ? "border-transparent bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+              className="aria-pressed:border-input-hover aria-pressed:bg-popover-accent"
             >
-              <Filter size={14} strokeWidth={1.9} />
+              <Filter size={14} strokeWidth={1.75} />
               <Trans>Filters</Trans>
-            </button>
+            </Button>
             {!artifactId ? (
-              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+              <div className="flex items-center gap-0.5">
                 <ViewModeButton
                   active={viewMode === "grid"}
                   label={t`Card view`}
@@ -265,6 +257,20 @@ export function ArtifactsPage() {
           </div>
         </div>
 
+        <fieldset className="app-no-drag mt-3 flex min-w-0 flex-wrap items-center gap-2">
+          <legend className="sr-only">
+            <Trans>Type</Trans>
+          </legend>
+          <FilterChip active={kindFilter === "all"} onClick={() => setKindFilter("all")}>
+            <Trans>All</Trans>
+          </FilterChip>
+          {ARTIFACT_KINDS.map((kind) => (
+            <FilterChip key={kind} active={kindFilter === kind} onClick={() => setKindFilter(kind)}>
+              {kindLabels[kind]}
+            </FilterChip>
+          ))}
+        </fieldset>
+
         {filtersOpen ? (
           <div className="app-no-drag mt-3 flex flex-wrap items-center gap-2">
             <div className="relative w-full max-w-[260px]">
@@ -278,7 +284,7 @@ export function ArtifactsPage() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t`Search artifacts…`}
-                className="w-full rounded-lg border border-border bg-background py-1.5 ps-8 pe-3 text-[13px] outline-none focus:border-ring"
+                className="h-7 w-full rounded-full border-[0.5px] border-input bg-card ps-8 pe-3 text-[13px] outline-none placeholder:text-placeholder focus:border-input-focus"
               />
             </div>
             <NativeSelect
@@ -322,7 +328,7 @@ export function ArtifactsPage() {
                 onLoadMore={() => void loadMore()}
               />
             ) : null}
-            <PreviewPane
+            <ArtifactPreviewPane
               key={artifactId}
               artifactId={artifactId}
               maximized={maximized}
@@ -407,7 +413,7 @@ function BrowsingPane({
 }) {
   if (items === null) {
     return (
-      <div className="grid flex-1 place-items-center text-sm text-muted-foreground/80">
+      <div className="grid flex-1 place-items-center text-[13px] text-caption">
         {loadError ?? <Trans>Loading…</Trans>}
       </div>
     );
@@ -415,7 +421,7 @@ function BrowsingPane({
   if (items.length === 0) {
     return (
       <EmptyArtifacts
-        className="grid flex-1 place-items-center text-sm text-muted-foreground/80"
+        className="grid flex-1 place-items-center text-[13px] text-caption"
         nextCursor={nextCursor}
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
@@ -423,9 +429,9 @@ function BrowsingPane({
     );
   }
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6">
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
           {items.map((item) => (
             <ArtifactCard
               key={item.id}
@@ -436,7 +442,7 @@ function BrowsingPane({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
+        <div className="flex flex-col rounded-[14px] border-[0.5px] border-card-border bg-card p-1">
           {items.map((item) => (
             <ArtifactRow
               key={item.id}
@@ -516,20 +522,20 @@ function IndexPane({
   onLoadMore: () => void;
 }) {
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-e border-border">
+    <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-e-[0.5px] border-border">
       {items === null ? (
-        <div className="grid flex-1 place-items-center p-6 text-center text-sm text-muted-foreground/80">
+        <div className="grid flex-1 place-items-center p-6 text-center text-[13px] text-caption">
           {loadError ?? <Trans>Loading…</Trans>}
         </div>
       ) : items.length === 0 ? (
         <EmptyArtifacts
-          className="grid flex-1 place-items-center p-6 text-center text-sm text-muted-foreground/80"
+          className="grid flex-1 place-items-center p-6 text-center text-[13px] text-caption"
           nextCursor={nextCursor}
           loadingMore={loadingMore}
           onLoadMore={onLoadMore}
         />
       ) : (
-        <div className="flex flex-col divide-y divide-border">
+        <div className="flex flex-col p-2">
           {items.map((item) => (
             <ArtifactRow
               key={item.id}
@@ -539,16 +545,15 @@ function IndexPane({
               onRequestDelete={onRequestDelete}
             />
           ))}
-          {nextCursor ? (
-            <div className="p-3">
-              <LoadMoreButton loading={loadingMore} onClick={onLoadMore} />
-            </div>
-          ) : null}
+          {nextCursor ? <LoadMoreButton loading={loadingMore} onClick={onLoadMore} /> : null}
         </div>
       )}
     </aside>
   );
 }
+
+const chipClass =
+  "flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-control px-3 text-[13px] text-foreground transition-colors hover:bg-popover-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:text-primary-foreground";
 
 function FilterChip({
   active,
@@ -560,26 +565,10 @@ function FilterChip({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : "border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-    >
+    <button type="button" aria-pressed={active} onClick={onClick} className={chipClass}>
       {children}
     </button>
   );
-}
-
-function useBotColorHex(bot: Bot): string {
-  return useMemo(() => {
-    const parsed = parseBotAvatar(bot.color, bot.id);
-    const effectiveId = bot.id || parsed.color || "agent";
-    return resolvePersonaColorDef(effectiveId, parsed.color).hex;
-  }, [bot.color, bot.id]);
 }
 
 function BotFilterChip({
@@ -591,19 +580,14 @@ function BotFilterChip({
   active: boolean;
   onClick: () => void;
 }) {
-  const hex = useBotColorHex(bot);
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      style={{ backgroundColor: active ? `${hex}26` : undefined, borderColor: `${hex}66` }}
-      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-medium transition-colors ${
-        active
-          ? "text-foreground"
-          : "text-muted-foreground hover:bg-accent/40 hover:text-accent-foreground"
-      }`}
+      className={cn(chipClass, "ps-1.5")}
     >
-      <BotAvatar color={bot.color} identity={bot.id} size={16} status={bot.status} />
+      <BotAvatar color={bot.color} identity={bot.id} size={18} status={bot.status} />
       <span className="max-w-[120px] truncate">{bot.name}</span>
     </button>
   );
@@ -627,11 +611,41 @@ function ViewModeButton({
       aria-pressed={active}
       title={label}
       onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-        active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+      className={`flex size-7 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring ${
+        active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
       }`}
     >
       {children}
+    </button>
+  );
+}
+
+function DeleteArtifactButton({
+  artifact,
+  onRequestDelete,
+  className,
+}: {
+  artifact: ArtifactSummary;
+  onRequestDelete: (artifact: ArtifactSummary) => void;
+  className: string;
+}) {
+  const { t } = useLingui();
+  return (
+    <button
+      type="button"
+      aria-label={t`Delete ${artifact.name}`}
+      title={t`Delete ${artifact.name}`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onRequestDelete(artifact);
+      }}
+      className={cn(
+        "absolute grid size-7 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100",
+        className,
+      )}
+    >
+      <Trash2 size={14} strokeWidth={1.75} />
     </button>
   );
 }
@@ -645,61 +659,37 @@ function ArtifactCard({
   bot: Bot | undefined;
   onRequestDelete: (artifact: ArtifactSummary) => void;
 }) {
-  const { t } = useLingui();
   return (
     <div className="group relative">
       <Link
         to={`/app/artifacts/${artifact.id}`}
-        className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 text-foreground hover:bg-accent/40"
+        className="flex h-full flex-col overflow-hidden rounded-[14px] border-[0.5px] border-card-border bg-card text-foreground transition-colors hover:bg-card-hover"
       >
-        <div className="flex items-start justify-between">
-          <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-accent text-accent-foreground">
-            <ArtifactMimeIcon mimeType={artifact.mimeType} />
-          </span>
+        <ArtifactThumbnail
+          artifact={artifact}
+          iconSize={28}
+          className="aspect-[16/10] w-full border-b-[0.5px] border-card-border bg-muted"
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-3">
           <div className="flex items-center gap-1.5">
-            {artifact.versionCount > 1 ? (
-              <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                {`v${artifact.version}`}
-              </span>
-            ) : null}
-            <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-              {mimeLabel(artifact.mimeType)}
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium" dir="auto">
+              {artifact.name}
             </span>
+            <VersionChip artifact={artifact} />
           </div>
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-[15px] font-semibold">{artifact.name}</div>
           {artifact.description ? (
-            <div className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+            <div className="truncate text-[12.5px] text-muted-foreground" dir="auto">
               {artifact.description}
             </div>
           ) : null}
-        </div>
-        <div className="mt-auto flex items-center gap-2 text-[12px] text-muted-foreground">
-          {bot ? (
-            <>
-              <BotAvatar color={bot.color} identity={bot.id} size={20} status={bot.status} />
-              <span className="min-w-0 flex-1 truncate">{bot.name}</span>
-            </>
-          ) : (
-            <span className="flex-1" />
-          )}
-          <span className="shrink-0">{formatRelativeTime(artifact.createdAt)}</span>
+          <ArtifactMeta artifact={artifact} bot={bot} className="mt-auto pt-0.5" />
         </div>
       </Link>
-      <button
-        type="button"
-        aria-label={t`Delete ${artifact.name}`}
-        title={t`Delete ${artifact.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onRequestDelete(artifact);
-        }}
-        className="absolute bottom-3 end-3 grid h-7 w-7 place-items-center rounded-lg bg-card text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <Trash2 size={14} strokeWidth={1.9} />
-      </button>
+      <DeleteArtifactButton
+        artifact={artifact}
+        onRequestDelete={onRequestDelete}
+        className="end-2 top-2 border-[0.5px] border-input bg-card"
+      />
     </div>
   );
 }
@@ -715,79 +705,84 @@ function ArtifactRow({
   active?: boolean;
   onRequestDelete: (artifact: ArtifactSummary) => void;
 }) {
-  const { t } = useLingui();
   return (
-    <div className={`group relative ${active ? "bg-accent/60" : "hover:bg-accent/40"}`}>
-      <Link to={`/app/artifacts/${artifact.id}`} className="flex flex-col gap-1 px-4 py-3 pe-10">
-        <div className="flex items-center gap-2">
-          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] bg-accent text-accent-foreground">
-            <ArtifactMimeIcon mimeType={artifact.mimeType} small />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{artifact.name}</span>
-          {artifact.versionCount > 1 ? (
-            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
-              {`v${artifact.version}`}
+    <div
+      className={cn(
+        "group relative rounded-[8px]",
+        active ? "bg-card-hover" : "hover:bg-card-hover",
+      )}
+    >
+      <Link
+        to={`/app/artifacts/${artifact.id}`}
+        aria-current={active ? "page" : undefined}
+        className="flex items-center gap-3 p-2 pe-10"
+      >
+        <ArtifactThumbnail
+          artifact={artifact}
+          iconSize={16}
+          className="size-9 rounded-[6px] border-[0.5px] border-card-border bg-muted"
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate text-[13px] text-foreground" dir="auto">
+              {artifact.name}
             </span>
-          ) : null}
-        </div>
-        {artifact.description ? (
-          <div className="ps-8 text-[12.5px] leading-snug text-muted-foreground">
-            {artifact.description}
+            <VersionChip artifact={artifact} />
           </div>
-        ) : null}
-        <div className="flex items-center gap-1.5 ps-8 text-[11.5px] text-muted-foreground">
-          {bot ? (
-            <>
-              <BotAvatar color={bot.color} identity={bot.id} size={14} status={bot.status} />
-              <span className="max-w-[140px] truncate">{bot.name}</span>
-              <span aria-hidden="true">·</span>
-            </>
+          {artifact.description ? (
+            <div className="line-clamp-2 text-[12.5px] text-muted-foreground" dir="auto">
+              {artifact.description}
+            </div>
           ) : null}
-          <span>{formatRelativeTime(artifact.createdAt)}</span>
+          <ArtifactMeta artifact={artifact} bot={bot} />
         </div>
       </Link>
-      <button
-        type="button"
-        aria-label={t`Delete ${artifact.name}`}
-        title={t`Delete ${artifact.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onRequestDelete(artifact);
-        }}
-        className="absolute end-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <Trash2 size={14} strokeWidth={1.9} />
-      </button>
+      <DeleteArtifactButton
+        artifact={artifact}
+        onRequestDelete={onRequestDelete}
+        className="end-2 top-1/2 -translate-y-1/2"
+      />
     </div>
   );
 }
 
-function ArtifactMimeIcon({ mimeType, small }: { mimeType: string; small?: boolean }) {
-  const size = small ? 12 : 16;
+function VersionChip({ artifact }: { artifact: ArtifactSummary }) {
+  if (artifact.versionCount <= 1) return null;
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {mimeType === "text/html" ? (
-        <>
-          <polyline points="8 6 2 12 8 18" />
-          <polyline points="16 6 22 12 16 18" />
-        </>
-      ) : (
-        <>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </>
+    <span className="shrink-0 rounded-[4px] border-[0.5px] border-chip-border bg-chip px-1 text-[11px] text-muted-foreground">
+      {`v${artifact.version}`}
+    </span>
+  );
+}
+
+function ArtifactMeta({
+  artifact,
+  bot,
+  className,
+}: {
+  artifact: ArtifactSummary;
+  bot: Bot | undefined;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-1.5 text-[12.5px] text-muted-foreground",
+        className,
       )}
-    </svg>
+    >
+      {bot ? (
+        <>
+          <BotAvatar color={bot.color} identity={bot.id} size={14} status={bot.status} />
+          <span className="min-w-0 truncate">{bot.name}</span>
+          <span aria-hidden="true">·</span>
+        </>
+      ) : null}
+      <span className="shrink-0">{formatRelativeTime(artifact.createdAt)}</span>
+      <span className="ms-auto shrink-0 text-[11px] tracking-wide">
+        {mimeLabel(artifact.mimeType)}
+      </span>
+    </div>
   );
 }
 
@@ -797,198 +792,4 @@ function mimeLabel(mimeType: string): string {
   if (mimeType === "application/pdf") return "PDF";
   const slash = mimeType.indexOf("/");
   return (slash === -1 ? mimeType : mimeType.slice(slash + 1)).toUpperCase().slice(0, 6);
-}
-
-function PreviewPane({
-  artifactId,
-  maximized,
-  onToggleMaximize,
-}: {
-  artifactId: string;
-  maximized: boolean;
-  onToggleMaximize: () => void;
-}) {
-  const { t } = useLingui();
-  const [versions, setVersions] = useState<ArtifactVersion[] | null>(null);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [state, setState] = useState<
-    | { status: "loading" }
-    | { status: "ready"; artifact: Artifact; bytes: Uint8Array }
-    | { status: "error"; message: string }
-  >({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    setVersions(null);
-    setSelectedVersionId(null);
-    void rpc.artifacts
-      .listVersions({ familyId: artifactId })
-      .then((list) => {
-        if (cancelled) return;
-        setVersions(list);
-        setSelectedVersionId(list[0]?.id ?? artifactId);
-      })
-      .catch(() => {
-        if (!cancelled) setSelectedVersionId(artifactId);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [artifactId]);
-
-  useEffect(() => {
-    if (!selectedVersionId) return;
-    let cancelled = false;
-    setState({ status: "loading" });
-    void rpc.artifacts
-      .getById({ artifactId: selectedVersionId })
-      .then((artifact) => {
-        if (!cancelled) {
-          setState({
-            status: "ready",
-            artifact,
-            bytes: decodeArtifactBase64(artifact.contentBase64),
-          });
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setState({
-            status: "error",
-            message: errorText(error, t`Could not load this artifact.`),
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedVersionId, t]);
-
-  return (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <header className="flex items-center gap-3 border-b border-border px-6 py-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[16px] font-semibold">
-            {state.status === "ready" ? state.artifact.name : t`Loading…`}
-          </h2>
-          {state.status === "ready" && state.artifact.description ? (
-            <p className="truncate text-[12.5px] text-muted-foreground">
-              {state.artifact.description}
-            </p>
-          ) : null}
-        </div>
-        {versions && versions.length > 1 && selectedVersionId ? (
-          <NativeSelect
-            aria-label={t`Version`}
-            className="w-auto shrink-0 text-[13px]"
-            value={selectedVersionId}
-            onChange={(event) => setSelectedVersionId(event.target.value)}
-          >
-            {versions.map((entry) => (
-              <NativeSelectOption key={entry.id} value={entry.id}>
-                {`v${entry.version} · ${formatRelativeTime(entry.createdAt)}`}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        ) : null}
-        {state.status === "ready" ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                downloadArtifactBytes(state.artifact.name, state.artifact.mimeType, state.bytes)
-              }
-            >
-              <Download className="me-1.5" size={15} strokeWidth={1.9} />
-              <Trans>Download</Trans>
-            </Button>
-            <button
-              type="button"
-              aria-label={maximized ? t`Show list` : t`Maximize`}
-              title={maximized ? t`Show list` : t`Maximize`}
-              onClick={onToggleMaximize}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-accent"
-            >
-              {maximized ? (
-                <Minimize2 size={15} strokeWidth={1.9} />
-              ) : (
-                <Maximize2 size={15} strokeWidth={1.9} />
-              )}
-            </button>
-          </>
-        ) : null}
-      </header>
-
-      <div className="min-h-0 flex-1 p-5">
-        {state.status === "loading" ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
-            <Trans>Loading…</Trans>
-          </div>
-        ) : state.status === "error" ? (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-destructive">
-            {state.message}
-          </div>
-        ) : (
-          <div className="relative h-full overflow-hidden rounded-2xl border border-border">
-            <ArtifactPreview artifact={state.artifact} bytes={state.bytes} />
-            {state.artifact.mimeType === "text/html" ? (
-              <div className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1.5 text-[11px] text-white">
-                <Lock size={12} strokeWidth={2} />
-                <span>
-                  <Trans>Isolated preview — no access to your account</Trans>
-                </span>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ArtifactPreview({ artifact, bytes }: { artifact: Artifact; bytes: Uint8Array }) {
-  if (artifact.mimeType === "text/html") {
-    const html = new TextDecoder("utf-8").decode(bytes);
-    return <SandboxedHtmlViewer html={html} title={artifact.name} />;
-  }
-  if (artifact.mimeType === "text/markdown") {
-    const text = new TextDecoder("utf-8").decode(bytes);
-    return (
-      <div className="h-full overflow-y-auto bg-background">
-        <article className="mx-auto w-full max-w-[760px] px-8 py-10 text-[16px] leading-7 text-foreground">
-          <ChatMarkdown>{text}</ChatMarkdown>
-        </article>
-      </div>
-    );
-  }
-  if (artifact.mimeType === "application/pdf") {
-    return <PdfViewer bytes={bytes} title={artifact.name} />;
-  }
-  if (isAttachmentImageMimeType(artifact.mimeType)) {
-    return <ImagePreview bytes={bytes} mimeType={artifact.mimeType} name={artifact.name} />;
-  }
-  return (
-    <div className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80">
-      <Trans>Preview isn't available for this file type — download it to view it.</Trans>
-    </div>
-  );
-}
-
-function ImagePreview({
-  bytes,
-  mimeType,
-  name,
-}: {
-  bytes: Uint8Array;
-  mimeType: string;
-  name: string;
-}) {
-  const url = useObjectUrl(bytes, mimeType);
-  if (!url) return null;
-  return (
-    <div className="grid h-full place-items-center overflow-auto bg-muted/40 p-4">
-      <img src={url} alt={name} className="max-h-full max-w-full rounded-lg shadow-sm" />
-    </div>
-  );
 }

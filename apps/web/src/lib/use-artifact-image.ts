@@ -1,3 +1,4 @@
+import type { ArtifactWithContent } from "@rakazo/contracts";
 import { useEffect, useState } from "react";
 import type { ArtifactTarget } from "./artifact-open";
 import { decodeArtifactBase64 } from "./artifact-open";
@@ -19,20 +20,14 @@ function releaseUnusedDownload(key: string, download: ImageDownload) {
   if (downloads.get(key) === download) downloads.delete(key);
 }
 
-function acquireDownload(target: ArtifactTarget, artifactId: string) {
-  const key = JSON.stringify([
-    "botId" in target ? "bot" : "group",
-    "botId" in target ? target.botId : target.groupId,
-    artifactId,
-  ]);
+function acquireDownload(key: string, load: () => Promise<ArtifactWithContent>) {
   let download = downloads.get(key);
   if (!download) {
     const entry: ImageDownload = {
       consumers: 0,
       objectUrl: null,
       settled: false,
-      promise: rpc.artifacts
-        .get({ ...target, artifactId })
+      promise: load()
         .then((artifact) => {
           const bytes = decodeArtifactBase64(artifact.contentBase64);
           entry.objectUrl = URL.createObjectURL(
@@ -75,7 +70,9 @@ export function useArtifactImage(
     setSrc(null);
     if (!enabled || (!botId && !groupId)) return;
     let cancelled = false;
-    const download = acquireDownload(botId ? { botId } : { groupId: groupId! }, artifactId);
+    const scope = botId ? { botId } : { groupId: groupId! };
+    const key = JSON.stringify([botId ? "bot" : "group", botId ?? groupId, artifactId]);
+    const download = acquireDownload(key, () => rpc.artifacts.get({ ...scope, artifactId }));
     void download.promise
       .then((objectUrl) => {
         if (!cancelled) setSrc(objectUrl);
@@ -86,5 +83,35 @@ export function useArtifactImage(
       download.release();
     };
   }, [artifactId, botId, groupId, enabled]);
+  return src;
+}
+
+/** Image of the newest version of a space artifact, as listed on the Artifacts screen. */
+export function useLatestArtifactImage(
+  artifact: { id: string; version: number; versionCount: number },
+  enabled = true,
+) {
+  const [src, setSrc] = useState<string | null>(null);
+  const { id, version, versionCount } = artifact;
+  useEffect(() => {
+    setSrc(null);
+    if (!enabled) return;
+    let cancelled = false;
+    // Listed ids are the family root; later versions live under their own id.
+    const download = acquireDownload(JSON.stringify(["space", id, version]), async () => {
+      const latestId =
+        versionCount > 1 ? ((await rpc.artifacts.listVersions({ familyId: id }))[0]?.id ?? id) : id;
+      return rpc.artifacts.getById({ artifactId: latestId });
+    });
+    void download.promise
+      .then((objectUrl) => {
+        if (!cancelled) setSrc(objectUrl);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      download.release();
+    };
+  }, [id, version, versionCount, enabled]);
   return src;
 }

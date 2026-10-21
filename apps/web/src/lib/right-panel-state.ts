@@ -1,5 +1,6 @@
 export type Panel =
   | "details"
+  | "library"
   | "computer"
   | "settings"
   | "routine"
@@ -12,6 +13,7 @@ export type RightPanelState = { panel: Panel; routineId?: string };
 /** Panels that are safe to remember across reloads. Create flows stay ephemeral. */
 const durablePanels: readonly Panel[] = [
   "details",
+  "library",
   "computer",
   "settings",
   "routine",

@@ -526,6 +526,10 @@ msgid "Agents:"
 msgstr "סוכנים:"
 
 #: src/pages/Artifacts.tsx
+msgid "All"
+msgstr "הכול"
+
+#: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "כל הבוטים"
 
@@ -1121,6 +1125,7 @@ msgstr "Client ID"
 msgid "Client secret"
 msgstr "Client secret"
 
+#: src/components/ArtifactPreviewPane.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1192,6 +1197,7 @@ msgid "Cloud"
 msgstr "ענן"
 
 #: src/components/AskCard.tsx
+#: src/pages/Artifacts.tsx
 msgid "Code"
 msgstr "קוד"
 
@@ -1605,6 +1611,7 @@ msgid "Could not load approval rules"
 msgstr "לא ניתן לטעון את כללי האישור"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Could not load artifacts."
 msgstr "לא ניתן לטעון את התוצרים."
 
@@ -1650,7 +1657,7 @@ msgstr "לא ניתן לטעון את אפשרויות ההתחברות"
 msgid "Could not load skill"
 msgstr "לא ניתן לטעון את המיומנות"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Could not load this artifact."
 msgstr "לא ניתן לטעון את התוצר הזה."
 
@@ -2185,6 +2192,10 @@ msgstr "תיעוד"
 msgid "Document changed. Reopen to edit the latest version."
 msgstr "המסמך השתנה. יש לפתוח אותו מחדש כדי לערוך את הגרסה העדכנית."
 
+#: src/pages/Artifacts.tsx
+msgid "Documents"
+msgstr "מסמכים"
+
 #: src/pages/Auth.tsx
 msgid "Don’t have an account?"
 msgstr "אין חשבון?"
@@ -2195,7 +2206,7 @@ msgstr "אין חשבון?"
 msgid "Done"
 msgstr "הושלם"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Download"
 msgstr "הורדה"
 
@@ -2422,6 +2433,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders, one per line"
 msgstr ""
+
+#: src/pages/shell/bot-library.tsx
+msgid "Files this Bot makes show up here"
+msgstr "קבצים שהבוט יוצר יופיעו כאן"
 
 #: src/pages/GroupPanel.tsx
 msgid "Filter bots"
@@ -2651,6 +2666,10 @@ msgstr "התעלמות"
 msgid "Image upload area"
 msgstr "אזור העלאת תמונה"
 
+#: src/pages/Artifacts.tsx
+msgid "Images"
+msgstr "תמונות"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "ייבוא OpenAPI JSON"
@@ -2738,7 +2757,7 @@ msgstr "יחידת המרווח"
 msgid "Isolated"
 msgstr "מבודד"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Isolated preview — no access to your account"
 msgstr "תצוגה מקדימה מבודדת — ללא גישה לחשבון"
 
@@ -2800,6 +2819,10 @@ msgstr "יציאה"
 msgid "Lets this bot organize, retune and schedule the bots it creates. You approve each change."
 msgstr "מאפשר לבוט הזה לארגן, לכוונן ולתזמן את הבוטים שהוא יוצר. כל שינוי דורש את אישורך."
 
+#: src/pages/Shell.tsx
+msgid "Library"
+msgstr "ספרייה"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "בהיר"
@@ -2838,6 +2861,7 @@ msgid "Load earlier messages"
 msgstr "טעינת הודעות קודמות"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Load more"
 msgstr "טעינת עוד"
 
@@ -2882,6 +2906,7 @@ msgid "Loading voice providers…"
 msgstr "טוען ספקי קול…"
 
 #: src/App.tsx
+#: src/components/ArtifactPreviewPane.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
@@ -2890,6 +2915,7 @@ msgstr "טוען ספקי קול…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Loading…"
 msgstr "טוען…"
 
@@ -2976,7 +3002,7 @@ msgstr "מקסימלי"
 msgid "Max"
 msgstr "מקסימלי"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Maximize"
 msgstr "הגדלה"
 
@@ -3001,6 +3027,10 @@ msgstr "נקודת קצה של MCP"
 #: src/pages/McpServersOverlay.tsx
 msgid "MCP servers"
 msgstr "שרתי MCP"
+
+#: src/pages/Artifacts.tsx
+msgid "Media"
+msgstr "מדיה"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3572,6 +3602,10 @@ msgstr "מפתח API של הארגון"
 msgid "Original message unavailable"
 msgstr "ההודעה המקורית אינה זמינה"
 
+#: src/pages/Artifacts.tsx
+msgid "Other"
+msgstr "אחר"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
@@ -3698,7 +3732,7 @@ msgstr "POST אל"
 msgid "Preview {0}"
 msgstr "תצוגה מקדימה של {0}"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "תצוגה מקדימה אינה זמינה לסוג הקובץ הזה — אפשר להוריד אותו כדי לצפות בו."
 
@@ -4399,7 +4433,7 @@ msgstr ""
 msgid "Show bots"
 msgstr "הצגת בוטים"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Show list"
 msgstr "הצגת רשימה"
 
@@ -4919,6 +4953,7 @@ msgstr "לנסות שוב"
 msgid "Try the test again."
 msgstr "אפשר לנסות את הבדיקה שוב."
 
+#: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
 msgstr "סוג"
@@ -5113,7 +5148,7 @@ msgstr "אימות והוספה"
 msgid "Verifying…"
 msgstr "מאמת…"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Version"
 msgstr "גרסה"
 

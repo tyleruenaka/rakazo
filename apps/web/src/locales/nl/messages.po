@@ -526,6 +526,10 @@ msgid "Agents:"
 msgstr "Agents:"
 
 #: src/pages/Artifacts.tsx
+msgid "All"
+msgstr "Alles"
+
+#: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "Alle bots"
 
@@ -1121,6 +1125,7 @@ msgstr "Client-ID"
 msgid "Client secret"
 msgstr "Clientsecret"
 
+#: src/components/ArtifactPreviewPane.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1192,6 +1197,7 @@ msgid "Cloud"
 msgstr "Cloud"
 
 #: src/components/AskCard.tsx
+#: src/pages/Artifacts.tsx
 msgid "Code"
 msgstr "Code"
 
@@ -1605,6 +1611,7 @@ msgid "Could not load approval rules"
 msgstr "Goedkeuringsregels laden mislukt"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Could not load artifacts."
 msgstr "Artefacten laden mislukt."
 
@@ -1650,7 +1657,7 @@ msgstr "Aanmeldopties laden mislukt"
 msgid "Could not load skill"
 msgstr "Skill laden mislukt"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Could not load this artifact."
 msgstr "Dit artefact laden mislukt."
 
@@ -2185,6 +2192,10 @@ msgstr "Documentatie"
 msgid "Document changed. Reopen to edit the latest version."
 msgstr "Het document is gewijzigd. Open het opnieuw om de nieuwste versie te bewerken."
 
+#: src/pages/Artifacts.tsx
+msgid "Documents"
+msgstr "Documenten"
+
 #: src/pages/Auth.tsx
 msgid "Don’t have an account?"
 msgstr "Heb je geen account?"
@@ -2195,7 +2206,7 @@ msgstr "Heb je geen account?"
 msgid "Done"
 msgstr "Klaar"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Download"
 msgstr "Downloaden"
 
@@ -2422,6 +2433,10 @@ msgstr "Bestanden of mappen op de computer"
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders, one per line"
 msgstr "Bestanden of mappen, één per regel"
+
+#: src/pages/shell/bot-library.tsx
+msgid "Files this Bot makes show up here"
+msgstr "Bestanden die deze bot maakt, verschijnen hier"
 
 #: src/pages/GroupPanel.tsx
 msgid "Filter bots"
@@ -2651,6 +2666,10 @@ msgstr "Negeren"
 msgid "Image upload area"
 msgstr "Gebied voor afbeeldingsuploads"
 
+#: src/pages/Artifacts.tsx
+msgid "Images"
+msgstr "Afbeeldingen"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "OpenAPI-JSON importeren"
@@ -2738,7 +2757,7 @@ msgstr "Intervaleenheid"
 msgid "Isolated"
 msgstr "Geïsoleerd"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Isolated preview — no access to your account"
 msgstr "Geïsoleerd voorbeeld — geen toegang tot je account"
 
@@ -2800,6 +2819,10 @@ msgstr "Verlaten"
 msgid "Lets this bot organize, retune and schedule the bots it creates. You approve each change."
 msgstr "Laat deze bot de bots organiseren, afstemmen en plannen die hij zelf maakt. Jij keurt elke wijziging goed."
 
+#: src/pages/Shell.tsx
+msgid "Library"
+msgstr "Bibliotheek"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "Licht"
@@ -2838,6 +2861,7 @@ msgid "Load earlier messages"
 msgstr "Eerdere berichten laden"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Load more"
 msgstr "Meer laden"
 
@@ -2882,6 +2906,7 @@ msgid "Loading voice providers…"
 msgstr "Spraakanbieders laden…"
 
 #: src/App.tsx
+#: src/components/ArtifactPreviewPane.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
@@ -2890,6 +2915,7 @@ msgstr "Spraakanbieders laden…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-library.tsx
 msgid "Loading…"
 msgstr "Bezig met laden…"
 
@@ -2976,7 +3002,7 @@ msgstr "Max"
 msgid "Max"
 msgstr "Max"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Maximize"
 msgstr "Maximaliseren"
 
@@ -3001,6 +3027,10 @@ msgstr "MCP-eindpunt"
 #: src/pages/McpServersOverlay.tsx
 msgid "MCP servers"
 msgstr "MCP-servers"
+
+#: src/pages/Artifacts.tsx
+msgid "Media"
+msgstr "Media"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3572,6 +3602,10 @@ msgstr "Organisatie-API-sleutel"
 msgid "Original message unavailable"
 msgstr "Oorspronkelijk bericht niet beschikbaar"
 
+#: src/pages/Artifacts.tsx
+msgid "Other"
+msgstr "Overig"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
@@ -3698,7 +3732,7 @@ msgstr "POST naar"
 msgid "Preview {0}"
 msgstr "{0} bekijken"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "Een voorbeeld is niet beschikbaar voor dit bestandstype — download het om het te bekijken."
 
@@ -4399,7 +4433,7 @@ msgstr "Alles tonen"
 msgid "Show bots"
 msgstr "Bots tonen"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Show list"
 msgstr "Lijst tonen"
 
@@ -4919,6 +4953,7 @@ msgstr "Opnieuw proberen"
 msgid "Try the test again."
 msgstr "Probeer de test opnieuw."
 
+#: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
 msgstr "Type"
@@ -5113,7 +5148,7 @@ msgstr "Verifiëren en toevoegen"
 msgid "Verifying…"
 msgstr "Bezig met verifiëren…"
 
-#: src/pages/Artifacts.tsx
+#: src/components/ArtifactPreviewPane.tsx
 msgid "Version"
 msgstr "Versie"
 

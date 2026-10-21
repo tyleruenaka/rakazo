@@ -325,6 +325,7 @@ import {
 } from "./RoutineEditor";
 import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
+import { BotLibrary } from "./shell/bot-library";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotPanelHeader } from "./shell/bot-panel-header";
 import { BotCreatePicker } from "./shell/bot-picker";
@@ -589,10 +590,11 @@ function SpaceShell() {
       currentSearch.setSearchParams(params, { replace: true });
     }
   }, []);
-  // Details and Computer are tabs of one view: the preview stays mounted and awake on both.
-  const computerPanel = panel === "details" || panel === "computer";
-  const lastPanelTab = useRef<"details" | "computer">("details");
-  if (panel === "details" || panel === "computer") lastPanelTab.current = panel;
+  // Details, Library and Computer are tabs of one view: the preview stays mounted and awake on all.
+  const computerPanel = panel === "details" || panel === "library" || panel === "computer";
+  const lastPanelTab = useRef<"details" | "library" | "computer">("details");
+  if (panel === "details" || panel === "library" || panel === "computer")
+    lastPanelTab.current = panel;
   const [peerConversation, setPeerConversation] = usePreloadRecoveryState<{
     peerBotId: string;
     peerBotName: string;
@@ -4405,12 +4407,17 @@ function SpaceShell() {
                 <BotPanelHeader key={active.id} bot={active} onSave={saveActiveBot} />
                 <Tabs
                   value={panel}
-                  onValueChange={(value) => setPanel(value === "computer" ? "computer" : "details")}
+                  onValueChange={(value) =>
+                    setPanel(value === "computer" || value === "library" ? value : "details")
+                  }
                   className="mt-4 gap-0"
                 >
                   <TabsList className="self-center">
                     <TabsTrigger value="details">
                       <Trans>Details</Trans>
+                    </TabsTrigger>
+                    <TabsTrigger value="library">
+                      <Trans>Library</Trans>
                     </TabsTrigger>
                     <TabsTrigger value="computer">
                       <Trans>Computer</Trans>
@@ -4459,6 +4466,9 @@ function SpaceShell() {
                         {routineToggleError}
                       </p>
                     ) : null}
+                  </TabsContent>
+                  <TabsContent value="library" tabIndex={-1}>
+                    <BotLibrary botId={active.id} />
                   </TabsContent>
                   {/* Kept mounted so switching tabs never reloads the live screen. */}
                   <TabsContent value="computer" keepMounted tabIndex={-1} className="pt-5">
