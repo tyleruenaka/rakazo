@@ -3,8 +3,8 @@
 import { i18n } from "@lingui/core";
 import { ORPCError } from "@orpc/client";
 import type { Bot } from "@rakazo/contracts";
-import type { ComponentProps, ReactNode } from "react";
-import { act } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { act, cloneElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -53,6 +53,10 @@ vi.mock("@rakazo/ui-web", () => ({
       {...props}
     />
   ),
+  Tooltip: ({ children }: { children: ReactNode }) => children,
+  TooltipTrigger: ({ render, children }: { render: ReactElement; children: ReactNode }) =>
+    cloneElement(render, undefined, children),
+  TooltipContent: () => null,
   Toggle: ({
     onPressedChange: _onPressedChange,
     pressed,
@@ -508,5 +512,36 @@ describe("instruction settings refresh", () => {
       );
     });
     expect(descriptionField().value).toBe("Approved replacement");
+  });
+});
+
+describe("BotSettings Export and Clear", () => {
+  it("keeps Export and Clear conversation as named icon buttons that call their handlers", async () => {
+    const onExport = vi.fn(async () => undefined);
+    const onClear = vi.fn();
+    await act(async () => {
+      root.render(
+        <BotSettings
+          bot={bot()}
+          memoryProviderConfigured={false}
+          onSkillsChange={() => undefined}
+          onSave={onSave}
+          onExport={onExport}
+          onClear={onClear}
+        />,
+      );
+    });
+    const exportButton = container.querySelector<HTMLButtonElement>('button[aria-label="Export"]');
+    const clearButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Clear conversation"]',
+    );
+    await act(async () => {
+      exportButton?.click();
+      clearButton?.click();
+    });
+    expect(onExport).toHaveBeenCalledTimes(1);
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(exportButton?.textContent).toBe("");
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

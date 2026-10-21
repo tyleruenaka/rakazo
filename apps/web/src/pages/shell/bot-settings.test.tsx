@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import type { Bot } from "@rakazo/contracts";
-import type { ComponentProps, ReactNode } from "react";
-import { act } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { act, cloneElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,6 +48,10 @@ vi.mock("@rakazo/ui-web", () => ({
       {...props}
     />
   ),
+  Tooltip: ({ children }: { children: ReactNode }) => children,
+  TooltipTrigger: ({ render, children }: { render: ReactElement; children: ReactNode }) =>
+    cloneElement(render, undefined, children),
+  TooltipContent: () => null,
   Toggle: ({
     pressed: _pressed,
     onPressedChange: _onPressedChange,

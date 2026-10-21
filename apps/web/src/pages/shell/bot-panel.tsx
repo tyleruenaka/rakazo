@@ -22,8 +22,17 @@ import {
   parseModelOptionKey,
   resolveSelectableModelId,
 } from "@rakazo/core";
-import { Button, Input, Switch, Textarea, Toggle } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import {
+  Button,
+  Input,
+  Switch,
+  Textarea,
+  Toggle,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@rakazo/ui-web";
+import { Download, Eraser, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
 import { InstructionSettings } from "../../components/InstructionSettings";
@@ -752,7 +761,7 @@ export function BotSettings({
         </div>
       </details>
       {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
-      <div className="mt-5 flex flex-col items-start gap-3">
+      <div className="mt-5 flex items-center gap-3">
         <Button
           disabled={saving}
           onClick={() => {
@@ -767,17 +776,39 @@ export function BotSettings({
         >
           <Trans>Save</Trans>
         </Button>
-        <Button variant="ghost" size="sm" className="-ms-2.5" onClick={() => void onExport()}>
-          <Trans>Export</Trans>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ms-2.5 text-destructive hover:text-destructive"
-          onClick={onClear}
-        >
-          <Trans>Clear conversation</Trans>
-        </Button>
+        <div className="ms-auto flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t`Export`}
+                  onClick={() => void onExport()}
+                />
+              }
+            >
+              <Download size={16} strokeWidth={1.6} />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t`Export`}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={t`Clear conversation`}
+                  onClick={onClear}
+                />
+              }
+            >
+              <Eraser size={16} strokeWidth={1.6} />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t`Clear conversation`}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );
