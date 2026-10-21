@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type * as UiWeb from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -9,7 +10,9 @@ vi.mock("@lingui/react/macro", () => ({
   useLingui: () => ({ t: (strings: TemplateStringsArray) => strings.join("") }),
 }));
 
-vi.mock("@rakazo/ui-web", () => ({
+vi.mock("@rakazo/ui-web", async (importOriginal) => ({
+  // The real popover, so dropdowns open as in the app.
+  ...(await importOriginal<typeof UiWeb>()),
   Button: ({ children, ...props }: React.ComponentProps<"button">) => (
     <button type="button" {...props}>
       {children}
@@ -114,7 +117,8 @@ it("names the space a space-scoped section acts on and switches it in place", as
     expect(trigger.textContent).toBe("Acme");
 
     await act(async () => trigger.click());
-    const options = [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    // The list opens in a portal outside the dialog, so it is never clipped by it.
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
     expect(options.map((option) => option.textContent)).toEqual(["Acme", "Beta"]);
 
     await act(async () => options[1]?.click());

@@ -11,26 +11,35 @@ test("timezone setting adopts the browser zone, saves a choice, and offers this 
   await completeOnboarding(page);
 
   const settings = await openUserSettings(page);
-  await expect(settings.getByRole("heading", { name: "Timezone", exact: true })).toBeVisible();
-  const select = settings.getByRole("combobox", { name: "Timezone" });
+  const select = settings.getByTestId("timezone-select");
   // First sign-in saves the browser's zone without asking.
-  await expect(select).toHaveValue("Pacific/Auckland");
-  await expect(settings.getByTestId("timezone-use-device")).toHaveCount(0);
+  await expect(select).toHaveText("Pacific/Auckland");
+  await select.click();
+  await expect(page.getByRole("option", { name: /^Pacific\/Auckland/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByTestId("timezone-use-device")).toHaveCount(0);
 
-  await select.selectOption("Europe/London");
-  const useDevice = settings.getByRole("button", { name: "Use Pacific/Auckland" });
-  await expect(useDevice).toBeVisible();
-  await useDevice.scrollIntoViewIfNeeded();
+  await page.getByRole("combobox", { name: "Search timezone" }).fill("London");
+  await page.getByRole("option", { name: /^Europe\/London/ }).click();
+  await expect(select).toHaveText("Europe/London");
+  await select.click();
+  const useDevice = page.getByTestId("timezone-use-device");
+  await expect(useDevice).toHaveText(/^Use Pacific\/Auckland/);
   await captureScreenshot(page, testInfo, "account-timezone-setting");
+  await page.keyboard.press("Escape");
 
   // A saved choice survives a reload; the browser zone does not overwrite it.
   await page.reload();
   const reopened = await openUserSettings(page);
-  await expect(reopened.getByRole("combobox", { name: "Timezone" })).toHaveValue("Europe/London");
+  const reopenedSelect = reopened.getByTestId("timezone-select");
+  await expect(reopenedSelect).toHaveText("Europe/London");
 
-  await reopened.getByRole("button", { name: "Use Pacific/Auckland" }).click();
-  await expect(reopened.getByRole("combobox", { name: "Timezone" })).toHaveValue(
-    "Pacific/Auckland",
-  );
-  await expect(reopened.getByTestId("timezone-use-device")).toHaveCount(0);
+  await reopenedSelect.click();
+  await page.getByTestId("timezone-use-device").click();
+  await expect(reopenedSelect).toHaveText("Pacific/Auckland");
+  await reopenedSelect.click();
+  await expect(page.getByRole("option", { name: /^Pacific\/Auckland/ })).toBeVisible();
+  await expect(page.getByTestId("timezone-use-device")).toHaveCount(0);
 });

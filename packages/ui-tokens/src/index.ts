@@ -15,9 +15,19 @@ export type ColorTokens = {
   background: string;
   /** Modals: a step lighter than the page so they read as raised above it. */
   dialog: string;
+  /** Border of the Settings dialog. */
+  settingsBorder: string;
+  /** Hairline between the Settings nav and its content. */
+  settingsDivider: string;
+  /** Selected or hovered Settings nav item. */
+  settingsNav: string;
   foreground: string;
   card: string;
   cardForeground: string;
+  /** Hairline around a settings card. */
+  cardBorder: string;
+  /** Description under a settings label. */
+  description: string;
   popover: string;
   popoverForeground: string;
   /** Hairline around menus and popovers. */
@@ -103,9 +113,14 @@ export type ColorTokens = {
 export const darkTokens = {
   background: "#121212",
   dialog: "#1F1F1F",
+  settingsBorder: "#292929",
+  settingsDivider: "#1F1F1F",
+  settingsNav: "#242424",
   foreground: "#F5F5F5",
   card: "#1F1F1F",
   cardForeground: "#F5F5F5",
+  cardBorder: "#2C2C2C",
+  description: "#ACACAC",
   popover: "#1F1F1F",
   popoverForeground: "#F5F5F5",
   popoverBorder: "#353535",
@@ -167,9 +182,14 @@ export const darkTokens = {
 export const lightTokens = {
   background: "#FCFCFC",
   dialog: "#FFFFFF",
+  settingsBorder: "#E1E1E1",
+  settingsDivider: "#EAEAEA",
+  settingsNav: "#EAEAEA",
   foreground: "#1C1C1C",
   card: "#FFFFFF",
   cardForeground: "#1C1C1C",
+  cardBorder: "#EDEDED",
+  description: "#767676",
   popover: "#FFFFFF",
   popoverForeground: "#1C1C1C",
   popoverBorder: "#E3E3E3",

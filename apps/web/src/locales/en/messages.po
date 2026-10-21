@@ -14,6 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr " (unread)"
 
@@ -28,6 +29,11 @@ msgstr "{0, plural, one {Waiting for sign-in — the code expires in about # min
 #: src/pages/Onboarding.tsx
 msgid "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
 msgstr "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
+
+#. placeholder {0}: connectedApps.length
+#: src/pages/PluginsOverlay.tsx
+msgid "{0, plural, other {# connected}}"
+msgstr "{0, plural, other {# connected}}"
 
 #. placeholder {0}: file.name
 #: src/pages/Shell.tsx
@@ -311,6 +317,10 @@ msgstr "About groups"
 #: src/pages/shell/bot-picker.tsx
 msgid "About spaces"
 msgstr "About spaces"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Accent"
+msgstr "Accent"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Access token"
@@ -826,6 +836,10 @@ msgstr "Bearer token"
 msgid "Billing"
 msgstr "Billing"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Black"
+msgstr "Black"
+
 #: src/lib/ticket-status.ts
 msgid "Blocked"
 msgstr "Blocked"
@@ -849,6 +863,7 @@ msgid "bot"
 msgstr "bot"
 
 #: src/lib/identity-display.ts
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -859,6 +874,10 @@ msgstr "Bot"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "Bot"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Bot color"
+msgstr "Bot color"
 
 #: src/pages/Shell.tsx
 msgid "Bot screen"
@@ -1071,6 +1090,7 @@ msgstr "Choose a new password"
 msgid "Choose file"
 msgstr "Choose file"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "Clear"
@@ -2456,6 +2476,10 @@ msgstr "Flag unexpected actions"
 msgid "Fleet management"
 msgstr "Fleet management"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Follow System"
+msgstr "Follow System"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "Forgot password?"
@@ -2908,6 +2932,7 @@ msgstr "Lowercase letters, numbers, hyphens and underscores, starting with a let
 msgid "Make sure nothing is still running on this computer."
 msgstr "Make sure nothing is still running on this computer."
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr "Manage"
@@ -2919,10 +2944,6 @@ msgstr "Manage billing"
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage MCP servers"
 msgstr "Manage MCP servers"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Manage messaging settings"
-msgstr "Manage messaging settings"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3642,6 +3663,10 @@ msgstr "Pick a tool to check"
 msgid "Pin"
 msgstr "Pin"
 
+#: src/pages/Shell.tsx
+msgid "Pinned"
+msgstr "Pinned"
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "Play {name}"
@@ -4214,6 +4239,10 @@ msgstr "Search by domain"
 msgid "Search integrations.sh"
 msgstr "Search integrations.sh"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search language"
+msgstr "Search language"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
 msgstr "Search models"
@@ -4225,6 +4254,10 @@ msgstr "Search providers"
 #: src/pages/Shell.tsx
 msgid "Search runs"
 msgstr "Search runs"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search timezone"
+msgstr "Search timezone"
 
 #. placeholder {0}: filters.query.trim()
 #: src/pages/ActivityList.tsx
@@ -4605,10 +4638,6 @@ msgstr "Switch bot"
 msgid "Switching…"
 msgstr "Switching…"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "System"
-
 #: src/pages/Shell.tsx
 msgid "Take control"
 msgstr "Take control"
@@ -4681,6 +4710,10 @@ msgstr "The provider is rate-limiting requests."
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "The selected memory provider is not available in this build."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "Theme"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
@@ -5005,7 +5038,6 @@ msgid "Urgent"
 msgstr "Urgent"
 
 #: src/components/SidebarFooter.tsx
-#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Usage"
 msgstr "Usage"
@@ -5190,7 +5222,6 @@ msgstr "Workspace"
 msgid "year"
 msgstr "year"
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Yesterday"
 msgstr "Yesterday"

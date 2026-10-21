@@ -14,6 +14,7 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr " (непрочитано)"
 
@@ -28,6 +29,11 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
 msgstr ""
+
+#. placeholder {0}: connectedApps.length
+#: src/pages/PluginsOverlay.tsx
+msgid "{0, plural, other {# connected}}"
+msgstr "{0, plural, one {# подключено} few {# подключено} many {# подключено} other {# подключено}}"
 
 #. placeholder {0}: file.name
 #: src/pages/Shell.tsx
@@ -311,6 +317,10 @@ msgstr "О группах"
 #: src/pages/shell/bot-picker.tsx
 msgid "About spaces"
 msgstr "О пространствах"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Accent"
+msgstr "Акцент"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Access token"
@@ -826,6 +836,10 @@ msgstr "Bearer-токен"
 msgid "Billing"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Black"
+msgstr "Чёрный"
+
 #: src/lib/ticket-status.ts
 msgid "Blocked"
 msgstr ""
@@ -849,6 +863,7 @@ msgid "bot"
 msgstr "бот"
 
 #: src/lib/identity-display.ts
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -859,6 +874,10 @@ msgstr "Бот"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "Бот"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Bot color"
+msgstr "Цвет бота"
 
 #: src/pages/Shell.tsx
 msgid "Bot screen"
@@ -1071,6 +1090,7 @@ msgstr "Выберите новый пароль"
 msgid "Choose file"
 msgstr "Выбрать файл"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "Очистить"
@@ -2456,6 +2476,10 @@ msgstr "Пометить неожиданные действия"
 msgid "Fleet management"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Follow System"
+msgstr "Как в системе"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "Забыли пароль?"
@@ -2908,6 +2932,7 @@ msgstr ""
 msgid "Make sure nothing is still running on this computer."
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
@@ -2919,10 +2944,6 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage MCP servers"
 msgstr "Управление серверами MCP"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Manage messaging settings"
-msgstr "Управление настройками обмена сообщениями"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3642,6 +3663,10 @@ msgstr "Выберите инструмент для проверки"
 msgid "Pin"
 msgstr "Закрепить"
 
+#: src/pages/Shell.tsx
+msgid "Pinned"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "Воспроизвести {name}"
@@ -4214,6 +4239,10 @@ msgstr "Поиск по домену"
 msgid "Search integrations.sh"
 msgstr "Поиск integrations.sh"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search language"
+msgstr "Поиск языка"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
 msgstr "Поиск моделей"
@@ -4225,6 +4254,10 @@ msgstr "Поиск поставщиков"
 #: src/pages/Shell.tsx
 msgid "Search runs"
 msgstr "Поиск запусков"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search timezone"
+msgstr "Поиск часового пояса"
 
 #. placeholder {0}: filters.query.trim()
 #: src/pages/ActivityList.tsx
@@ -4605,10 +4638,6 @@ msgstr "Сменить бота"
 msgid "Switching…"
 msgstr "Переключение…"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "Системная"
-
 #: src/pages/Shell.tsx
 msgid "Take control"
 msgstr "Взять управление"
@@ -4681,6 +4710,10 @@ msgstr "Поставщик ограничивает частоту запрос�
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "Выбранный поставщик памяти недоступен в этой сборке."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "Тема"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
@@ -5005,7 +5038,6 @@ msgid "Urgent"
 msgstr ""
 
 #: src/components/SidebarFooter.tsx
-#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Usage"
 msgstr "Использование"
@@ -5190,7 +5222,6 @@ msgstr ""
 msgid "year"
 msgstr ""
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Yesterday"
 msgstr "Вчера"

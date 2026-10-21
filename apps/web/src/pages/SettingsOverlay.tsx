@@ -3,10 +3,10 @@ import type { AvatarStyle, SpaceMemoryConfig } from "@rakazo/contracts";
 import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
 import {
   Brain,
+  ChartNoAxesColumn,
   CloudDownload,
   Cpu,
   CreditCard,
-  Gauge,
   Monitor,
   Settings,
   ShieldCheck,
@@ -212,8 +212,8 @@ export function SettingsOverlay({
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
-    { id: "usage", label: t`Usage`, icon: Gauge },
     ...(showComputer ? [{ id: "computer" as const, label: t`Computer`, icon: Monitor }] : []),
+    { id: "usage", label: t`Usage`, icon: ChartNoAxesColumn },
     ...(billingEnabled ? [{ id: "billing" as const, label: t`Billing`, icon: CreditCard }] : []),
     ...(showUpdates ? [{ id: "updates" as const, label: t`Updates`, icon: CloudDownload }] : []),
   ];
@@ -264,13 +264,13 @@ export function SettingsOverlay({
         initialFocus={() =>
           section === "usage" ? (usageRef.current ?? panelRef.current) : panelRef.current
         }
-        className="flex h-[min(700px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(900px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-[20px] border-[0.5px] border-border bg-background p-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[900px]"
+        className="flex h-[min(700px,calc(100%-2rem))] max-h-[calc(100%-2rem)] w-[min(900px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-[14px] border border-settings-border bg-background p-0 ring-0 sm:max-h-[calc(100%-5rem)] sm:max-w-[900px]"
       >
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             data-testid="settings-nav"
             aria-label={t`Settings`}
-            className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-border px-3 py-3 md:w-[200px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e-[0.5px] md:px-3 md:py-4"
+            className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b-[0.5px] border-settings-divider px-3 py-3 md:w-[198px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e-[0.5px] md:ps-3 md:pe-[15px] md:pt-4"
           >
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -283,8 +283,8 @@ export function SettingsOverlay({
                   aria-current={active ? "page" : undefined}
                   disabled={panelBusy}
                   onClick={() => setSection(item.id)}
-                  className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-start text-[15px] text-foreground transition-colors disabled:pointer-events-none disabled:opacity-50 ${
-                    active ? "bg-accent" : "hover:bg-accent"
+                  className={`flex h-8 shrink-0 items-center gap-2 rounded-[10px] px-2.5 text-start text-[13px] text-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 ${
+                    active ? "bg-settings-nav" : "hover:bg-settings-nav"
                   }`}
                 >
                   <Icon className="size-4 shrink-0" strokeWidth={1.75} />
@@ -295,35 +295,36 @@ export function SettingsOverlay({
           </nav>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-7">
-              <div className="flex min-w-0 flex-col gap-2">
-                <DialogTitle className="text-[20px] font-normal text-foreground">
-                  {sectionTitle}
-                </DialogTitle>
-                {!spaceScoped ? null : space && spaces.length > 1 && onSpaceChange ? (
-                  <ListboxSelect
-                    className="w-56"
-                    testId="settings-space"
-                    label={t`Space`}
-                    options={spaces.map((option) => ({ value: option.id, label: option.name }))}
-                    value={space.id}
-                    disabled={panelBusy}
-                    onChange={(next) => {
-                      if (next !== space.id) leaveSettings(() => onSpaceChange(next));
-                    }}
-                  />
-                ) : space ? (
-                  <p data-testid="settings-space" className="text-sm text-muted-foreground">
-                    {space.name}
-                  </p>
-                ) : null}
-              </div>
+            <div className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[31.5px] sm:ps-[40.5px]">
+              <DialogTitle className="shrink-0 text-[16px] leading-6 font-semibold text-foreground">
+                {sectionTitle}
+              </DialogTitle>
+              {!spaceScoped ? null : space && spaces.length > 1 && onSpaceChange ? (
+                <ListboxSelect
+                  className="-mt-0.5"
+                  testId="settings-space"
+                  label={t`Space`}
+                  options={spaces.map((option) => ({ value: option.id, label: option.name }))}
+                  value={space.id}
+                  disabled={panelBusy}
+                  onChange={(next) => {
+                    if (next !== space.id) leaveSettings(() => onSpaceChange(next));
+                  }}
+                />
+              ) : space ? (
+                <p
+                  data-testid="settings-space"
+                  className="min-w-0 truncate text-[12.5px] leading-6 text-muted-foreground"
+                >
+                  {space.name}
+                </p>
+              ) : null}
               <DialogClose
                 aria-label={closeLabel}
                 disabled={panelBusy}
-                render={<Button variant="ghost" size="icon-sm" />}
+                className="absolute end-[9px] top-[9px] grid size-8 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring disabled:opacity-50"
               >
-                <XIcon />
+                <XIcon className="size-[17px]" strokeWidth={1.75} />
               </DialogClose>
             </div>
 
@@ -333,7 +334,7 @@ export function SettingsOverlay({
                 className={`min-h-0 flex-1 ${
                   section === "models" || section === "voice" || section === "memory"
                     ? "flex flex-col overflow-hidden"
-                    : "rk-scroll overflow-y-auto overscroll-contain px-6 pb-6 pt-5 sm:px-8 sm:pb-8"
+                    : "rk-scroll overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 sm:px-[32.5px]"
                 }`}
               >
                 {section === "general" ? (

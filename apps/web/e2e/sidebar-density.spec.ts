@@ -51,10 +51,11 @@ test("compact bot sidebar hides previews and preserves roster status accessibly"
   );
 
   const settings = await openUserSettings(page);
-  const compact = settings.getByTestId("bots-sidebar-density-compact");
-  await compact.scrollIntoViewIfNeeded();
-  await compact.click();
-  await expect(compact).toHaveAttribute("aria-pressed", "true");
+  const density = settings.getByTestId("bots-sidebar-density-select");
+  await density.scrollIntoViewIfNeeded();
+  await density.click();
+  await page.getByTestId("bots-sidebar-density-compact").click();
+  await expect(density).toHaveText("Compact");
   await expect
     .poll(() => page.evaluate((key) => window.localStorage.getItem(key), DENSITY_KEY))
     .toBe("compact");

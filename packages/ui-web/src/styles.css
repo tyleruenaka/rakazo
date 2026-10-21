@@ -67,6 +67,11 @@
   --color-overlay: var(--overlay);
   --color-scrollbar: var(--scrollbar);
   --color-popup-scrollbar: var(--popup-scrollbar);
+  --color-settings-border: var(--settings-border);
+  --color-settings-divider: var(--settings-divider);
+  --color-settings-nav: var(--settings-nav);
+  --color-card-border: var(--card-border);
+  --color-description: var(--description);
   --color-scrollbar-hover: var(--scrollbar-hover);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

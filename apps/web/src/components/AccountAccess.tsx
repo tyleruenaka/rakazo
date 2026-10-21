@@ -1,16 +1,20 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AccountSecurity } from "@rakazo/contracts";
 import { Button, Input, Label } from "@rakazo/ui-web";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { fetchAccountSecurity, requestAccountDeletionCode } from "../lib/account-security";
 import { authClient } from "../lib/auth";
 import { runSsoFlow } from "../lib/sso-flow";
 import { authErrorText } from "../lib/user-error";
 
+/** Account actions in the Account card, at the right of the identity passed as children. */
 export function AccountAccess({
   onSecurity,
+  children,
 }: {
   onSecurity?: (security: AccountSecurity) => void;
+  children?: ReactNode;
 }) {
   const { t } = useLingui();
   const [security, setSecurity] = useState<AccountSecurity | null>(null);
@@ -52,39 +56,45 @@ export function AccountAccess({
     }
   }
   return (
-    <div className="space-y-3">
-      {security?.sso && !security.ssoLinked ? (
-        <Button
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            void action(async () => {
-              const result = await runSsoFlow(
-                (disableRedirect, callbackURL) =>
-                  authClient.linkSocial({
-                    disableRedirect,
-                    provider: "oidc",
-                    callbackURL: callbackURL(window.location.href),
-                    errorCallbackURL: callbackURL(window.location.href),
-                  }),
-                [window.location.href],
-              );
-              if (result.error) throw new Error(authErrorText(result.error, t`Could not continue`));
-            }, true)
-          }
-        >
-          <Trans>Link SSO</Trans>
-        </Button>
-      ) : null}
-      <Button
-        variant="outline"
-        className="text-destructive hover:text-destructive"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <Trans>Delete account</Trans>
-      </Button>
+    <div>
+      <div className="flex items-center justify-between gap-4 px-3.5 py-2.5">
+        {children}
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {security?.sso && !security.ssoLinked ? (
+            <Button
+              variant="secondary"
+              disabled={pending}
+              onClick={() =>
+                void action(async () => {
+                  const result = await runSsoFlow(
+                    (disableRedirect, callbackURL) =>
+                      authClient.linkSocial({
+                        disableRedirect,
+                        provider: "oidc",
+                        callbackURL: callbackURL(window.location.href),
+                        errorCallbackURL: callbackURL(window.location.href),
+                      }),
+                    [window.location.href],
+                  );
+                  if (result.error)
+                    throw new Error(authErrorText(result.error, t`Could not continue`));
+                }, true)
+              }
+            >
+              <Trans>Link SSO</Trans>
+            </Button>
+          ) : null}
+          <Button
+            variant="secondary"
+            className="text-destructive hover:text-destructive"
+            onClick={() => setOpen((value) => !value)}
+          >
+            <Trans>Delete account</Trans>
+          </Button>
+        </div>
+      </div>
       {open ? (
-        <div className="space-y-3">
+        <div className="space-y-3 px-3.5 py-2.5">
           <p className="text-sm">
             <Trans>This permanently deletes your account and data.</Trans>
           </p>
@@ -190,7 +200,7 @@ export function AccountAccess({
         </div>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="px-3.5 py-2.5 text-[12.5px] leading-[19px] text-destructive">
           {error}
         </p>
       ) : null}
