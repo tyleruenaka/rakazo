@@ -3572,7 +3572,7 @@ function SpaceShell() {
                       <button
                         type="button"
                         {...rosterButtonProps}
-                        className={`flex w-full items-center rounded-[10px] ${
+                        className={`flex w-full items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring ${
                           compact ? "min-h-11 gap-2 ps-2.5 py-1.5" : "h-[54px] gap-1.5 ps-1.5"
                         } ${item.chat.unread ? "pe-6" : compact ? "pe-2.5" : "pe-3"} text-start ${
                           item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
@@ -3823,7 +3823,7 @@ function SpaceShell() {
                     ) : (
                       <Collapsible open={!collapsed} className="contents">
                         {/* The clip margin keeps the rows' focus ring, which sits 1px outside them. */}
-                        <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-1 overflow-clip transition-[height,opacity] duration-200 ease-out [overflow-clip-margin:2px] data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
+                        <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-1 overflow-clip transition-[height,opacity] duration-200 ease-out [overflow-clip-margin:4px] data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
                           {nestedRows.map((row) => renderRosterItem(row))}
                         </CollapsibleContent>
                       </Collapsible>
@@ -4062,7 +4062,7 @@ function SpaceShell() {
               type="button"
               data-testid="bot-settings-trigger"
               onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
-              className="app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card ps-[9.5px] pe-[12.5px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
+              className="app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card ps-[9.5px] pe-[15px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
             >
               {inGroup ? (
                 <GroupAvatar
@@ -5716,14 +5716,15 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-[54px] pt-[60px]"
+        // The scrollbar gutter (8) plus pe-2 lines the column up with the composer's right edge.
+        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
       >
         {olderCursor != null ? (
           <button
             type="button"
             disabled={loadingOlder}
             onClick={() => void loadOlder()}
-            className="self-center rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
+            className="self-center rounded-lg px-3 py-1.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
           >
             {loadingOlder ? t`Loading…` : t`Load earlier messages`}
           </button>
@@ -6314,6 +6315,25 @@ export const Composer = memo(function Composer({
     slashQuery !== null &&
     mentionQuery === null &&
     (slashSkillOptions.length > 0 || slashActionOptions.length > 0);
+  // Skills, then actions: one list so the keyboard highlight works like the "@" picker's.
+  const slashOptionCount = showSlashPicker
+    ? slashSkillOptions.length + slashActionOptions.length
+    : 0;
+  const [slashHighlight, setSlashHighlight] = useState(0);
+  useEffect(() => {
+    setSlashHighlight(0);
+  }, [slashQuery]);
+  const activeSlashIndex = clampMentionHighlightIndex(slashHighlight, slashOptionCount);
+
+  function pickSlashOption(index: number) {
+    const skill = slashSkillOptions[index];
+    if (skill) {
+      insertSkill(skill);
+      return;
+    }
+    const action = slashActionOptions[index - slashSkillOptions.length];
+    if (action) runSlashAction(action.id);
+  }
 
   async function send() {
     if (!canSend || sending || disabled) return;
@@ -6672,13 +6692,18 @@ export const Composer = memo(function Composer({
         ) : null}
         {showSlashPicker ? (
           <div data-testid="slash-picker" className={composerMenuClass}>
-            {slashSkillOptions.map((skill) => (
+            {slashSkillOptions.map((skill, index) => (
               <button
                 key={skill.id}
                 type="button"
                 aria-label={t`Skill ${skill.name}`}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insertSkill(skill)}
-                className={cn(composerMenuRowClass, "hover:bg-palette-highlight")}
+                onMouseMove={() => setSlashHighlight(index)}
+                className={cn(
+                  composerMenuRowClass,
+                  index === activeSlashIndex && "bg-palette-highlight",
+                )}
               >
                 <Box size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />
                 <span
@@ -6692,15 +6717,21 @@ export const Composer = memo(function Composer({
                 </span>
               </button>
             ))}
-            {slashActionOptions.map((action) => {
+            {slashActionOptions.map((action, actionIndex) => {
               const label = slashActionLabel(action.id);
+              const index = slashSkillOptions.length + actionIndex;
               return (
                 <button
                   key={action.id}
                   type="button"
                   aria-label={label}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => runSlashAction(action.id)}
-                  className={cn(composerMenuRowClass, "hover:bg-palette-highlight")}
+                  onMouseMove={() => setSlashHighlight(index)}
+                  className={cn(
+                    composerMenuRowClass,
+                    index === activeSlashIndex && "bg-palette-highlight",
+                  )}
                 >
                   <Settings
                     size={16}
@@ -6807,6 +6838,7 @@ export const Composer = memo(function Composer({
                 removeLastChip();
                 return;
               }
+              const slashKeys = !mentionPickerOpen && slashOptionCount > 0;
               const action = resolveMentionPickerKey({
                 key: event.key,
                 shiftKey: event.shiftKey,
@@ -6814,9 +6846,16 @@ export const Composer = memo(function Composer({
                 metaKey: event.metaKey,
                 enterToSend,
                 isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
-                optionCount: mentionOptions.length,
-                highlightedIndex: activeMentionIndex,
+                optionCount: slashKeys ? slashOptionCount : mentionOptions.length,
+                highlightedIndex: slashKeys ? activeSlashIndex : activeMentionIndex,
               });
+              if (slashKeys && action.type !== "none" && action.type !== "send") {
+                event.preventDefault();
+                if (action.type === "complete") pickSlashOption(action.index);
+                else if (action.type === "move") setSlashHighlight(action.index);
+                else setSlashQuery(null);
+                return;
+              }
               if (action.type === "complete") {
                 const mention = mentionOptions[action.index];
                 if (!mention) return;
