@@ -41,6 +41,21 @@ export type ColorTokens = {
   secondaryForeground: string;
   chatUser: string;
   chatUserForeground: string;
+  /** Composer placeholder. */
+  chatPlaceholder: string;
+  /** Icon in the composer's round buttons (attach, mic). */
+  composerIcon: string;
+  /** Hairline around the composer's round buttons. */
+  composerControlBorder: string;
+  /** Hairline around the floating chat name pill. */
+  pillBorder: string;
+  /** Ring just outside a card in the transcript. */
+  cardRing: string;
+  /** Inline code chip and code block fill in a chat message. */
+  code: string;
+  codeForeground: string;
+  /** List bullets and numbers in a chat message. */
+  markdownMarker: string;
   muted: string;
   mutedForeground: string;
   accent: string;
@@ -105,8 +120,16 @@ export const darkTokens = {
   primaryDisabledForeground: "#737373",
   secondary: "#282828",
   secondaryForeground: "#F5F5F5",
-  chatUser: "#2A2A2A",
+  chatUser: "#3B3B3B",
   chatUserForeground: "#F5F5F5",
+  chatPlaceholder: "#707070",
+  composerIcon: "#979797",
+  composerControlBorder: "#333333",
+  pillBorder: "#262626",
+  cardRing: "#1B1B1B",
+  code: "#202020",
+  codeForeground: "#ADADAD",
+  markdownMarker: "#919191",
   muted: "#1B1B1B",
   mutedForeground: "#A8A8A8",
   accent: "#242424",
@@ -161,8 +184,16 @@ export const lightTokens = {
   primaryDisabledForeground: "#A3A3A3",
   secondary: "#EFEFEF",
   secondaryForeground: "#1C1C1C",
-  chatUser: "#E9E9E9",
-  chatUserForeground: "#1C1C1C",
+  chatUser: "#1C1C1C",
+  chatUserForeground: "#FFFFFF",
+  chatPlaceholder: "#A4A4A4",
+  composerIcon: "#7A7A7A",
+  composerControlBorder: "#E1E1E1",
+  pillBorder: "#E9E9E9",
+  cardRing: "#EDEDED",
+  code: "#E7E7E7",
+  codeForeground: "#5D5D5D",
+  markdownMarker: "#797979",
   muted: "#EFEFEF",
   mutedForeground: "#646464",
   accent: "#E9E9E9",

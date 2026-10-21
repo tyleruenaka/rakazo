@@ -28,6 +28,14 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-chat-user: var(--chat-user);
   --color-chat-user-foreground: var(--chat-user-foreground);
+  --color-chat-placeholder: var(--chat-placeholder);
+  --color-composer-icon: var(--composer-icon);
+  --color-composer-control-border: var(--composer-control-border);
+  --color-pill-border: var(--pill-border);
+  --color-card-ring: var(--card-ring);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
+  --color-markdown-marker: var(--markdown-marker);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);

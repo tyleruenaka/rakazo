@@ -48,7 +48,7 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
 
   if (isAttachmentAudioMimeType(props.mimeType)) {
     return (
-      <div className="min-w-[280px] rounded-2xl border border-border bg-card p-4 text-foreground">
+      <div className="rk-chat-card bg-card min-w-[280px] p-4 text-foreground">
         <AudioArtifactPreview
           key={JSON.stringify([props.target, props.artifactId, props.mimeType])}
           {...props}
@@ -65,7 +65,7 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
         <button
           type="button"
           onClick={() => void startDownload()}
-          className="rounded-2xl border border-border bg-card px-4 py-3 text-left text-[14px] text-foreground hover:bg-accent"
+          className="rk-chat-card bg-card px-4 py-3 text-left text-[14px] text-foreground hover:bg-accent"
         >
           <div className="font-medium">{props.name}</div>
           <div className="mt-1 text-muted-foreground">
@@ -80,7 +80,7 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
   return (
     <>
       <div>
-        <div className="flex min-w-[280px] overflow-hidden rounded-2xl border border-border bg-card text-left text-foreground">
+        <div className="rk-chat-card bg-card flex min-w-[280px] overflow-hidden text-left text-foreground">
           <button
             ref={previewButton}
             type="button"

@@ -56,7 +56,28 @@ body,
 [data-chat-accent="bot"] [data-bot-accent] .rk-user-bubble,
 [data-chat-accent="bot"] [data-bot-accent] .rk-accent-button:not(:disabled) {
   background: color-mix(in srgb, var(--bot-accent) 83%, black);
-  color: white;
+  color: var(--chat-user-foreground);
+}
+/* In light the send button is a lighter shade than the bubble. */
+[data-theme="light"][data-chat-accent="bot"] [data-bot-accent] .rk-accent-button:not(:disabled) {
+  background: color-mix(in srgb, var(--bot-accent) 92.5%, black);
+}
+
+/* A card in the transcript: a hairline ring outside it, and a soft shadow in light. Unlayered,
+   so it wins over a component's own radius and ring. */
+.rk-chat-card {
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px var(--card-ring);
+}
+[data-theme="light"] .rk-chat-card {
+  box-shadow:
+    0 0 0 1px var(--card-ring),
+    0 1px 4px rgb(0 0 0 / 0.04);
+}
+
+/* The transcript fades out under the floating header. */
+.rk-transcript-fade {
+  mask-image: linear-gradient(to bottom, transparent, black 60px);
 }
 
 /* A 6px pill thumb 1px from the edge, no track. Chromium ignores these pseudo-elements once

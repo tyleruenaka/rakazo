@@ -19,7 +19,11 @@
 .rk-chat-markdown table,
 .rk-chat-markdown ul,
 .rk-chat-markdown ol {
-  margin: 0.65em 0;
+  margin: 10px 0;
+}
+
+.rk-chat-markdown strong {
+  font-weight: 600;
 }
 
 .rk-chat-markdown h1,
@@ -51,7 +55,11 @@
 
 .rk-chat-markdown ul,
 .rk-chat-markdown ol {
-  padding-left: 1.45em;
+  padding-left: 20px;
+}
+
+.rk-chat-markdown li::marker {
+  color: var(--markdown-marker);
 }
 
 .rk-chat-markdown ul {
@@ -63,7 +71,7 @@
 }
 
 .rk-chat-markdown li + li {
-  margin-top: 0.25em;
+  margin-top: 4px;
 }
 
 .rk-chat-markdown li > p {
@@ -79,11 +87,18 @@
   padding-left: 0;
 }
 
+/* Links keep the text color; only a faint underline marks them. */
 .rk-chat-markdown a {
-  color: var(--link);
+  --rk-link-underline: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
   text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--link) 55%, transparent);
-  text-underline-offset: 0.15em;
+  text-decoration-color: var(--rk-link-underline);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+[data-theme="light"] .rk-chat-markdown a {
+  --rk-link-underline: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .rk-chat-markdown .rk-chat-markdown-image {
@@ -109,7 +124,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.25em;
-  margin: 0.65em 0;
+  margin: 10px 0;
 }
 
 .rk-chat-markdown .rk-chat-markdown-image:hover {
@@ -129,39 +144,37 @@
 }
 
 .rk-chat-markdown code {
-  border: 1px solid var(--border);
-  border-radius: 0.35em;
-  background: var(--muted);
-  color: var(--foreground);
-  padding: 0.08em 0.32em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.88em;
+  border-radius: 4px;
+  background: var(--code);
+  color: var(--code-foreground);
+  padding: 0 3.5px;
+  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
   direction: ltr;
   unicode-bidi: isolate;
 }
 
+/* No wrap: a long line is cut at the padding and the block scrolls sideways. */
 .rk-chat-markdown pre {
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.75em;
-  background: var(--card);
-  padding: 0.8em 0.9em;
+  border-radius: 8px;
+  background: var(--code);
+  padding: 6px 12px;
   direction: ltr;
   unicode-bidi: isolate;
 }
 
 .rk-chat-markdown pre code {
-  border: 0;
   background: transparent;
   padding: 0;
-  font-size: 0.84em;
+  line-height: 20.5px;
   white-space: pre;
 }
 
 .rk-chat-markdown-pre-wrap {
   position: relative;
-  margin: 0.65em 0;
+  margin: 10px 0;
 }
 
 .rk-chat-markdown .rk-chat-markdown-pre-wrap pre {
@@ -183,16 +196,16 @@
 
 .rk-chat-markdown-copy {
   position: absolute;
-  top: 0.5em;
-  right: 0.5em;
+  top: 6px;
+  right: 5.5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.75em;
-  height: 1.75em;
-  border: 1px solid var(--border);
-  border-radius: 0.4em;
-  background: var(--muted);
+  width: 24px;
+  height: 24px;
+  border: 0.5px solid var(--input);
+  border-radius: 8px;
+  background: var(--card);
   color: var(--muted-foreground);
   opacity: 0;
   transition: opacity 0.12s;
@@ -249,7 +262,7 @@
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 0.65em 0;
+  margin: 10px 0;
   border-radius: 0.65em;
 }
 
@@ -292,7 +305,6 @@
 /* A website link: its site icon, then the label. The icon never ends a line on its own. */
 a.rk-chat-link {
   color: inherit;
-  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -300,15 +312,14 @@ a.rk-chat-link {
 .rk-chat-link-tile {
   display: inline-block;
   box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  margin-inline-end: 4px;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 5px;
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: 4px;
   color: var(--muted-foreground);
-  padding: 1px;
   /* Centred on the capitals of the surrounding text. */
-  vertical-align: calc((1cap - 18px) / 2);
+  vertical-align: calc((1cap - 16px) / 2);
 }
 
 .rk-chat-link-tile-icon {
@@ -332,7 +343,7 @@ a.rk-chat-link .rk-chat-link-tile > svg {
 .rk-chat-link-label {
   white-space: normal;
   text-decoration: underline;
-  text-decoration-color: var(--muted-foreground);
+  text-decoration-color: var(--rk-link-underline, var(--muted-foreground));
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }

@@ -75,7 +75,7 @@ export function VoiceChatCard({
       data-testid="voice-chat-card"
       data-call-status={request?.status}
       className={cn(
-        "w-full max-w-[min(74%,calc(100%_-_6rem))] rounded-[20px] border border-border bg-card",
+        "rk-chat-card bg-card w-full max-w-[min(74%,calc(100%_-_6rem))]",
         // The user's own call sits on their side; the bot's call on the bot's.
         request ? "me-auto" : "ms-auto",
       )}

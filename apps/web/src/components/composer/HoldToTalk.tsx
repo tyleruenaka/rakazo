@@ -231,7 +231,7 @@ export function HoldToTalkControls({
           size="icon"
           aria-label={t`Discard recording`}
           onClick={talk.cancel}
-          className="size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+          className="size-7 shrink-0 rounded-full text-composer-icon hover:text-foreground"
         >
           <Trash2 size={16} strokeWidth={1.8} />
         </Button>
@@ -240,9 +240,9 @@ export function HoldToTalkControls({
           aria-label={t`Send recording`}
           disabled={talk.transcribing}
           onClick={talk.submit}
-          className="size-8 shrink-0 rounded-full shadow-sm"
+          className="rk-accent-button size-7 shrink-0 rounded-full border-0"
         >
-          <ArrowUp size={16} strokeWidth={2.2} />
+          <ArrowUp size={20} strokeWidth={2} className="size-5" />
         </Button>
       </>
     );
@@ -275,12 +275,12 @@ export function HoldToTalkControls({
         disabled={disabled}
         {...talk.buttonProps}
         className={cn(
-          "size-8 shrink-0 touch-none select-none rounded-full text-foreground/75 [-webkit-touch-callout:none]",
+          "size-7 shrink-0 touch-none select-none rounded-full border-[0.5px] border-composer-control-border bg-control text-composer-icon [-webkit-touch-callout:none]",
           recording &&
             "scale-125 border-destructive bg-destructive text-destructive-foreground hover:bg-destructive",
         )}
       >
-        <Mic size={16} strokeWidth={1.8} />
+        <Mic size={18} strokeWidth={1.5} className="size-[18px]" />
       </Button>
     </span>
   );

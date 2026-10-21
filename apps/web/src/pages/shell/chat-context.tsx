@@ -62,7 +62,7 @@ export function TimeSeparator({ createdAt, locale }: { createdAt: string; locale
   return (
     <h3
       data-testid="time-separator"
-      className="my-3 select-none text-center text-xs font-normal text-muted-foreground"
+      className="mt-2 mb-0.5 select-none text-center text-xs font-normal text-muted-foreground"
     >
       {formatTimeSeparator(createdAt, locale, { today: t`Today`, yesterday: t`Yesterday` })}
     </h3>
@@ -98,7 +98,7 @@ export function ComposerReplyPreview({
   return (
     <div
       data-testid="reply-chip"
-      className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-1.5 text-[13px]"
+      className="mb-2 flex items-center gap-2 rounded-[14px] border-[0.5px] border-popover-border bg-card px-3 py-1.5 text-[13px]"
     >
       {attachment?.kind === "image" && target ? (
         <ReplyThumbnail attachment={attachment} target={target} />

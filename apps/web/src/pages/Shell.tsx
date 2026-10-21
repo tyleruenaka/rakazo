@@ -3938,7 +3938,11 @@ function SpaceShell() {
             className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
           />
         ) : null}
-        <div className="app-drag absolute inset-x-0 top-0 z-20 flex h-[60px] items-start justify-between px-4 pt-3">
+        {/* The window drag strip floats over the transcript; the wheel still scrolls it. */}
+        <div
+          onWheel={(event) => messageScroll.current?.scrollBy(event.deltaX, event.deltaY)}
+          className="app-drag absolute inset-x-0 top-0 z-20 flex h-[60px] items-start justify-between px-4 pt-3"
+        >
           <div className="flex min-w-0 items-center gap-2">
             {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
             {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
@@ -3972,7 +3976,7 @@ function SpaceShell() {
               type="button"
               data-testid="bot-settings-trigger"
               onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
-              className="app-no-drag absolute start-1/2 top-3 flex h-9 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-1.5 rounded-full border-[0.5px] border-border bg-card ps-2 pe-3.5 rtl:translate-x-1/2"
+              className="app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card ps-[9.5px] pe-[12.5px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
             >
               {inGroup ? (
                 <GroupAvatar
@@ -3988,7 +3992,7 @@ function SpaceShell() {
                 />
               ) : null}
               <span className="min-w-0">
-                <span className="block truncate text-[15px] text-foreground" dir="auto">
+                <span className="block truncate text-[12.5px] text-foreground" dir="auto">
                   {inGroup
                     ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
                     : (active?.name ?? t`Select a bot`)}
@@ -5273,6 +5277,11 @@ function SpaceShell() {
   );
 }
 
+/** Centered one-line events (handoffs, channel messages, notes) take the full row like Grok's. */
+function isSystemRowBlock(block: ThreadMessage["blocks"][number]) {
+  return block.kind === "meta" || block.kind === "handoff" || block.kind === "channel_message";
+}
+
 const Transcript = memo(function Transcript({
   scrollRef,
   scrollRequest,
@@ -5621,7 +5630,7 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        className="rk-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-4 pt-[60px]"
+        className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto px-4 pb-[54px] pt-[60px]"
       >
         {olderCursor != null ? (
           <button
@@ -5662,7 +5671,15 @@ const Transcript = memo(function Transcript({
               ) : null}
               <div
                 data-message-id={message.id}
-                className={peerReceipt ? "relative py-0.5" : "group/message relative hover:z-20"}
+                className={
+                  peerReceipt
+                    ? "relative py-1"
+                    : cn(
+                        "group/message relative hover:z-20",
+                        // Room for the badges above the bubble.
+                        messageReactions && "mt-[15px]",
+                      )
+                }
               >
                 <div
                   className={
@@ -5678,12 +5695,12 @@ const Transcript = memo(function Transcript({
                         ? undefined
                         : message.blocks.some(
                               (block) => block.kind === "ask" || block.kind === "mcp_approval",
-                            )
+                            ) || message.blocks.every(isSystemRowBlock)
                           ? "relative w-full min-w-0 max-w-full"
                           : `relative w-fit min-w-0 ${
                               message.role === "user"
-                                ? "max-w-[min(560px,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[84%]"
-                                : "max-w-[min(560px,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[88%]"
+                                ? "max-w-[560px] [@media(hover:none)]:max-w-[84%]"
+                                : "max-w-[560px] [@media(hover:none)]:max-w-[88%]"
                             }`
                     }
                   >
@@ -5783,11 +5800,11 @@ const Transcript = memo(function Transcript({
         aria-hidden={atEnd}
         tabIndex={atEnd ? -1 : 0}
         onClick={jumpToLatest}
-        className={`absolute bottom-4 left-1/2 z-20 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full border border-border bg-muted/95 text-foreground/75 shadow-md backdrop-blur transition-[opacity,transform,background-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-border motion-reduce:transition-none ${
+        className={`absolute bottom-2 left-1/2 z-20 grid size-8 -translate-x-1/2 place-items-center rounded-full border-[0.5px] border-popover-border bg-card text-foreground shadow-[0_2px_8px_rgb(0_0_0/0.07)] transition-[opacity,transform,background-color] duration-200 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-accent motion-reduce:transition-none dark:border-input dark:shadow-none ${
           atEnd ? "pointer-events-none translate-y-2 opacity-0" : "translate-y-0 opacity-100"
         }`}
       >
-        <ArrowDown size={17} strokeWidth={1.8} />
+        <ArrowDown size={20} strokeWidth={1.5} />
       </button>
     </div>
   );
@@ -5866,6 +5883,15 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
     document.body,
   );
 });
+
+// The "@" and "/" menus float over the transcript from just inside the composer's top edge.
+const composerMenuClass =
+  "absolute bottom-[calc(100%-8px)] start-[27.5px] z-10 flex max-h-[321px] w-[360px] max-w-[calc(100%-27.5px)] flex-col gap-0.5 overflow-y-auto rounded-[14px] border-[0.5px] border-popover-border bg-popover p-[5.5px] shadow-popover dark:shadow-none";
+const composerMenuRowClass =
+  "flex h-7 w-full shrink-0 items-center gap-1.5 rounded-[8px] px-2 text-start";
+// Empty, it looks like the other round composer buttons.
+const sendButtonClass =
+  "rk-accent-button size-7 shrink-0 rounded-full border-0 bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:border-[0.5px] disabled:border-composer-control-border disabled:bg-control disabled:text-composer-icon disabled:opacity-100";
 
 export const Composer = memo(function Composer({
   artifactTarget,
@@ -6402,7 +6428,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative z-30 m-0 min-w-0 border-0 px-4 pb-4 pt-2 ${
+      className={`relative z-30 m-0 min-w-0 border-0 px-4 pb-4 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
@@ -6479,7 +6505,7 @@ export const Composer = memo(function Composer({
           {pendingAttachments.map((attachment) => (
             <div
               key={attachment.id}
-              className="flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground/75"
+              className="flex items-center gap-2 rounded-full border-[0.5px] border-popover-border bg-card px-3 py-1.5 text-[13px] text-foreground/75"
             >
               {attachment.previewUrl ? (
                 <img
@@ -6508,98 +6534,99 @@ export const Composer = memo(function Composer({
           ))}
         </div>
       ) : null}
-      {mentionPickerOpen ? (
-        <div
-          id={mentionListboxId}
-          role="listbox"
-          aria-label={t`Mentions`}
-          data-testid="mention-picker"
-          className="mb-2 overflow-hidden rounded-[14px] border border-border bg-muted"
-        >
-          {mentionOptions.map((mention, index) => {
-            const optionId = `${mentionListboxId}-option-${index}`;
-            const highlighted = index === activeMentionIndex;
-            return (
-              <button
-                id={optionId}
-                key={mentionChipKey(mention)}
-                type="button"
-                role="option"
-                aria-selected={highlighted}
-                aria-label={t`@${mention.name}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertMention(mention)}
-                // Opening the list under a stationary pointer must not steal the keyboard highlight.
-                onMouseMove={() => setMentionHighlightKey(mentionChipKey(mention))}
-                className={`flex w-full items-start gap-3 px-4 py-2.5 text-start hover:bg-accent ${
-                  highlighted ? "bg-accent" : ""
-                }`}
-              >
-                <MentionOptionIcon mention={mention} />
-                <span className="min-w-0">
-                  <span dir="auto" className="block text-[14px] text-foreground">
-                    @{mention.name}
-                  </span>
-                  {mention.subtitle ? (
-                    <span dir="auto" className="block truncate text-[12.5px] text-muted-foreground">
-                      {mention.subtitle}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-      {showSlashPicker ? (
-        <div
-          data-testid="slash-picker"
-          className="mb-2 overflow-hidden rounded-[14px] border border-border bg-muted"
-        >
-          {slashSkillOptions.map((skill) => (
-            <button
-              key={skill.id}
-              type="button"
-              aria-label={t`Skill ${skill.name}`}
-              onClick={() => insertSkill(skill)}
-              className="flex w-full items-start gap-3 px-4 py-2.5 text-start hover:bg-accent"
-            >
-              <Box size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0">
-                <span dir="auto" className="block text-[14px] text-foreground">
-                  {skill.name}
-                </span>
-                <span dir="auto" className="block truncate text-[12.5px] text-muted-foreground">
-                  {truncateSlashDescription(skill.description)}
-                </span>
-              </span>
-            </button>
-          ))}
-          {slashActionOptions.map((action) => {
-            const label = slashActionLabel(action.id);
-            return (
-              <button
-                key={action.id}
-                type="button"
-                aria-label={label}
-                onClick={() => runSlashAction(action.id)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-start hover:bg-accent"
-              >
-                <Settings size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />
-                <span className="text-[14px] text-foreground">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
       <div
         ref={composerBarRef}
         data-testid="composer-bar"
         data-expanded={expanded}
-        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-[22px] border-[0.5px] border-border bg-card px-2 shadow-sm ${
-          expanded ? "gap-x-2 gap-y-2 pb-2 pt-3" : "gap-x-3.5 py-2"
+        className={`relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center gap-x-2 rounded-[22px] border-[0.5px] border-popover-border bg-card px-2 shadow-[0_2px_8px_rgb(0_0_0/0.06)] focus-within:border-input-focus dark:shadow-[0_0_0_1px_rgb(255_255_255/0.03)] ${
+          expanded ? "gap-y-2 pb-[7.5px] pt-3" : "py-[7.5px]"
         }`}
       >
+        {mentionPickerOpen ? (
+          <div
+            id={mentionListboxId}
+            role="listbox"
+            aria-label={t`Mentions`}
+            data-testid="mention-picker"
+            className={composerMenuClass}
+          >
+            {mentionOptions.map((mention, index) => {
+              const optionId = `${mentionListboxId}-option-${index}`;
+              const highlighted = index === activeMentionIndex;
+              return (
+                <button
+                  id={optionId}
+                  key={mentionChipKey(mention)}
+                  type="button"
+                  role="option"
+                  aria-selected={highlighted}
+                  aria-label={t`@${mention.name}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => insertMention(mention)}
+                  // Opening the list under a stationary pointer must not steal the keyboard highlight.
+                  onMouseMove={() => setMentionHighlightKey(mentionChipKey(mention))}
+                  className={cn(composerMenuRowClass, highlighted && "bg-palette-highlight")}
+                >
+                  <MentionOptionIcon mention={mention} />
+                  <span dir="auto" className="min-w-0 truncate text-[13px] text-foreground">
+                    {mention.name}
+                  </span>
+                  {mention.subtitle ? (
+                    <span
+                      dir="auto"
+                      className="ms-auto min-w-0 shrink truncate ps-2 text-[12px] text-placeholder"
+                    >
+                      {mention.subtitle}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {showSlashPicker ? (
+          <div data-testid="slash-picker" className={composerMenuClass}>
+            {slashSkillOptions.map((skill) => (
+              <button
+                key={skill.id}
+                type="button"
+                aria-label={t`Skill ${skill.name}`}
+                onClick={() => insertSkill(skill)}
+                className={cn(composerMenuRowClass, "hover:bg-palette-highlight")}
+              >
+                <Box size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />
+                <span
+                  dir="auto"
+                  className="max-w-[60%] shrink-0 truncate text-[13px] text-foreground"
+                >
+                  {skill.name}
+                </span>
+                <span dir="auto" className="min-w-0 truncate text-[13px] text-placeholder">
+                  {truncateSlashDescription(skill.description)}
+                </span>
+              </button>
+            ))}
+            {slashActionOptions.map((action) => {
+              const label = slashActionLabel(action.id);
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  aria-label={label}
+                  onClick={() => runSlashAction(action.id)}
+                  className={cn(composerMenuRowClass, "hover:bg-palette-highlight")}
+                >
+                  <Settings
+                    size={16}
+                    strokeWidth={1.7}
+                    className="shrink-0 text-muted-foreground"
+                  />
+                  <span className="truncate text-[13px] text-foreground">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
         <input
           ref={fileInputRef}
           type="file"
@@ -6615,11 +6642,11 @@ export const Composer = memo(function Composer({
           aria-label={t`Attach file`}
           disabled={disabled}
           onClick={() => fileInputRef.current?.click()}
-          className={`col-start-1 size-7 shrink-0 rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+          className={`col-start-1 size-7 shrink-0 rounded-full border-[0.5px] border-composer-control-border bg-control text-composer-icon transition-colors hover:bg-accent hover:text-foreground ${
             expanded ? "row-start-2" : ""
           }`}
         >
-          <Plus size={16} strokeWidth={1.8} />
+          <Plus size={22} strokeWidth={1.5} className="size-[22px]" />
         </Button>
         <div
           ref={composerFieldRef}
@@ -6746,7 +6773,7 @@ export const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="rk-scroll max-h-25 min-h-[20px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14px] leading-5 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-40"
+            className="rk-scroll max-h-25 min-h-[20px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14px] leading-5 text-foreground outline-none placeholder:text-chat-placeholder disabled:opacity-40"
           />
         </div>
         <div
@@ -6767,9 +6794,9 @@ export const Composer = memo(function Composer({
                 aria-label={t`Send`}
                 disabled={sending || !canSend || disabled}
                 onClick={send}
-                className="rk-accent-button size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95"
+                className={sendButtonClass}
               >
-                <ArrowUp size={16} strokeWidth={2.2} />
+                <ArrowUp size={20} strokeWidth={2} className="size-5" />
               </Button>
               <Button
                 variant="outline"
@@ -6777,7 +6804,7 @@ export const Composer = memo(function Composer({
                 aria-label={t`Stop`}
                 disabled={sending}
                 onClick={() => void onStop()}
-                className="size-7 rounded-full bg-secondary text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+                className="size-7 rounded-full border-[0.5px] border-composer-control-border bg-control text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Square size={11} strokeWidth={0} fill="currentColor" />
               </Button>
@@ -6792,9 +6819,9 @@ export const Composer = memo(function Composer({
                 aria-label={t`Send`}
                 disabled={sending || !canSend || disabled}
                 onClick={send}
-                className="rk-accent-button size-7 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-secondary disabled:text-muted-foreground/50 disabled:opacity-50"
+                className={sendButtonClass}
               >
-                <ArrowUp size={16} strokeWidth={2.2} />
+                <ArrowUp size={20} strokeWidth={2} className="size-5" />
               </Button>
             </>
           )}
@@ -6849,21 +6876,21 @@ function slashActionLabel(id: SlashActionId) {
 
 function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   if (mention.kind === "routine") {
-    return <Clock size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />;
+    return <Clock size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
   }
   if (mention.kind === "connector") {
-    return <Puzzle size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />;
+    return <Puzzle size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />;
   }
   if (mention.kind === "group") {
     return (
-      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
+      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
         G
       </span>
     );
   }
   if (mention.kind === "everyone") {
     return (
-      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
+      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
         @
       </span>
     );
@@ -7259,7 +7286,7 @@ const MessageView = memo(function MessageView({
             return (
               <div
                 key={i}
-                className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
+                className="flex min-h-4 items-center justify-center gap-1.5 py-1 text-[12px] leading-4 text-muted-foreground"
               >
                 <span>
                   ↪ {to} ← {from}
@@ -7298,7 +7325,7 @@ const MessageView = memo(function MessageView({
             return (
               <div
                 key={i}
-                className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
+                className="flex min-h-4 items-center justify-center gap-1.5 py-1 text-[12px] leading-4 text-muted-foreground"
               >
                 <span>
                   {messageProviderLabel(block.provider, block.transport)} · {block.fromLabel}:{" "}
@@ -7311,9 +7338,9 @@ const MessageView = memo(function MessageView({
             return (
               <div
                 key={i}
-                className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
+                className="flex min-h-4 items-center justify-center gap-1.5 py-1 text-[12px] leading-4 text-muted-foreground"
               >
-                <span className="text-warning">◷</span>
+                <Clock size={13} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
                 <span>{block.text}</span>
               </div>
             );
@@ -7338,10 +7365,7 @@ const MessageView = memo(function MessageView({
             const running = block.status === "running";
             const failed = block.status === "failed";
             return (
-              <div
-                key={i}
-                className="w-[min(420px,90%)] rounded-[18px] border border-border bg-muted px-[18px] py-4"
-              >
+              <div key={i} className="rk-chat-card bg-card w-[min(420px,90%)] px-[18px] py-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[15px] font-medium text-foreground" dir="auto">
                     {block.name}
@@ -7380,7 +7404,7 @@ const MessageView = memo(function MessageView({
                 type="button"
                 disabled={removed}
                 onClick={() => onOpenBot(block.botId)}
-                className="w-[min(340px,90%)] rounded-[18px] border border-border bg-muted px-[18px] py-4 text-start disabled:opacity-60"
+                className="rk-chat-card bg-card w-[min(340px,90%)] px-[18px] py-4 text-start disabled:opacity-60"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[15px] font-medium text-foreground" dir="auto">
@@ -7523,11 +7547,11 @@ const MessageView = memo(function MessageView({
           if (block.kind === "card") {
             return (
               <div key={i} className="flex justify-start">
-                <div className="flex flex-col gap-2 rounded-[20px] bg-muted px-5 py-4">
+                <div className="rk-chat-card bg-card flex flex-col gap-2 px-5 py-4">
                   {block.lines.map((line) => (
                     <div key={line.k} className="flex items-baseline gap-2.5 text-[15px]">
                       <span className="text-success">✓</span>
-                      <span className="font-semibold text-white">{line.k}</span>
+                      <span className="font-semibold text-foreground">{line.k}</span>
                       <span className="text-muted-foreground">→</span>
                       <span>{line.v}</span>
                     </div>
@@ -7559,7 +7583,7 @@ const MessageView = memo(function MessageView({
               <div
                 key={i}
                 data-testid="computer-card"
-                className="w-[340px] rounded-[18px] border border-border bg-muted px-[18px] py-4"
+                className="rk-chat-card bg-card w-[340px] px-[18px] py-4"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[15px] font-medium text-foreground">

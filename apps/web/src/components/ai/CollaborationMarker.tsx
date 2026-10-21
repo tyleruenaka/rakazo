@@ -22,13 +22,13 @@ export function CollaborationMarker({
   replies?: { expanded: boolean; label: string; onToggle: () => void };
 }) {
   return (
-    <div className="flex justify-start">
+    <div className="flex items-center justify-center gap-1">
       <button
         type="button"
         data-testid="peer-receipt-chip"
         aria-label={ariaLabel}
         onClick={onClick}
-        className="inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground/75"
+        className="inline-flex h-4 max-w-full items-center gap-1.5 rounded-sm text-[12px] text-muted-foreground transition-colors hover:text-foreground"
       >
         <BotAvatar color={color} identity={identity} size={16} />
         <span dir="auto" className="truncate">
@@ -38,12 +38,12 @@ export function CollaborationMarker({
       {replies ? (
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
           data-testid="peer-replies-toggle"
           aria-expanded={replies.expanded}
           aria-label={replies.label}
           onClick={replies.onToggle}
-          className="rounded-full text-muted-foreground"
+          className="size-4 rounded-full text-muted-foreground"
         >
           <ChevronDown
             size={14}

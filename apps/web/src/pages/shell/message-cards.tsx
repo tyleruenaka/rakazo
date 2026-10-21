@@ -56,7 +56,7 @@ export function ChoiceCard({
 
   return (
     <div className="flex justify-start">
-      <div className="relative w-[420px] max-w-full rounded-[20px] bg-card px-[18px] py-[14px]">
+      <div className="rk-chat-card bg-card relative w-[420px] max-w-full px-[18px] py-[14px]">
         {!block.answerId ? (
           <Button
             variant="ghost"
@@ -203,7 +203,7 @@ export function AppConnectCard({
     <BuiCard
       role="group"
       aria-label={t`${block.name} connection`}
-      className="w-[min(420px,80%)] px-4 py-3.5"
+      className="rk-chat-card w-[min(420px,80%)] px-4 py-3.5"
     >
       <div className="flex items-center gap-3.5">
         {block.logo ? (
@@ -402,7 +402,10 @@ export function McpApprovalCard({
 
   const summary = endpoint ?? `stdio · ${transport}`;
   return (
-    <BuiCard data-testid="mcp-approval-card" className="w-full min-w-0 max-w-xl p-4">
+    <BuiCard
+      data-testid="mcp-approval-card"
+      className="rk-chat-card w-full min-w-0 max-w-[560px] p-4"
+    >
       <div className="flex items-center gap-2">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted text-xs text-foreground">
           M
@@ -478,7 +481,7 @@ export function ChartBlockView({
   const expandedViewport = chartViewport(viewport.width, viewport.height);
   return (
     <>
-      <div className="group relative max-w-[74%] rounded-[20px] bg-muted p-4">
+      <div className="rk-chat-card bg-card group relative max-w-[74%] p-4">
         <ChartCanvas spec={spec} data={data} width={520} />
         <Button
           variant="outline"
@@ -562,7 +565,7 @@ export function ArtifactImage({
           <img src={src} alt={name} className="max-h-48 w-full object-cover" />
         </button>
       ) : (
-        <div className="rounded-[20px] border border-border bg-muted px-4 py-3 text-[14px] text-muted-foreground">
+        <div className="rk-chat-card bg-card px-4 py-3 text-[14px] text-muted-foreground">
           {name}
         </div>
       )}
