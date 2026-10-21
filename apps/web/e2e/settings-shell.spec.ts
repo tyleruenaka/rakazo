@@ -34,11 +34,11 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await completeOnboarding(page);
 
   await page.getByTestId("user-menu-trigger").click();
-  const menu = page.locator('[data-slot="popover-content"]');
-  await expect(menu.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Log out", exact: true })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Models", exact: true })).toHaveCount(0);
+  const menu = page.locator('[data-slot="dropdown-menu-content"]');
+  await expect(menu.getByRole("menuitem", { name: "Settings", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Usage", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Log out", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Models", exact: true })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "settings-account-menu-lean");
   await page.keyboard.press("Escape");
 

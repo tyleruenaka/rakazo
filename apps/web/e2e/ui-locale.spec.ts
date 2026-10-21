@@ -78,7 +78,7 @@ test("account settings language picker includes Russian and persists it", async 
   await completeOnboarding(page, testInfo);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
 
@@ -106,7 +106,7 @@ test("account settings language picker includes French and persists it", async (
   await completeOnboarding(page, testInfo);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
 
@@ -135,7 +135,7 @@ test("account settings language picker includes Hebrew and mirrors the UI right-
   await completeOnboarding(page, testInfo);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
 
@@ -165,7 +165,7 @@ test("account settings language picker includes Dutch and persists it", async ({
   await completeOnboarding(page, testInfo);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
 

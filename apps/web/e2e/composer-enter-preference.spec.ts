@@ -29,7 +29,7 @@ for (const touch of [false, true]) {
       await expect(composer).toHaveValue("");
       await composer.fill("saved draft");
       await page.getByTestId("user-menu-trigger").click();
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
       const settings = page.getByTestId("user-settings");
       await settings.getByTestId("advanced-settings").locator("summary").click();
       const preference = settings.getByRole("switch", { name: "Send with Enter", exact: true });

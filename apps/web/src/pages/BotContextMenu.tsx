@@ -84,7 +84,7 @@ export function BotContextMenu({
         aria-label={t`Actions for ${bot.name}`}
         align="start"
         sideOffset={0}
-        className="max-h-[min(420px,calc(100vh-16px))] w-[264px] overflow-y-auto"
+        className="max-h-[min(420px,calc(100vh-16px))] w-auto"
       >
         <DropdownMenuItem onClick={onTogglePinned}>
           <Pin />
@@ -95,18 +95,16 @@ export function BotContextMenu({
             <Folder />
             {t`Move to`}
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-[min(420px,calc(100vh-16px))] min-w-[180px] overflow-y-auto">
+          <DropdownMenuSubContent className="max-h-[min(420px,calc(100vh-16px))]">
             {sections.map((section) => (
               <DropdownMenuItem key={section.id} onClick={() => onMoveToSection(section.id)}>
-                <Folder />
+                {bot.sectionId === section.id ? <Check /> : <Folder />}
                 <span dir="auto">{section.name}</span>
-                {bot.sectionId === section.id ? <Check className="ms-auto" /> : null}
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem onClick={() => onMoveToSection(null)}>
-              <Folder />
+              {bot.sectionId === null ? <Check /> : <Folder />}
               {t`Unassigned`}
-              {bot.sectionId === null ? <Check className="ms-auto" /> : null}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onCreateSection}>

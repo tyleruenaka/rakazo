@@ -20,8 +20,19 @@ export type ColorTokens = {
   cardForeground: string;
   popover: string;
   popoverForeground: string;
+  /** Hairline around menus and popovers. */
+  popoverBorder: string;
+  /** Hovered or highlighted menu row. */
+  popoverAccent: string;
+  /** Neutral fill for small controls: open select, picker hover, switch track, secondary button. */
+  control: string;
+  /** Border of a control while its menu is open. */
+  controlOpenBorder: string;
   primary: string;
   primaryForeground: string;
+  /** Disabled filled button. */
+  primaryDisabled: string;
+  primaryDisabledForeground: string;
   secondary: string;
   secondaryForeground: string;
   chatUser: string;
@@ -34,7 +45,13 @@ export type ColorTokens = {
   destructiveForeground: string;
   border: string;
   input: string;
+  /** Field border while focused. */
+  inputFocus: string;
+  /** Placeholder and secondary values in fields and menus. */
+  placeholder: string;
   ring: string;
+  /** Track of a switch that is on. */
+  switch: string;
   sidebar: string;
   sidebarForeground: string;
   sidebarBorder: string;
@@ -50,6 +67,8 @@ export type ColorTokens = {
   unread: string;
   overlay: string;
   scrollbar: string;
+  /** Thumb of the overlay scrollbar in popups, shown while scrolling. */
+  popupScrollbar: string;
   scrollbarHover: string;
 };
 
@@ -61,8 +80,14 @@ export const darkTokens = {
   cardForeground: "#F5F5F5",
   popover: "#1F1F1F",
   popoverForeground: "#F5F5F5",
+  popoverBorder: "#353535",
+  popoverAccent: "#2B2B2B",
+  control: "#282828",
+  controlOpenBorder: "#303030",
   primary: "#F5F5F5",
   primaryForeground: "#121212",
+  primaryDisabled: "#3B3B3B",
+  primaryDisabledForeground: "#737373",
   secondary: "#282828",
   secondaryForeground: "#F5F5F5",
   chatUser: "#2A2A2A",
@@ -71,11 +96,14 @@ export const darkTokens = {
   mutedForeground: "#A8A8A8",
   accent: "#242424",
   accentForeground: "#F5F5F5",
-  destructive: "#EF4444",
+  destructive: "#FF6464",
   destructiveForeground: "#FFFFFF",
   border: "#2A2A2A",
-  input: "#282828",
-  ring: "#3B82F6",
+  input: "#2C2C2C",
+  inputFocus: "#4E4E4E",
+  placeholder: "#939393",
+  ring: "#1784FC",
+  switch: "#106ED2",
   sidebar: "#0E0E0E",
   sidebarForeground: "#F5F5F5",
   sidebarBorder: "#1C1C1C",
@@ -88,8 +116,9 @@ export const darkTokens = {
   statusWorking: "#3B82F6",
   unread: "#6199F8",
   overlay: "rgba(0, 0, 0, 0.7)",
-  scrollbar: "#2A2A2A",
-  scrollbarHover: "#3A3A3A",
+  scrollbar: "#1F1F1F",
+  popupScrollbar: "#8F8F8F",
+  scrollbarHover: "#2A2A2A",
 } as const satisfies ColorTokens;
 
 export const lightTokens = {
@@ -100,8 +129,14 @@ export const lightTokens = {
   cardForeground: "#1C1C1C",
   popover: "#FFFFFF",
   popoverForeground: "#1C1C1C",
+  popoverBorder: "#E3E3E3",
+  popoverAccent: "#F2F2F2",
+  control: "#F2F2F2",
+  controlOpenBorder: "#E6E6E6",
   primary: "#1C1C1C",
   primaryForeground: "#FCFCFC",
+  primaryDisabled: "#DDDDDD",
+  primaryDisabledForeground: "#A3A3A3",
   secondary: "#EFEFEF",
   secondaryForeground: "#1C1C1C",
   chatUser: "#E9E9E9",
@@ -113,8 +148,11 @@ export const lightTokens = {
   destructive: "#DC2626",
   destructiveForeground: "#FFFFFF",
   border: "#E3E3E3",
-  input: "#EFEFEF",
-  ring: "#6C6C70",
+  input: "#EDEDED",
+  inputFocus: "#C9C9C9",
+  placeholder: "#808080",
+  ring: "#1E86FC",
+  switch: "#1780F3",
   sidebar: "#F5F5F5",
   sidebarForeground: "#1C1C1C",
   sidebarBorder: "#E4E4E4",
@@ -128,6 +166,7 @@ export const lightTokens = {
   unread: "#306CCC",
   overlay: "rgba(20, 20, 22, 0.45)",
   scrollbar: "#D4D4D4",
+  popupScrollbar: "#7F7F7F",
   scrollbarHover: "#BDBDBD",
 } as const satisfies ColorTokens;
 

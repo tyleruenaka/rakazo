@@ -12,7 +12,7 @@ describe("MessageHoverMetadata", () => {
 
     expect(html).toContain('data-testid="message-hover-rail"');
     expect(html).toContain("start-full");
-    expect(html).toContain("ms-1");
+    expect(html).toContain("ms-[7px]");
     expect(html).toContain("top-1/2");
     expect(html).toContain("-translate-y-1/2");
     expect(html).not.toContain("ms-1.5");
@@ -32,7 +32,7 @@ describe("MessageHoverMetadata", () => {
     );
 
     expect(html).toContain("end-full");
-    expect(html).toContain("me-1");
+    expect(html).toContain("me-[7px]");
     expect(html).not.toContain("start-full");
     expect(html).not.toContain("<time");
   });

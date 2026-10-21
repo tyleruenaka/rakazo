@@ -45,8 +45,8 @@ export function BotCreatePicker({
 
   return (
     <div data-testid="bot-create-picker" className="w-[min(320px,calc(100vw-2rem))]">
-      <label className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <span className="shrink-0 text-[13px] text-muted-foreground">
+      <label className="flex h-[42.5px] items-center gap-2 border-b-[0.5px] border-control px-4">
+        <span className="shrink-0 text-[13.5px] text-placeholder">
           <Trans>To:</Trans>
         </span>
         <input
@@ -54,23 +54,27 @@ export function BotCreatePicker({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t`Search`}
           aria-label={t`Search`}
-          className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-placeholder"
         />
       </label>
       <Command shouldFilter={false} className="rounded-none border-0 bg-transparent p-0">
-        <CommandList className="max-h-72 p-1">
+        <CommandList className="max-h-72 p-[5.5px]">
           <CommandEmpty>
             <Trans>No bots match</Trans>
           </CommandEmpty>
-          <CommandGroup>
+          <CommandGroup className="p-0 **:[[cmdk-group-items]]:flex **:[[cmdk-group-items]]:flex-col **:[[cmdk-group-items]]:gap-0.5">
             {showCreate ? (
               <CommandItem
                 value="create-new-bot"
                 data-testid="create-new-bot"
                 onSelect={() => onCreateBot()}
-                className="gap-2"
               >
-                <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                <Plus
+                  size={16}
+                  strokeWidth={1.5}
+                  className="text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Trans>Create new Bot</Trans>
               </CommandItem>
             ) : null}
@@ -80,22 +84,25 @@ export function BotCreatePicker({
                 value={bot.id}
                 data-testid={`picker-bot-${bot.id}`}
                 onSelect={() => onOpenBot(bot.id)}
-                className="gap-2"
               >
                 <BotAvatar color={bot.color} identity={bot.id} size={22} status={bot.status} />
                 <span className="min-w-0 flex-1 truncate">{bot.name}</span>
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandSeparator />
-          <CommandGroup>
+          <CommandSeparator className="mx-2 my-1 h-[0.5px] bg-popover-border" />
+          <CommandGroup className="p-0 **:[[cmdk-group-items]]:flex **:[[cmdk-group-items]]:flex-col **:[[cmdk-group-items]]:gap-0.5">
             <CommandItem
               value="create-group"
               data-testid="create-new-group"
               onSelect={() => onCreateGroup()}
-              className="gap-2"
             >
-              <Users size={16} strokeWidth={1.8} aria-hidden="true" />
+              <Users
+                size={16}
+                strokeWidth={1.5}
+                className="text-muted-foreground"
+                aria-hidden="true"
+              />
               <span className="min-w-0 flex-1 truncate">
                 <Trans>Create new Group</Trans>
               </span>
@@ -121,9 +128,13 @@ export function BotCreatePicker({
               value="create-space"
               data-testid="create-new-space"
               onSelect={() => onCreateSpace()}
-              className="gap-2"
             >
-              <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
+              <Lock
+                size={16}
+                strokeWidth={1.5}
+                className="text-muted-foreground"
+                aria-hidden="true"
+              />
               <span className="min-w-0 flex-1 truncate">
                 <Trans>Create new Space</Trans>
               </span>

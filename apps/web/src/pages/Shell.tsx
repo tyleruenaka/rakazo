@@ -3152,6 +3152,7 @@ function SpaceShell() {
               aria-label={t`Search`}
               aria-expanded={searchOpen || activityMode || query.length > 0}
               title={t`Search`}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => setSearchOpen((open) => !open)}
               className="app-no-drag flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
             >
@@ -3213,7 +3214,7 @@ function SpaceShell() {
         {searchOpen || activityMode || query.length > 0 ? (
           <InputGroup
             data-testid="sidebar-search"
-            className="mx-3 mb-2 h-9 w-auto rounded-full border border-border bg-card text-muted-foreground focus-within:border-ring"
+            className="mx-3 mb-2 w-auto bg-card text-muted-foreground"
           >
             <InputGroupAddon>
               <Search size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -4678,7 +4679,7 @@ function SpaceShell() {
               aria-label={t`Actions for space`}
               align="start"
               sideOffset={0}
-              className="w-[220px]"
+              className="w-auto"
             >
               {spaceMenuTarget ? (
                 <DropdownMenuItem
@@ -4867,7 +4868,7 @@ function SpaceShell() {
               aria-label={t`Actions for ${sectionMenu.section.name}`}
               align="start"
               sideOffset={0}
-              className="w-[220px]"
+              className="w-auto"
             >
               <DropdownMenuItem
                 onClick={() => {
@@ -5537,7 +5538,7 @@ const Transcript = memo(function Transcript({
   );
 
   return (
-    <div className="relative flex min-h-0 flex-1">
+    <div className="relative isolate flex min-h-0 flex-1">
       <div
         ref={scrollRef}
         data-testid="transcript"
@@ -5686,27 +5687,28 @@ const Transcript = memo(function Transcript({
                       onReply={onReply}
                       onReact={onReact}
                     />
+                    {!peerReceipt && messageReactions ? (
+                      // Tapback-style badges on the bubble's top outer corner.
+                      <div
+                        data-testid="message-reactions"
+                        className={cn(
+                          "absolute -top-[22.5px] z-10 flex gap-1",
+                          message.role === "user" ? "-start-[16.5px]" : "-end-[16.5px]",
+                        )}
+                      >
+                        {[...messageReactions].map(([emoji, count]) => (
+                          <span
+                            key={emoji}
+                            className="grid h-[30px] min-w-[30px] place-items-center rounded-full border-[0.5px] border-popover-border bg-popover px-[6px] text-base ring-3 ring-background"
+                          >
+                            {emoji}
+                            {count > 1 ? ` ${count}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                {!peerReceipt && messageReactions ? (
-                  <div
-                    data-testid="message-reactions"
-                    className={cn(
-                      "mt-1 flex flex-wrap gap-1",
-                      message.role === "user" && "justify-end",
-                    )}
-                  >
-                    {[...messageReactions].map(([emoji, count]) => (
-                      <span
-                        key={emoji}
-                        className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs"
-                      >
-                        {emoji}
-                        {count > 1 ? ` ${count}` : ""}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </Fragment>
           );
@@ -6749,7 +6751,7 @@ export const Composer = memo(function Composer({
                 aria-label={t`Send`}
                 disabled={sending || !canSend || disabled}
                 onClick={send}
-                className="rk-accent-button size-7 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-secondary disabled:text-muted-foreground/50"
+                className="rk-accent-button size-7 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-secondary disabled:text-muted-foreground/50 disabled:opacity-50"
               >
                 <ArrowUp size={16} strokeWidth={2.2} />
               </Button>
@@ -6889,19 +6891,22 @@ function MessageHoverActions({
   }
 
   const iconButtonClass =
-    "grid h-11 w-11 place-items-center text-muted-foreground transition-colors hover:text-foreground [@media(hover:hover)_and_(pointer:fine)]:h-7 [@media(hover:hover)_and_(pointer:fine)]:w-7";
+    "grid h-11 w-11 place-items-center rounded-[8px] text-muted-foreground hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:h-6 [@media(hover:hover)_and_(pointer:fine)]:w-6";
 
   return (
     <MessageHoverMetadata pinned={moreOpen || reactionsOpen} side={side}>
-      <div data-testid="message-hover-actions" className="flex items-center gap-0.5">
+      <div
+        data-testid="message-hover-actions"
+        className={cn("flex items-center gap-0.5", side === "start" && "flex-row-reverse")}
+      >
         {canReactToThreadMessage(message) ? (
           <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
             <PopoverTrigger aria-label={t`React`} className={iconButtonClass}>
-              <Smile size={15} strokeWidth={1.7} />
+              <Smile size={16} strokeWidth={1.5} />
             </PopoverTrigger>
             <PopoverContent
               align={side === "end" ? "start" : "end"}
-              className="w-auto flex-row gap-0 rounded-2xl p-1.5"
+              className="w-auto flex-row gap-1 rounded-[22px] p-[5.5px]"
               aria-label={t`Reactions`}
             >
               {MESSAGE_REACTIONS.map((emoji) => (
@@ -6909,7 +6914,7 @@ function MessageHoverActions({
                   key={emoji}
                   type="button"
                   aria-label={emoji}
-                  className="grid h-11 w-11 place-items-center rounded-xl text-2xl hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                  className="grid size-8 place-items-center rounded-full text-[19px] hover:bg-control [@media(hover:none)]:size-11 focus-visible:outline-2 focus-visible:outline-ring"
                   onClick={() => {
                     setReactionsOpen(false);
                     void onReact(message, emoji);
@@ -6927,11 +6932,15 @@ function MessageHoverActions({
           onClick={() => onReply(message)}
           className={iconButtonClass}
         >
-          <Reply size={15} strokeWidth={1.7} />
+          <Reply
+            size={16}
+            strokeWidth={1.5}
+            className={side === "start" ? "-scale-x-100" : undefined}
+          />
         </button>
         <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
           <DropdownMenuTrigger aria-label={t`More`} className={iconButtonClass}>
-            <MoreHorizontal size={15} strokeWidth={1.7} />
+            <MoreHorizontal size={16} strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align={side === "end" ? "start" : "end"}>
             <DropdownMenuItem

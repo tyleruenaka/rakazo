@@ -59,19 +59,27 @@ body,
   color: white;
 }
 
+/* A 6px pill thumb 1px from the edge, no track. Chromium ignores these pseudo-elements once
+   the standard properties are set, so those are only a fallback. */
 .rk-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
-.rk-scroll {
-  scrollbar-color: var(--scrollbar) transparent;
-  scrollbar-width: thin;
+@supports not selector(::-webkit-scrollbar) {
+  .rk-scroll {
+    scrollbar-color: var(--scrollbar) transparent;
+    scrollbar-width: thin;
+  }
 }
-.rk-scroll::-webkit-scrollbar-track {
+.rk-scroll::-webkit-scrollbar-track,
+.rk-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }
 .rk-scroll::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
-  border-radius: 3px;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+  border-radius: 9999px;
 }
 .rk-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-hover);

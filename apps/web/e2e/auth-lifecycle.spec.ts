@@ -102,23 +102,23 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
 
   await page.getByRole("button", { name: new RegExp(userName, "i") }).click();
-  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Settings", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Usage", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible();
   await expect(
     page
-      .locator('[data-slot="popover-content"]')
-      .getByRole("button", { name: "Models", exact: true }),
+      .locator('[data-slot="dropdown-menu-content"]')
+      .getByRole("menuitem", { name: "Models", exact: true }),
   ).toHaveCount(0);
   await expect(
     page
-      .locator('[data-slot="popover-content"]')
-      .getByRole("button", { name: "Memory", exact: true }),
+      .locator('[data-slot="dropdown-menu-content"]')
+      .getByRole("menuitem", { name: "Memory", exact: true }),
   ).toHaveCount(0);
   await expect(
     page
-      .locator('[data-slot="popover-content"]')
-      .getByRole("button", { name: "Voice", exact: true }),
+      .locator('[data-slot="dropdown-menu-content"]')
+      .getByRole("menuitem", { name: "Voice", exact: true }),
   ).toHaveCount(0);
   await captureScreenshot(page, testInfo, "36-account-menu");
 
@@ -126,7 +126,7 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await page.route("**/api/auth/sign-out", (route) => route.fulfill({ status: 500, body: "" }), {
     times: 1,
   });
-  await page.getByRole("button", { name: "Log out" }).click();
+  await page.getByRole("menuitem", { name: "Log out" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Could not log out. Try again." }),
   ).toBeVisible();
@@ -144,7 +144,7 @@ test("logout protects bot deep links and sign-in restores the session", async ({
       { timeout: 5_000 },
     )
     .catch(() => undefined);
-  await page.getByRole("button", { name: "Log out" }).click();
+  await page.getByRole("menuitem", { name: "Log out" }).click();
   await refreshRejected;
   await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
@@ -232,7 +232,7 @@ test("changes and recovers an email password", async ({ page }, testInfo) => {
   await page.waitForURL(/\/app\/[^/]+$/);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
   await expect(page.getByTestId("sidebar-search").locator("input")).toHaveAttribute(
@@ -268,7 +268,7 @@ test("changes and recovers an email password", async ({ page }, testInfo) => {
   await settings.getByRole("button", { name: "Close user settings" }).click();
 
   await page.getByRole("button", { name: new RegExp(userName, "i") }).click();
-  await page.getByRole("button", { name: "Log out" }).click();
+  await page.getByRole("menuitem", { name: "Log out" }).click();
   await expect(page.getByRole("link", { name: "Forgot password?" })).toBeVisible();
   await page.getByRole("link", { name: "Forgot password?" }).click();
   await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
@@ -326,7 +326,7 @@ test("password-off account settings hide password changes and retain password de
     }),
   );
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("button", { name: "Change password", exact: true })).toHaveCount(

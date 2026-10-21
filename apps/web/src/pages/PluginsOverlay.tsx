@@ -448,7 +448,7 @@ export function PluginsOverlay({
         <Button
           type="button"
           variant="secondary"
-          className="h-8 rounded-full px-4 text-[14px] font-normal"
+          className="h-[26px] min-w-16 rounded-full px-3 text-[13px] font-normal"
           size="sm"
           disabled={connecting}
           onClick={(event) => {
@@ -464,7 +464,7 @@ export function PluginsOverlay({
       <Button
         type="button"
         variant="secondary"
-        className="h-8 rounded-full px-4 text-[14px] font-normal"
+        className="h-[26px] min-w-16 rounded-full px-3 text-[13px] font-normal"
         size="sm"
         disabled={connecting}
         onClick={(event) => {
@@ -704,7 +704,7 @@ export function PluginsOverlay({
               }}
               aria-label={t`Search apps`}
               placeholder={t`Search apps`}
-              className="h-9 rounded-full bg-transparent px-4 md:text-[15px] dark:bg-transparent"
+              className="h-8 rounded-full bg-transparent px-4 disabled:bg-transparent md:text-[15px] dark:bg-transparent dark:disabled:bg-transparent"
             />
           </div>
         ) : null}

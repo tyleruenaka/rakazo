@@ -137,8 +137,8 @@ it("opens integrations and keeps the existing account actions and links", async 
   )!;
   await act(async () => connect.click());
   expect(onIntegrations).toHaveBeenCalledOnce();
-  const menu = document.querySelector('[data-slot="popover-content"]')!;
-  expect([...menu.querySelectorAll("button, a")].map((row) => row.textContent)).toEqual([
+  const menu = document.querySelector('[data-slot="dropdown-menu-content"]')!;
+  expect([...menu.querySelectorAll("[role=menuitem]")].map((row) => row.textContent)).toEqual([
     "Usage",
     "Get the mobile app",
     "Docs",
@@ -153,7 +153,7 @@ it("opens integrations and keeps the existing account actions and links", async 
 });
 it("omits Board when unavailable", async () => {
   await render();
-  expect(document.querySelector('[data-slot="popover-content"]')?.textContent).not.toContain(
+  expect(document.querySelector('[data-slot="dropdown-menu-content"]')?.textContent).not.toContain(
     "Board",
   );
 });

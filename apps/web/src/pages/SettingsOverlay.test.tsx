@@ -27,6 +27,7 @@ vi.mock("@rakazo/ui-web", () => ({
     "children"
   >) => <div {...props}>{children}</div>,
   DialogTitle: ({ children }: { children?: ReactNode }) => <h2>{children}</h2>,
+  ScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("./AccountSettingsOverlay", () => ({

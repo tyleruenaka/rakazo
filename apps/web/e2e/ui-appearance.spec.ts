@@ -51,7 +51,7 @@ test("account settings appearance control switches to light mode", async ({ page
   await completeOnboarding(page, testInfo);
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Appearance", exact: true })).toBeVisible();
@@ -90,7 +90,7 @@ test("account settings appearance control switches to light mode", async ({ page
   await captureScreenshot(page, testInfo, "inline-code-light");
 
   await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(settings).toBeVisible();
   await settings.getByTestId("ui-appearance-dark").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -149,13 +149,15 @@ test("sidebar footer opens integrations and the account menu", async ({ page }, 
   await expect(page.getByRole("button", { name: "Close integrations", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close integrations", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
-  await expect(page.getByRole("link", { name: "Get the mobile app", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Docs", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("menuitem", { name: "Get the mobile app", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Docs", exact: true })).toBeVisible();
   await expect(footer.locator('span[aria-hidden="true"] > span')).toHaveCount(3);
   if (avatarBox && pillBox) {
     await expect
       .poll(async () => {
-        const menuBox = await page.locator('[data-slot="popover-content"]').boundingBox();
+        const menuBox = await page.locator('[data-slot="dropdown-menu-content"]').boundingBox();
         return (
           menuBox && {
             x: menuBox.x,
@@ -324,7 +326,7 @@ test("sidebar footer keeps the account identity readable and installs a ready de
 
   await page.setViewportSize({ width: 740, height: 320 });
   await avatar.click();
-  const menu = page.locator('[data-slot="popover-content"]');
+  const menu = page.locator('[data-slot="dropdown-menu-content"]');
   await expect
     .poll(async () => {
       const box = await menu.boundingBox();
@@ -333,12 +335,12 @@ test("sidebar footer keeps the account identity readable and installs a ready de
     .toBe(true);
   await expect(header).toBeInViewport();
   await expect(page.getByRole("button", { name: "Install", exact: true })).toHaveCount(0);
-  const logOut = menu.getByRole("button", { name: "Log out", exact: true });
+  const logOut = menu.getByRole("menuitem", { name: "Log out", exact: true });
   await logOut.scrollIntoViewIfNeeded();
   await expect(logOut).toBeInViewport();
-  expect((await logOut.boundingBox())!.height).toBe(36);
+  expect((await logOut.boundingBox())!.height).toBe(30);
   await captureScreenshot(page, testInfo, "sidebar-footer-short-screen");
-  await menu.getByRole("button", { name: "Settings", exact: true }).click();
+  await menu.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(page.getByTestId("user-settings")).toBeVisible();
 });
 

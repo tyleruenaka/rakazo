@@ -92,7 +92,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   await completeOnboarding(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
-  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
   const settings = page.getByTestId("user-settings");
   await settings
     .locator("section")
@@ -221,7 +221,7 @@ test("team conversation settings open from messaging overlay", async ({ page }, 
   await completeOnboarding(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
-  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
   await expect(
     page.getByTestId("user-settings").getByRole("heading", { name: "Messaging" }),
   ).toBeVisible();

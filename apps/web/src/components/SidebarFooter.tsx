@@ -1,5 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button, buttonVariants, Popover, PopoverContent, PopoverTrigger } from "@rakazo/ui-web";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@rakazo/ui-web";
 import {
   BookOpen,
   Download,
@@ -86,11 +93,11 @@ export function SidebarFooter({
       data-testid="sidebar-footer"
       className="flex shrink-0 items-center gap-2 bg-transparent px-4 pb-4 pt-2"
     >
-      <Popover open={open} onOpenChange={onOpenChange}>
-        <PopoverTrigger
+      <DropdownMenu open={open} onOpenChange={onOpenChange}>
+        <DropdownMenuTrigger
           data-testid="user-menu-trigger"
           aria-label={t`Account menu for ${name}`}
-          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
         >
           {image && failedImage !== image ? (
             <img
@@ -104,98 +111,88 @@ export function SidebarFooter({
           ) : (
             <UserRound size={18} aria-hidden="true" />
           )}
-        </PopoverTrigger>
+        </DropdownMenuTrigger>
         {open ? (
-          <PopoverContent
+          <DropdownMenuContent
             side="top"
-            sideOffset={8}
+            sideOffset={4}
             align="start"
-            className="max-h-(--available-height) w-[260px] max-w-[calc(100vw-69px)] gap-0 overflow-y-auto rounded-[14px] p-1.5 *:shrink-0 data-closed:animate-none"
+            className="w-[228px] max-w-[calc(100vw-69px)] px-[7.5px] *:shrink-0 data-closed:animate-none"
           >
-            <div
-              data-testid="account-menu-header"
-              className="mb-1 min-w-0 border-b border-border px-2.5 py-2.5"
-            >
-              <p className="truncate text-sm font-medium">{name}</p>
+            <div data-testid="account-menu-header" className="min-w-0 px-[7px] py-1.5 text-sm">
+              <p className="truncate text-[13px]">{name}</p>
               {email && email !== name ? (
-                <p className="truncate text-xs text-muted-foreground">{email}</p>
+                <p className="truncate text-[13px] text-placeholder">{email}</p>
               ) : null}
             </div>
-            <Button
-              variant="ghost"
-              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
-              onClick={onUsage}
-            >
-              <Gauge className="text-muted-foreground" strokeWidth={1.75} />
+            <DropdownMenuSeparator className="mx-1.5" />
+            <DropdownMenuItem className="px-[7px]" onClick={onUsage}>
+              <Gauge />
               <Trans>Usage</Trans>
-            </Button>
-            <a
-              className={`${buttonVariants({ variant: "ghost" })} h-8 w-full justify-start gap-2.5 text-[15px] font-normal`}
-              href={
-                /Android/i.test(navigator.userAgent)
-                  ? "https://github.com/elie222/rakazo/releases/download/android/rakazo.apk"
-                  : "https://apps.apple.com/app/rakazo/id6801531099"
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="px-[7px]"
+              render={
+                <a
+                  href={
+                    /Android/i.test(navigator.userAgent)
+                      ? "https://github.com/elie222/rakazo/releases/download/android/rakazo.apk"
+                      : "https://apps.apple.com/app/rakazo/id6801531099"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                />
               }
-              target="_blank"
-              rel="noreferrer"
             >
-              <Smartphone className="text-muted-foreground" strokeWidth={1.75} />
+              <Smartphone />
               <Trans>Get the mobile app</Trans>
-            </a>
-            <a
-              className={`${buttonVariants({ variant: "ghost" })} h-8 w-full justify-start gap-2.5 text-[15px] font-normal`}
-              href="https://github.com/elie222/rakazo/blob/main/docs/self-host.md"
-              target="_blank"
-              rel="noreferrer"
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="px-[7px]"
+              render={
+                <a
+                  href="https://github.com/elie222/rakazo/blob/main/docs/self-host.md"
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              }
             >
-              <BookOpen className="text-muted-foreground" strokeWidth={1.75} />
+              <BookOpen />
               <Trans>Docs</Trans>
-            </a>
+            </DropdownMenuItem>
             {onBoard ? (
-              <Button
-                variant="ghost"
-                className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
-                onClick={onBoard}
-              >
-                <SquareKanban className="text-muted-foreground" strokeWidth={1.75} />
+              <DropdownMenuItem className="px-[7px]" onClick={onBoard}>
+                <SquareKanban />
                 <Trans>Board</Trans>
-              </Button>
+              </DropdownMenuItem>
             ) : null}
-            <Button
-              variant="ghost"
-              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
-              onClick={onArtifacts}
-            >
-              <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
+            <DropdownMenuItem className="px-[7px]" onClick={onArtifacts}>
+              <FolderOpen />
               <Trans>Artifacts</Trans>
-            </Button>
-            <Button
-              variant="ghost"
-              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
-              aria-label={t`Settings`}
-              onClick={onSettings}
-            >
-              <Settings className="text-muted-foreground" strokeWidth={1.75} />
+            </DropdownMenuItem>
+            <DropdownMenuItem className="px-[7px]" aria-label={t`Settings`} onClick={onSettings}>
+              <Settings />
               <Trans>Settings</Trans>
-            </Button>
-            <div className="my-1 border-t border-border" />
-            <Button
-              variant="ghost"
-              className="h-8 w-full justify-start gap-2.5 text-[15px] font-normal"
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="mx-1.5" />
+            {/* Stays open so a failed sign-out can say so below. */}
+            <DropdownMenuItem
+              className="px-[7px]"
+              closeOnClick={false}
               disabled={signingOut}
               onClick={onLogOut}
             >
-              <LogOut className="text-muted-foreground" strokeWidth={1.75} />
+              <LogOut />
               <Trans>Log out</Trans>
-            </Button>
+            </DropdownMenuItem>
             {logOutError ? (
-              <p role="alert" className="px-2.5 pt-1 pb-2 text-[13px] text-destructive">
+              <p role="alert" className="px-[7px] pt-1 pb-2 text-[13px] text-destructive">
                 {logOutError}
               </p>
             ) : null}
-          </PopoverContent>
+          </DropdownMenuContent>
         ) : null}
-      </Popover>
+      </DropdownMenu>
       <Button
         variant="outline"
         ref={pillRef}

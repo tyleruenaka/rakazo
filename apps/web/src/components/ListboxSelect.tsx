@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { ScrollArea } from "@rakazo/ui-web";
+import { Check, ChevronDown } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -118,42 +119,46 @@ export function ListboxSelect<T extends string>({
         aria-expanded={open}
         aria-haspopup="listbox"
         disabled={disabled}
-        className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50"
+        className="flex h-7 w-fit max-w-full items-center justify-between gap-[5.5px] rounded-[8px] border border-control bg-transparent ps-2 pe-1.5 text-start text-[12.5px] text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-expanded:border-control-open-border aria-expanded:bg-control"
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
       >
         <span className="min-w-0 truncate">{options[selectedIndex]?.label}</span>
-        <span className="ml-3 shrink-0 text-muted-foreground" aria-hidden="true">
-          <ChevronDown size={16} strokeWidth={1.8} />
+        <span className="shrink-0" aria-hidden="true">
+          <ChevronDown size={12} strokeWidth={1.5} />
         </span>
       </button>
       {open ? (
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-label={label}
-          className="rk-scroll absolute left-0 right-0 top-full z-20 mt-1 max-h-[min(18rem,40vh)] overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
-        >
-          {options.map((option, index) => (
-            <button
-              key={option.value}
-              ref={(element) => {
-                optionRefs.current[index] = element;
-              }}
-              type="button"
-              role="option"
-              aria-selected={option.value === value}
-              tabIndex={index === highlightedIndex ? 0 : -1}
-              className={`w-full rounded-md px-2 py-1.5 text-start text-sm outline-none hover:bg-accent focus-visible:bg-accent ${
-                option.value === value ? "bg-accent" : ""
-              }`}
-              onClick={() => choose(index)}
-              onKeyDown={(event) => onOptionKeyDown(event, index)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <ScrollArea className="absolute start-0 top-full z-20 mt-1 flex max-h-[min(18rem,40vh)] w-[200px] flex-col overflow-hidden rounded-[14px] border-[0.5px] border-popover-border bg-popover text-popover-foreground shadow-popover dark:shadow-none">
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={label}
+            className="flex flex-col gap-0.5 p-[5.5px]"
+          >
+            {options.map((option, index) => (
+              <button
+                key={option.value}
+                ref={(element) => {
+                  optionRefs.current[index] = element;
+                }}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                tabIndex={index === highlightedIndex ? 0 : -1}
+                className="flex h-[30px] w-full shrink-0 items-center justify-between gap-2 rounded-[6px] ps-2 pe-[7.5px] text-start text-[12.5px] outline-none focus:bg-control"
+                onClick={() => choose(index)}
+                onMouseMove={() => setHighlightedIndex(index)}
+                onKeyDown={(event) => onOptionKeyDown(event, index)}
+              >
+                <span className="min-w-0 truncate">{option.label}</span>
+                {option.value === value ? (
+                  <Check size={13.25} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
       ) : null}
     </div>
   );
