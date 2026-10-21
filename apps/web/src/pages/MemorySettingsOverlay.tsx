@@ -1,19 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { SpaceMemoryConfig } from "@rakazo/contracts";
-import {
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogTitle,
-  Field,
-  FieldLabel,
-  NativeSelect,
-  NativeSelectOption,
-  Toggle,
-} from "@rakazo/ui-web";
+import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
+import { ListboxSelect } from "../components/ListboxSelect";
+import { SettingsGroup, SettingsRow } from "../components/SettingsLayout";
 import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 import { SpaceMemorySection } from "./KnowledgeSection";
@@ -33,26 +24,20 @@ function ScopePicker({
   disabled: boolean;
   onChange: (scope: "isolated" | "shared") => void;
 }) {
-  const labelId = useId();
+  const { t } = useLingui();
   return (
-    <Field aria-labelledby={labelId}>
-      <FieldLabel id={labelId}>
-        <Trans>Default scope</Trans>
-      </FieldLabel>
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-        {(["isolated", "shared"] as const).map((option) => (
-          <Toggle
-            key={option}
-            pressed={value === option}
-            disabled={disabled}
-            onPressedChange={() => onChange(option)}
-            className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
-          >
-            {option === "isolated" ? <Trans>Isolated</Trans> : <Trans>Shared</Trans>}
-          </Toggle>
-        ))}
-      </div>
-    </Field>
+    <SettingsRow label={<Trans>Default scope</Trans>}>
+      <ListboxSelect
+        label={t`Default scope`}
+        options={[
+          { value: "isolated", label: t`Isolated` },
+          { value: "shared", label: t`Shared` },
+        ]}
+        value={value}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    </SettingsRow>
   );
 }
 
@@ -72,7 +57,6 @@ export function MemorySettingsOverlay({
 }) {
   const rpc = useSpaceRpc();
   const { t } = useLingui();
-  const providerSelectId = useId();
   const defaultRegistration = defaultMemoryProviderSettings();
   const [selectedProvider, setSelectedProvider] = useState(
     config?.provider ?? defaultRegistration.id,
@@ -172,82 +156,66 @@ export function MemorySettingsOverlay({
         </div>
       ) : null}
 
-      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 pt-5 sm:px-8 sm:pb-8">
-        <div className="space-y-5">
-          {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
+      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-[22px] pb-7 sm:px-[32.5px]">
+        <div className="space-y-7">
+          {error ? <p className="px-2 text-[12.5px] text-destructive">{error}</p> : null}
 
           {config === undefined ? (
             <p className="text-[13px] text-muted-foreground">
               <Trans>Loading memory settings…</Trans>
             </p>
           ) : config ? (
-            <section className="rounded-[14px] bg-card px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-[14px] text-muted-foreground">
-                  {registration?.name ?? config.provider}
-                </h3>
-                <span className="text-[13px] text-success">
-                  <Trans>Connected</Trans>
-                </span>
-              </div>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {registration?.connectedLabel(config) ?? config.provider}
-              </p>
-              <div className="mt-4">
-                <ScopePicker
-                  value={defaultScope}
-                  disabled={busy}
-                  onChange={(scope) => void updateDefaultScope(scope)}
-                />
-              </div>
-              <Button
-                variant="outline"
-                type="button"
-                disabled={busy}
-                onClick={() => void disconnect()}
-                className="mt-5 rounded-full"
+            <SettingsGroup label={registration?.name ?? config.provider}>
+              <SettingsRow
+                label={
+                  <span className="text-success">
+                    <Trans>Connected</Trans>
+                  </span>
+                }
+                description={registration?.connectedLabel(config) ?? config.provider}
               >
-                {pending === "disconnect" ? (
-                  <Trans>Disconnecting…</Trans>
-                ) : (
-                  <Trans>Disconnect</Trans>
-                )}
-              </Button>
-            </section>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void disconnect()}
+                >
+                  {pending === "disconnect" ? (
+                    <Trans>Disconnecting…</Trans>
+                  ) : (
+                    <Trans>Disconnect</Trans>
+                  )}
+                </Button>
+              </SettingsRow>
+              <ScopePicker
+                value={defaultScope}
+                disabled={busy}
+                onChange={(scope) => void updateDefaultScope(scope)}
+              />
+            </SettingsGroup>
           ) : registration ? (
-            <section className="rounded-[14px] bg-card px-4 py-4">
-              <h3 id={providerSelectId} className="text-[15px] font-medium text-foreground">
-                <Trans>Provider</Trans>
-              </h3>
-              {MEMORY_PROVIDER_SETTINGS.length > 1 ? (
-                <div className="mt-3">
-                  <NativeSelect
-                    aria-labelledby={providerSelectId}
-                    className="w-full"
+            <SettingsGroup>
+              <SettingsRow label={<Trans>Provider</Trans>} description={registration.description}>
+                {MEMORY_PROVIDER_SETTINGS.length > 1 ? (
+                  <ListboxSelect
+                    label={t`Provider`}
+                    options={MEMORY_PROVIDER_SETTINGS.map((entry) => ({
+                      value: entry.id,
+                      label: entry.name,
+                    }))}
                     value={selectedProvider}
                     disabled={busy}
-                    onChange={(event) => setSelectedProvider(event.target.value)}
-                  >
-                    {MEMORY_PROVIDER_SETTINGS.map((entry) => (
-                      <NativeSelectOption key={entry.id} value={entry.id}>
-                        {entry.name}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </div>
-              ) : (
-                <p className="mt-3 text-[14px] text-foreground">{registration.name}</p>
-              )}
-              {registration.description ? (
-                <p className="mt-2 text-[13px] text-muted-foreground">{registration.description}</p>
-              ) : null}
-
-              <div className="mt-4">
-                <ScopePicker value={defaultScope} disabled={busy} onChange={setDefaultScope} />
+                    onChange={setSelectedProvider}
+                  />
+                ) : (
+                  <span className="text-[12.5px]">{registration.name}</span>
+                )}
+              </SettingsRow>
+              <ScopePicker value={defaultScope} disabled={busy} onChange={setDefaultScope} />
+              <div className="px-3.5 pb-2.5">
+                <registration.SettingsForm busy={busy} onConnect={connect} />
               </div>
-
-              <registration.SettingsForm busy={busy} onConnect={connect} />
-            </section>
+            </SettingsGroup>
           ) : (
             <p className="text-[13px] text-destructive">
               <Trans>The selected memory provider is not available in this build.</Trans>

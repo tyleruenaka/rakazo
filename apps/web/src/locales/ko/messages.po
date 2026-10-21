@@ -14,6 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr " (읽지 않음)"
 
@@ -28,6 +29,11 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
 msgstr ""
+
+#. placeholder {0}: connectedApps.length
+#: src/pages/PluginsOverlay.tsx
+msgid "{0, plural, other {# connected}}"
+msgstr "{0, plural, other {#개 연결됨}}"
 
 #. placeholder {0}: file.name
 #: src/pages/Shell.tsx
@@ -311,6 +317,10 @@ msgstr ""
 #: src/pages/shell/bot-picker.tsx
 msgid "About spaces"
 msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Accent"
+msgstr "강조 색상"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Access token"
@@ -826,6 +836,10 @@ msgstr "Bearer 토큰"
 msgid "Billing"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Black"
+msgstr "검정"
+
 #: src/lib/ticket-status.ts
 msgid "Blocked"
 msgstr ""
@@ -849,6 +863,7 @@ msgid "bot"
 msgstr "Bot"
 
 #: src/lib/identity-display.ts
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -859,6 +874,10 @@ msgstr "봇"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "Bot"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Bot color"
+msgstr "봇 색상"
 
 #: src/pages/Shell.tsx
 msgid "Bot screen"
@@ -1071,6 +1090,7 @@ msgstr "새 비밀번호 선택"
 msgid "Choose file"
 msgstr "파일 선택"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "비우기"
@@ -2456,6 +2476,10 @@ msgstr "예상하지 못한 작업 표시"
 msgid "Fleet management"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Follow System"
+msgstr "시스템 설정 따르기"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "비밀번호를 잊으셨나요?"
@@ -2908,6 +2932,7 @@ msgstr ""
 msgid "Make sure nothing is still running on this computer."
 msgstr "이 컴퓨터에서 실행 중인 작업이 없는지 확인하세요."
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
@@ -2919,10 +2944,6 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage MCP servers"
 msgstr "MCP 서버 관리"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Manage messaging settings"
-msgstr "메시징 설정 관리"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3642,6 +3663,10 @@ msgstr "확인할 도구 선택"
 msgid "Pin"
 msgstr "고정"
 
+#: src/pages/Shell.tsx
+msgid "Pinned"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "{name} 재생"
@@ -4214,6 +4239,10 @@ msgstr ""
 msgid "Search integrations.sh"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search language"
+msgstr "언어 검색"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
 msgstr "모델 검색"
@@ -4225,6 +4254,10 @@ msgstr "AI 서비스 검색"
 #: src/pages/Shell.tsx
 msgid "Search runs"
 msgstr "실행 검색"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search timezone"
+msgstr "시간대 검색"
 
 #. placeholder {0}: filters.query.trim()
 #: src/pages/ActivityList.tsx
@@ -4605,10 +4638,6 @@ msgstr ""
 msgid "Switching…"
 msgstr "전환 중…"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "시스템"
-
 #: src/pages/Shell.tsx
 msgid "Take control"
 msgstr "제어권 가져오기"
@@ -4681,6 +4710,10 @@ msgstr "서비스가 요청 속도를 제한하고 있습니다."
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "선택한 기억 서비스는 현재 빌드에서 사용할 수 없습니다."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "테마"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
@@ -5005,7 +5038,6 @@ msgid "Urgent"
 msgstr ""
 
 #: src/components/SidebarFooter.tsx
-#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Usage"
 msgstr "사용량"
@@ -5190,7 +5222,6 @@ msgstr ""
 msgid "year"
 msgstr ""
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Yesterday"
 msgstr "어제"

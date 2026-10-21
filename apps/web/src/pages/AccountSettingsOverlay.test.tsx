@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { AccountSecurity } from "@rakazo/contracts";
+import type * as UiWeb from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
@@ -11,7 +12,9 @@ vi.mock("@lingui/react/macro", () => ({
   Trans: ({ children }: { children: ReactNode }) => children,
 }));
 
-vi.mock("@rakazo/ui-web", () => ({
+vi.mock("@rakazo/ui-web", async (importOriginal) => ({
+  // The real popover, so dropdowns open as in the app.
+  ...(await importOriginal<typeof UiWeb>()),
   BotAvatar: () => null,
   Button: ({ children, ...props }: React.ComponentProps<"button">) => (
     <button type="button" {...props}>
@@ -107,6 +110,7 @@ import {
 } from "../lib/composer-enter-to-send-pref";
 import { getRemoteImagesEnabled } from "../lib/remote-images-preference";
 import { TOOL_ACTIVITY_STORAGE_KEY } from "../lib/tool-activity-preference";
+import { setUiAppearance } from "../lib/ui-appearance";
 import { GeneralSettingsPanels } from "./AccountSettingsOverlay";
 
 afterEach(() => {
@@ -250,6 +254,46 @@ it("updates the Enter preference from Settings and reflects external changes", a
     expect(toggle.getAttribute("aria-checked")).toBe("true");
   } finally {
     await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
+
+it("offers Grok Bot's theme and accent wording over the same stored values", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const pick = async (trigger: Element | null, label: string) => {
+    await act(async () => (trigger as HTMLButtonElement).click());
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    const texts = options.map((option) => option.textContent);
+    await act(async () => options.find((option) => option.textContent === label)?.click());
+    return texts;
+  };
+  try {
+    await act(async () => {
+      root.render(
+        <GeneralSettingsPanels
+          name="Jamie"
+          avatarStyle="robot"
+          onAvatarStyleChange={async () => undefined}
+        />,
+      );
+    });
+
+    const theme = container.querySelector('[data-testid="ui-appearance-select"]');
+    expect(theme?.textContent).toBe("Follow System");
+    expect(await pick(theme, "Light")).toEqual(["Follow System", "Light", "Dark"]);
+    expect(setUiAppearance).toHaveBeenCalledWith("light");
+
+    const accent = container.querySelector('[role="combobox"][aria-label="Accent"]');
+    expect(accent?.textContent).toBe("Bot color");
+    expect(await pick(accent, "Black")).toEqual(["Black", "Bot color"]);
+    expect(localStorage.getItem("rakazo.chatAccent")).toBe("none");
+    expect(accent?.textContent).toBe("Black");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
     vi.unstubAllGlobals();
   }
 });

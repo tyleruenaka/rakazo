@@ -1,6 +1,7 @@
-import { Trans } from "@lingui/react/macro";
-import { Field, FieldLabel, Input, Toggle } from "@rakazo/ui-web";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { Field, FieldLabel, FieldTitle, Input } from "@rakazo/ui-web";
 import { useId } from "react";
+import { ListboxSelect } from "../../components/ListboxSelect";
 
 export type ConnectionMode = "cloud" | "local";
 
@@ -20,28 +21,25 @@ export function ConnectionModeFields({
   onBaseUrlChange: (baseUrl: string) => void;
   baseUrlPlaceholder: string;
 }) {
+  const { t } = useLingui();
   const baseUrlId = useId();
-  const connectionLabelId = useId();
   return (
     <>
-      <Field className="mt-4" aria-labelledby={connectionLabelId}>
-        <FieldLabel id={connectionLabelId}>
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <FieldTitle>
           <Trans>Connection</Trans>
-        </FieldLabel>
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          {(["cloud", "local"] as const).map((option) => (
-            <Toggle
-              key={option}
-              pressed={mode === option}
-              disabled={busy}
-              onPressedChange={() => onModeChange(option)}
-              className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
-            >
-              {option === "cloud" ? <Trans>Cloud</Trans> : <Trans>Local</Trans>}
-            </Toggle>
-          ))}
-        </div>
-      </Field>
+        </FieldTitle>
+        <ListboxSelect
+          label={t`Connection`}
+          options={[
+            { value: "cloud", label: t`Cloud` },
+            { value: "local", label: t`Local` },
+          ]}
+          value={mode}
+          disabled={busy}
+          onChange={onModeChange}
+        />
+      </div>
 
       {mode === "local" ? (
         <Field className="mt-4">

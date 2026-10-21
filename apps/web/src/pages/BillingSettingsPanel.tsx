@@ -2,6 +2,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { BillingStatus } from "@rakazo/contracts";
 import { Button, Skeleton } from "@rakazo/ui-web";
 import { useEffect, useState } from "react";
+import { SettingsGroup, SettingsRow } from "../components/SettingsLayout";
 import { formatBillingDate, formatBillingPrice } from "../lib/billing";
 import { rpc } from "../lib/rpc";
 
@@ -68,46 +69,46 @@ export function BillingSettingsPanel() {
   const seats = status?.seats ?? 0;
 
   return (
-    <div data-testid="billing-settings" className="rounded-[14px] bg-card px-4 py-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          {status ? (
-            <h3 className="text-[14px] text-muted-foreground">{stateLabel}</h3>
-          ) : error ? null : (
-            <Skeleton className="h-5 w-24" />
-          )}
-          {price ? (
-            <p className="mt-3 text-[14px] text-foreground/75">
-              {price}
-              {seats > 1 ? (
-                <>
-                  {" · "}
-                  <Plural value={seats} one="# seat" other="# seats" />
-                </>
+    <SettingsGroup testId="billing-settings">
+      <SettingsRow
+        label={status ? stateLabel : error ? null : <Skeleton className="h-[19px] w-24" />}
+        description={
+          price || dateLabel || error ? (
+            <>
+              {price ? (
+                <p>
+                  {price}
+                  {seats > 1 ? (
+                    <>
+                      {" · "}
+                      <Plural value={seats} one="# seat" other="# seats" />
+                    </>
+                  ) : null}
+                </p>
               ) : null}
-            </p>
-          ) : null}
-          {dateLabel ? (
-            <p className="mt-2 text-[12.5px] text-muted-foreground/80">{dateLabel}</p>
-          ) : null}
-        </div>
+              {dateLabel ? <p>{dateLabel}</p> : null}
+              {error ? (
+                <p role="alert" className="text-destructive">
+                  {error}
+                </p>
+              ) : null}
+            </>
+          ) : null
+        }
+      >
         {status?.canManage && status.hasCustomer ? (
           <Button
             variant="secondary"
             size="sm"
+            className="h-6"
             disabled={pending}
             onClick={() => void openPortal()}
           >
             <Trans>Manage</Trans>
           </Button>
         ) : null}
-      </div>
-      {error ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
+      </SettingsRow>
+    </SettingsGroup>
   );
 }
 

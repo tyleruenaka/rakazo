@@ -28,3 +28,24 @@ function canonicalTimeZone(zone: string): string {
 export function sameTimeZone(a: string, b: string): boolean {
   return a === b || canonicalTimeZone(a) === canonicalTimeZone(b);
 }
+
+const zoneTimeFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** The current time in a zone, such as "7:55 AM", for timezone pickers. */
+export function zoneTime(zone: string, locale: string, now = new Date()): string {
+  const key = `${locale}|${zone}`;
+  let format = zoneTimeFormats.get(key);
+  if (!format) {
+    try {
+      format = new Intl.DateTimeFormat(locale, {
+        timeZone: zone,
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+    zoneTimeFormats.set(key, format);
+  }
+  return format.format(now);
+}

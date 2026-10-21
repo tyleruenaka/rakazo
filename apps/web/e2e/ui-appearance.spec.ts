@@ -60,13 +60,15 @@ test("account settings appearance control switches to light mode", async ({ page
   await expect(picker).toBeVisible();
   await captureScreenshot(page, testInfo, "ui-appearance-control");
 
-  await settings.getByTestId("ui-appearance-dark").click();
+  await picker.click();
+  await page.getByTestId("ui-appearance-dark").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await captureScreenshot(page, testInfo, "ui-appearance-dark-settings");
 
-  await settings.getByTestId("ui-appearance-light").click();
+  await picker.click();
+  await page.getByTestId("ui-appearance-light").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(settings.getByTestId("ui-appearance-light")).toHaveAttribute("aria-pressed", "true");
+  await expect(picker).toHaveText("Light");
   await captureScreenshot(page, testInfo, "ui-appearance-light-settings");
 
   await settings.getByRole("button", { name: "Close user settings" }).click();
@@ -92,7 +94,8 @@ test("account settings appearance control switches to light mode", async ({ page
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(settings).toBeVisible();
-  await settings.getByTestId("ui-appearance-dark").click();
+  await picker.click();
+  await page.getByTestId("ui-appearance-dark").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await settings.getByRole("button", { name: "Close user settings" }).click();
   await expect(settings).toBeHidden();

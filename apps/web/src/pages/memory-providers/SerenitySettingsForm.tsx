@@ -1,15 +1,16 @@
-import { Trans } from "@lingui/react/macro";
-import { Button, Field, FieldError, FieldLabel, Input, Toggle } from "@rakazo/ui-web";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { Button, Field, FieldError, FieldLabel, FieldTitle, Input } from "@rakazo/ui-web";
 import { useId, useState } from "react";
+import { ListboxSelect } from "../../components/ListboxSelect";
 import type { MemoryProviderSettingsFormProps } from "./registry";
 import type { SerenityEndpointFieldError } from "./serenity-settings";
 import { SERENITY_ENDPOINT_PLACEHOLDER, serenityConnectionDraft } from "./serenity-settings";
 
 export function SerenitySettingsForm({ busy, onConnect }: MemoryProviderSettingsFormProps) {
+  const { t } = useLingui();
   const endpointId = useId();
   const endpointErrorId = useId();
   const tokenId = useId();
-  const writesLabelId = useId();
   const brainLabelId = useId();
   const [endpoint, setEndpoint] = useState("");
   const [endpointError, setEndpointError] = useState<SerenityEndpointFieldError | null>(null);
@@ -84,29 +85,21 @@ export function SerenitySettingsForm({ busy, onConnect }: MemoryProviderSettings
         />
       </Field>
 
-      <Field className="mt-4" aria-labelledby={writesLabelId}>
-        <FieldLabel id={writesLabelId}>
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <FieldTitle>
           <Trans>Allow writing</Trans>
-        </FieldLabel>
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          <Toggle
-            pressed={!allowWrites}
-            disabled={busy}
-            onPressedChange={() => setAllowWrites(false)}
-            className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
-          >
-            <Trans>Recall only</Trans>
-          </Toggle>
-          <Toggle
-            pressed={allowWrites}
-            disabled={busy}
-            onPressedChange={() => setAllowWrites(true)}
-            className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
-          >
-            <Trans>Recall and write</Trans>
-          </Toggle>
-        </div>
-      </Field>
+        </FieldTitle>
+        <ListboxSelect
+          label={t`Allow writing`}
+          options={[
+            { value: "recall", label: t`Recall only` },
+            { value: "write", label: t`Recall and write` },
+          ]}
+          value={allowWrites ? "write" : "recall"}
+          disabled={busy}
+          onChange={(next) => setAllowWrites(next === "write")}
+        />
+      </div>
 
       <Button
         type="button"

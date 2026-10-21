@@ -14,6 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr "（未读）"
 
@@ -28,6 +29,11 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
 msgstr ""
+
+#. placeholder {0}: connectedApps.length
+#: src/pages/PluginsOverlay.tsx
+msgid "{0, plural, other {# connected}}"
+msgstr "{0, plural, other {已连接 # 个}}"
 
 #. placeholder {0}: file.name
 #: src/pages/Shell.tsx
@@ -311,6 +317,10 @@ msgstr ""
 #: src/pages/shell/bot-picker.tsx
 msgid "About spaces"
 msgstr ""
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Accent"
+msgstr "强调色"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Access token"
@@ -826,6 +836,10 @@ msgstr "Bearer token"
 msgid "Billing"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Black"
+msgstr "黑色"
+
 #: src/lib/ticket-status.ts
 msgid "Blocked"
 msgstr ""
@@ -849,6 +863,7 @@ msgid "bot"
 msgstr "Bot"
 
 #: src/lib/identity-display.ts
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -859,6 +874,10 @@ msgstr "Bot"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "Bot"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Bot color"
+msgstr "机器人颜色"
 
 #: src/pages/Shell.tsx
 msgid "Bot screen"
@@ -1071,6 +1090,7 @@ msgstr "设置新密码"
 msgid "Choose file"
 msgstr "选择文件"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "清空"
@@ -2456,6 +2476,10 @@ msgstr "标记异常操作"
 msgid "Fleet management"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Follow System"
+msgstr "跟随系统"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "忘记密码？"
@@ -2908,6 +2932,7 @@ msgstr ""
 msgid "Make sure nothing is still running on this computer."
 msgstr "请确认这台电脑上没有仍在运行的任务。"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
@@ -2919,10 +2944,6 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage MCP servers"
 msgstr "管理 MCP 服务器"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Manage messaging settings"
-msgstr "管理消息设置"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3642,6 +3663,10 @@ msgstr "选择要检查的工具"
 msgid "Pin"
 msgstr "置顶"
 
+#: src/pages/Shell.tsx
+msgid "Pinned"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "播放 {name}"
@@ -4214,6 +4239,10 @@ msgstr ""
 msgid "Search integrations.sh"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search language"
+msgstr "搜索语言"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
 msgstr "搜索模型"
@@ -4225,6 +4254,10 @@ msgstr "搜索提供方"
 #: src/pages/Shell.tsx
 msgid "Search runs"
 msgstr "搜索运行记录"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search timezone"
+msgstr "搜索时区"
 
 #. placeholder {0}: filters.query.trim()
 #: src/pages/ActivityList.tsx
@@ -4605,10 +4638,6 @@ msgstr ""
 msgid "Switching…"
 msgstr "正在切换…"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "系统"
-
 #: src/pages/Shell.tsx
 msgid "Take control"
 msgstr "接管控制权"
@@ -4681,6 +4710,10 @@ msgstr "提供方正在限制请求频率。"
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "所选记忆提供方在此构建中不可用。"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "主题"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
@@ -5005,7 +5038,6 @@ msgid "Urgent"
 msgstr ""
 
 #: src/components/SidebarFooter.tsx
-#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Usage"
 msgstr "用量"
@@ -5190,7 +5222,6 @@ msgstr ""
 msgid "year"
 msgstr ""
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Yesterday"
 msgstr "昨天"

@@ -14,6 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr " (לא נקראה)"
 
@@ -28,6 +29,11 @@ msgstr "{0, plural, one {ממתין להתחברות — הקוד יפוג בע�
 #: src/pages/Onboarding.tsx
 msgid "{0, plural, one {Waiting for sign-in — the link expires in about # minute.} other {Waiting for sign-in — the link expires in about # minutes.}}"
 msgstr "{0, plural, one {ממתין להתחברות — הקישור יפוג בעוד כ-# דקה.} other {ממתין להתחברות — הקישור יפוג בעוד כ-# דקות.}}"
+
+#. placeholder {0}: connectedApps.length
+#: src/pages/PluginsOverlay.tsx
+msgid "{0, plural, other {# connected}}"
+msgstr "{0, plural, other {# מחוברות}}"
 
 #. placeholder {0}: file.name
 #: src/pages/Shell.tsx
@@ -311,6 +317,10 @@ msgstr "על קבוצות"
 #: src/pages/shell/bot-picker.tsx
 msgid "About spaces"
 msgstr "על מרחבים"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Accent"
+msgstr "צבע הדגשה"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Access token"
@@ -826,6 +836,10 @@ msgstr "Bearer token"
 msgid "Billing"
 msgstr "חיוב"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Black"
+msgstr "שחור"
+
 #: src/lib/ticket-status.ts
 msgid "Blocked"
 msgstr "חסום"
@@ -849,6 +863,7 @@ msgid "bot"
 msgstr "בוט"
 
 #: src/lib/identity-display.ts
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -859,6 +874,10 @@ msgstr "בוט"
 #: src/lib/browser-notifications.ts
 msgid "Bot"
 msgstr "בוט"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Bot color"
+msgstr "צבע הבוט"
 
 #: src/pages/Shell.tsx
 msgid "Bot screen"
@@ -1071,6 +1090,7 @@ msgstr "בחירת סיסמה חדשה"
 msgid "Choose file"
 msgstr "בחירת קובץ"
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "ניקוי"
@@ -2456,6 +2476,10 @@ msgstr "סימון פעולות לא צפויות"
 msgid "Fleet management"
 msgstr ""
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Follow System"
+msgstr "לפי המערכת"
+
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
 msgstr "שכחת סיסמה?"
@@ -2908,6 +2932,7 @@ msgstr "אותיות לטיניות קטנות, ספרות, מקפים וקוו�
 msgid "Make sure nothing is still running on this computer."
 msgstr "יש לוודא ששום דבר לא פועל עדיין במחשב הזה."
 
+#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr "ניהול"
@@ -2919,10 +2944,6 @@ msgstr "ניהול חיוב"
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage MCP servers"
 msgstr "ניהול שרתי MCP"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Manage messaging settings"
-msgstr "ניהול הגדרות ההודעות"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3642,6 +3663,10 @@ msgstr ""
 msgid "Pin"
 msgstr "הצמדה"
 
+#: src/pages/Shell.tsx
+msgid "Pinned"
+msgstr ""
+
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
 msgstr "הפעלת {name}"
@@ -4214,6 +4239,10 @@ msgstr "חיפוש לפי דומיין"
 msgid "Search integrations.sh"
 msgstr "חיפוש ב-integrations.sh"
 
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search language"
+msgstr "חיפוש שפה"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
 msgstr "חיפוש מודלים"
@@ -4225,6 +4254,10 @@ msgstr "חיפוש ספקים"
 #: src/pages/Shell.tsx
 msgid "Search runs"
 msgstr "חיפוש הרצות"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Search timezone"
+msgstr "חיפוש אזור זמן"
 
 #. placeholder {0}: filters.query.trim()
 #: src/pages/ActivityList.tsx
@@ -4605,10 +4638,6 @@ msgstr "החלפת בוט"
 msgid "Switching…"
 msgstr "מחליף…"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "מערכת"
-
 #: src/pages/Shell.tsx
 msgid "Take control"
 msgstr "השתלטות"
@@ -4681,6 +4710,10 @@ msgstr "הספק מגביל את קצב הבקשות."
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "ספק הזיכרון שנבחר אינו זמין בגרסה הזו."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Theme"
+msgstr "ערכת נושא"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
@@ -5005,7 +5038,6 @@ msgid "Urgent"
 msgstr "דחוף"
 
 #: src/components/SidebarFooter.tsx
-#: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Usage"
 msgstr "שימוש"
@@ -5190,7 +5222,6 @@ msgstr ""
 msgid "year"
 msgstr "שנה"
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Yesterday"
 msgstr "אתמול"
