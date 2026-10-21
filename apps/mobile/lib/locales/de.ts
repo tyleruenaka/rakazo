@@ -1,4 +1,13 @@
 export const DE_MESSAGES: Record<string, string> = {
+  "To:": "An:",
+  Next: "Weiter",
+  "Ex: Project Falcon": "Z. B. Projekt Falcon",
+  "Search bots": "Bots suchen",
+  "About {label}": "Über {label}",
+  "Manage the bots it creates": "Die von ihm erstellten Bots verwalten",
+  "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
+    "Ordne die Seitenleiste und bearbeite Bots. Änderungen an Gruppen, Anweisungen, Modellen und Routinen brauchen deine Zustimmung.",
+
   Resets: "Zurückgesetzt",
   Limit: "Limit",
   "Provider message": "Anbieternachricht",
@@ -24,8 +33,6 @@ export const DE_MESSAGES: Record<string, string> = {
   "{name} asked": "{name} fragt",
   Close: "Schließen",
   Link: "Link",
-  "Lets this bot organize, retune and schedule the bots it creates. You approve each change.":
-    "Erlaubt diesem Bot, die von ihm erstellten Bots zu organisieren, anzupassen und zu planen. Du genehmigst jede Änderung.",
   "Too many attempts. Try again in a few minutes.":
     "Zu viele Versuche. Versuche es in ein paar Minuten erneut.",
   "The server had a problem. Try again in a moment.":
@@ -116,6 +123,10 @@ export const DE_MESSAGES: Record<string, string> = {
   "Already have an account?": "Du hast bereits ein Konto?",
   "Back to sign in": "Zurück zur Anmeldung",
   "Check your email": "Prüfe deine E-Mails",
+  "Use password": "Passwort verwenden",
+  "Use email code": "E-Mail-Code verwenden",
+  "Invalid code": "Ungültiger Code",
+  "Request a new code": "Fordere einen neuen Code an",
   "Checking…": "Wird geprüft…",
   "Custom server": "Eigener Server",
   "Custom server {host}": "Eigener Server {host}",
@@ -336,9 +347,7 @@ export const DE_MESSAGES: Record<string, string> = {
   Members: "Mitglieder",
   // app/new-group.tsx
   "Could not create group": "Gruppe konnte nicht erstellt werden",
-  "Create group": "Gruppe erstellen",
   "Creating…": "Wird erstellt…",
-  "Name this group": "Gruppe benennen",
   // app/new-space.tsx
   "Could not create space": "Space konnte nicht erstellt werden",
   "Create space": "Space erstellen",
@@ -367,7 +376,6 @@ export const DE_MESSAGES: Record<string, string> = {
   "Get notified when this Bot finishes or needs input":
     "Benachrichtigung, wenn dieser Bot fertig ist oder Eingabe braucht",
   // app/computer.tsx
-  "Booting {label}": "{label} wird gestartet",
   Bot: "Bot",
   "Close computer": "Computer schließen",
   "Computer keyboard": "Computertastatur",
@@ -475,7 +483,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Add MCP server": "MCP-Server hinzufügen",
   "Add OpenAPI": "OpenAPI hinzufügen",
   "Add Treg": "Treg hinzufügen",
-  "Add another": "Weiteres Konto hinzufügen",
+  "Add another": "Weitere hinzufügen",
   "Add another {name}": "Weiteres {name}-Konto hinzufügen",
   "Add {name}": "{name} hinzufügen",
   Added: "Hinzugefügt",
@@ -651,6 +659,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Save section name": "Abschnittsnamen speichern",
   "Section name": "Abschnittsname",
   "Silence notifications": "Benachrichtigungen stummschalten",
+  Pinned: "Angeheftet",
   Unassigned: "Nicht zugewiesen",
   Unpin: "Lösen",
   // components/computer-maintenance-actions.tsx
@@ -764,6 +773,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Android blocked notifications.": "Android hat Benachrichtigungen blockiert.",
   // lib/user-error.ts
   "Could not reach the server": "Server konnte nicht erreicht werden",
+  "Request timed out": "Zeitüberschreitung der Anfrage",
   "Enter a password": "Gib ein Passwort ein",
   "Enter a valid email": "Gib eine gültige E-Mail-Adresse ein",
   "Something went wrong. Try again.": "Etwas ist schiefgelaufen. Versuche es erneut.",
@@ -791,6 +801,7 @@ export const DE_MESSAGES: Record<string, string> = {
     "Eine Anmeldeseite wurde geöffnet — gib dort diesen Code ein:",
   "All providers": "Alle Anbieter",
   Copied: "Kopiert",
+  "Copy code": "Code kopieren",
   "Could not disconnect this provider": "Anbieter konnte nicht getrennt werden",
   "Default ({level})": "Standard ({level})",
   "Disconnected {provider}.": "{provider} getrennt.",
@@ -895,7 +906,6 @@ export const DE_MESSAGES: Record<string, string> = {
   "Remove photo": "Foto entfernen",
   Shape: "Form",
   "Shape {number}": "Form {number}",
-  "Fleet management": "Flottenverwaltung",
   "Try again": "Erneut versuchen",
   "Your session expired": "Deine Sitzung ist abgelaufen",
   "The server had a problem": "Auf dem Server ist ein Problem aufgetreten",
@@ -923,4 +933,13 @@ export const DE_MESSAGES: Record<string, string> = {
     "Die Antwort dieses Bots stoppte am Monatslimit seines Schlüssels. Dein eigener Schlüssel hat eigene Limits.",
   "This bot's reply stopped at its key's usage limit. Your own key has its own limits.":
     "Die Antwort dieses Bots stoppte am Nutzungslimit seines Schlüssels. Dein eigener Schlüssel hat eigene Limits.",
+  "Sign in with passkey": "Mit Passkey anmelden",
+  Passkeys: "Passkeys",
+  Passkey: "Passkey",
+  "Add passkey": "Passkey hinzufügen",
+  Rename: "Umbenennen",
+  "Add a passkey for faster sign-in?": "Passkey für schnellere Anmeldung hinzufügen?",
+  "Couldn't start the computer": "Der Computer konnte nicht gestartet werden",
+  "Something went wrong while it was starting. Try again in a moment.":
+    "Beim Starten ist etwas schiefgelaufen. Versuche es in einem Moment erneut.",
 };

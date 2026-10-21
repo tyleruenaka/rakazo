@@ -15,6 +15,8 @@
   --description: #acacac;
   --popover: #1f1f1f;
   --popover-foreground: #f5f5f5;
+  --glass-fill: #2c2c2e;
+  --glass-stroke: #fcfcfc26;
   --popover-border: #353535;
   --popover-accent: #2b2b2b;
   --palette-highlight: #303030;
@@ -61,9 +63,11 @@
   --markdown-marker: #919191;
   --muted: #1b1b1b;
   --muted-foreground: #a8a8a8;
+  --faint-foreground: #939393;
   --accent: #242424;
   --accent-foreground: #f5f5f5;
   --destructive: #ff6464;
+  --destructive-fill: #e5484d;
   --destructive-foreground: #ffffff;
   --border: #2a2a2a;
   --input: #2c2c2c;
@@ -88,11 +92,11 @@
   --reply-foreground: rgba(245, 245, 245, 0.66);
   --reply-ring: rgba(255, 255, 255, 0.1);
   --reply-hover: rgba(255, 255, 255, 0.038);
-  --link: #3b82f6;
+  --link: #3d84f7;
   --favicon-plate: #ffffff;
   --success: #4ecb71;
   --warning: #e9c46a;
-  --status-working: #3b82f6;
+  --status-working: #3d84f7;
   --unread: #4d9bff;
   --avatar-white: #ffffff;
   --avatar-grey: #777777;
@@ -118,6 +122,8 @@
   --description: #767676;
   --popover: #ffffff;
   --popover-foreground: #1c1c1c;
+  --glass-fill: #ffffff;
+  --glass-stroke: #14141416;
   --popover-border: #e3e3e3;
   --popover-accent: #f2f2f2;
   --palette-highlight: #ededed;
@@ -164,9 +170,11 @@
   --markdown-marker: #797979;
   --muted: #efefef;
   --muted-foreground: #646464;
+  --faint-foreground: #808080;
   --accent: #e9e9e9;
   --accent-foreground: #1c1c1c;
   --destructive: #dc2626;
+  --destructive-fill: #e5484d;
   --destructive-foreground: #ffffff;
   --border: #e3e3e3;
   --input: #ededed;
@@ -193,7 +201,7 @@
   --reply-hover: rgba(28, 28, 28, 0.059);
   --link: #2563eb;
   --favicon-plate: #ffffff;
-  --success: #228b3b;
+  --success: #208437;
   --warning: #b7791f;
   --status-working: #2563eb;
   --unread: #086ed3;

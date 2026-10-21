@@ -14,9 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-rail.tsx
 #: src/pages/shell/pinned-tile.tsx
 msgid " (unread)"
 msgstr " (non lu)"
+
+#. placeholder {0}: health.toolCount
+#: src/components/McpServerHealthLine.tsx
+msgid "{0, plural, one {Running · # tool} other {Running · # tools}}"
+msgstr "{0, plural, one {En cours · # outil} other {En cours · # outils}}"
 
 #. placeholder {0}: Math.ceil(oauth.expiresInSeconds / 60)
 #: src/pages/ModelSettingsOverlay.tsx
@@ -71,15 +77,15 @@ msgstr "Gestion de {0}"
 msgid "{0} is calling you"
 msgstr "{0} vous appelle"
 
-#. placeholder {0}: format(size / 1024)
-#: src/components/ArtifactFileCard.tsx
-msgid "{0} KB"
-msgstr "{0} Ko"
+#. placeholder {0}: updated.name
+#: src/pages/McpServersOverlay.tsx
+msgid "{0} is not working"
+msgstr "{0} ne fonctionne pas"
 
-#. placeholder {0}: format(size / (1024 * 1024))
-#: src/components/ArtifactFileCard.tsx
-msgid "{0} MB"
-msgstr "{0} Mo"
+#. placeholder {0}: updated.name
+#: src/pages/McpServersOverlay.tsx
+msgid "{0} is running"
+msgstr "{0} est en cours d’exécution"
 
 #. placeholder {0}: sender.name
 #: src/pages/ExternalConversationSettings.tsx
@@ -257,10 +263,6 @@ msgstr "{remaining} restant · le bot observe, il n'agit pas"
 msgid "{seats, plural, one {# seat} other {# seats}}"
 msgstr ""
 
-#: src/components/ArtifactFileCard.tsx
-msgid "{size} B"
-msgstr "{size} o"
-
 #: src/components/ToolActivityDisclosure.tsx
 msgid "{stepCount, plural, one {Done · # tool} other {Done · # tools}}"
 msgstr ""
@@ -309,6 +311,10 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "A subscription credential is stored securely."
 msgstr "Un identifiant d'abonnement est stocké de façon sécurisée."
+
+#: src/components/InfoTooltip.tsx
+msgid "About {label}"
+msgstr "À propos de {label}"
 
 #: src/pages/shell/bot-picker.tsx
 msgid "About groups"
@@ -377,9 +383,11 @@ msgid "Active model"
 msgstr "Modèle actif"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-rail.tsx
 msgid "Activity"
 msgstr "Activité"
 
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -399,9 +407,17 @@ msgstr "Ajoutez une commande à exécuter"
 msgid "Add a file or folder to watch"
 msgstr "Ajoutez un fichier ou dossier à surveiller"
 
+#: src/pages/Shell.tsx
+msgid "Add a message, or hit send"
+msgstr ""
+
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Add a model in Settings to use this."
 msgstr "Ajoutez un modèle dans les Paramètres pour utiliser cette fonctionnalité."
+
+#: src/components/PasskeyOffer.tsx
+msgid "Add a passkey for faster sign-in?"
+msgstr "Ajouter une clé d’accès pour vous connecter plus vite ?"
 
 #: src/pages/Shell.tsx
 msgid "Add a run time for this one-shot."
@@ -465,6 +481,11 @@ msgstr "Ajouter un serveur MCP"
 msgid "Add OpenAPI"
 msgstr "Ajouter OpenAPI"
 
+#: src/components/PasskeyOffer.tsx
+#: src/components/PasskeySettings.tsx
+msgid "Add passkey"
+msgstr "Ajouter une clé d’accès"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
 msgstr "Ajouter un serveur MCP distant"
@@ -476,6 +497,10 @@ msgstr "Ajouter un serveur"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Add server URL"
 msgstr "Ajouter une URL de serveur"
+
+#: src/pages/Shell.tsx
+msgid "Add to chat"
+msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
@@ -589,6 +614,10 @@ msgid "Always act"
 msgstr "Agir toujours"
 
 #: src/components/AskCard.tsx
+msgid "Always allow {site}"
+msgstr "Toujours autoriser {site}"
+
+#: src/components/AskCard.tsx
 msgid "Always allow this tool"
 msgstr "Toujours autoriser cet outil"
 
@@ -599,6 +628,10 @@ msgstr "Toujours autorisé"
 #: src/lib/model-connection-preflight.ts
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "Une clé API est enregistrée pour ce fournisseur, et non une connexion par abonnement."
+
+#: src/pages/memory-providers/HonchoSettingsForm.tsx
+msgid "An existing Honcho peer to read from. Rakazo never writes to it."
+msgstr "Un pair Honcho existant à consulter. Rakazo n’y écrit jamais."
 
 #: src/pages/RoutineEditor.tsx
 msgid "An integration tool"
@@ -760,6 +793,14 @@ msgstr "Échec de l'authentification."
 msgid "Authorization code or callback URL"
 msgstr "Code d'autorisation ou URL de rappel"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Authorization parameters (optional)"
+msgstr "Paramètres d'autorisation (optionnel)"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Authorization server"
+msgstr "Serveur d'autorisation"
+
 #: src/pages/shell/message-cards.tsx
 msgid "Authorization timed out. Please try again."
 msgstr "L'autorisation a expiré. Veuillez réessayer."
@@ -796,6 +837,7 @@ msgstr "Studio d'avatars"
 msgid "Avatars"
 msgstr "Avatars"
 
+#: src/pages/Auth.tsx
 #: src/pages/Board.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
@@ -857,11 +899,6 @@ msgstr ""
 msgid "Booting live desktop…"
 msgstr "Démarrage du bureau en direct…"
 
-#. placeholder {0}: computerBot?.name ?? active?.name
-#: src/pages/Shell.tsx
-msgid "Booting up {0}’s computer"
-msgstr "Démarrage de l'ordinateur de {0}"
-
 #: src/pages/Shell.tsx
 msgid "bot"
 msgstr "bot"
@@ -900,6 +937,7 @@ msgid "Bot's model"
 msgstr "Modèle du bot"
 
 #: src/pages/Artifacts.tsx
+#: src/pages/shell/bot-rail.tsx
 msgid "Bots"
 msgstr "Bots"
 
@@ -956,6 +994,7 @@ msgstr "Ne peut pas lire les images"
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/markdown-link-prompt.tsx
+#: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1063,9 +1102,17 @@ msgstr "Vérifiez l'URL du serveur et le réseau, puis testez à nouveau."
 msgid "Check your email"
 msgstr "Vérifiez votre e-mail"
 
+#: src/components/McpServerHealthLine.tsx
+msgid "Checked {checked}"
+msgstr "Vérifié {checked}"
+
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Checking computer setup…"
 msgstr ""
+
+#: src/components/McpServerHealthLine.tsx
+msgid "Checking connection…"
+msgstr "Vérification de la connexion…"
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
@@ -1077,10 +1124,6 @@ msgstr "Vérification en cours…"
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Checkout has local changes. Clean it before updating."
 msgstr "La copie de travail a des modifications locales. Nettoyez-la avant de mettre à jour."
-
-#: src/pages/shell/avatar-studio-popover.tsx
-msgid "Choose a bot shape, color, or upload an image"
-msgstr "Choisissez une forme, une couleur de bot, ou téléchargez une image"
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Choose a bot…"
@@ -1095,6 +1138,7 @@ msgid "Choose file"
 msgstr "Choisir un fichier"
 
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
 msgstr "Effacer"
@@ -1129,9 +1173,7 @@ msgstr "Secret client"
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
-#: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineEditor.tsx
-#: src/pages/shell/avatar-studio-popover.tsx
 #: src/pages/WindowChrome.tsx
 msgid "Close"
 msgstr "Fermer"
@@ -1205,6 +1247,11 @@ msgstr "Cloud"
 msgid "Code"
 msgstr "Code"
 
+#: src/pages/Auth.tsx
+msgctxt "email sign-in"
+msgid "Code"
+msgstr "Code"
+
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
 #: src/pages/Shell.tsx
@@ -1214,10 +1261,6 @@ msgstr "Réduire {0}"
 #: src/pages/Shell.tsx
 msgid "Collapse {label}"
 msgstr "Réduire {label}"
-
-#: src/pages/shell/avatar-studio-popover.tsx
-msgid "Color"
-msgstr "Couleur"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color {color}"
@@ -1334,6 +1377,7 @@ msgid "Connect API key"
 msgstr "Connecter la clé API"
 
 #: src/components/SidebarFooter.tsx
+#: src/pages/shell/bot-rail.tsx
 msgid "Connect apps"
 msgstr "Connecter des applications"
 
@@ -1400,6 +1444,7 @@ msgid "Context limit"
 msgstr "Limite de contexte"
 
 #: src/components/integrations/IntegrationSetup.tsx
+#: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "Continuer"
@@ -1504,6 +1549,8 @@ msgid "Could not connect to the computer screen"
 msgstr "Impossible de se connecter à l'écran de l'ordinateur"
 
 #: src/components/AccountAccess.tsx
+#: src/components/PasskeyOffer.tsx
+#: src/components/PasskeySettings.tsx
 #: src/lib/account-security.ts
 #: src/lib/sso-flow.ts
 #: src/lib/user-error.ts
@@ -1602,6 +1649,7 @@ msgid "Could not install connector"
 msgstr "Impossible d'installer le connecteur"
 
 #: src/components/ErrorBoundary.tsx
+#: src/components/PasskeySettings.tsx
 #: src/pages/KnowledgeSection.tsx
 msgid "Could not load"
 msgstr "Impossible de charger"
@@ -1702,6 +1750,8 @@ msgstr "Impossible de lire un extrait de test"
 msgid "Could not reach the model server."
 msgstr "Impossible de joindre le serveur du modèle."
 
+#: src/components/PasskeyOffer.tsx
+#: src/components/PasskeySettings.tsx
 #: src/lib/computer-sandbox.ts
 #: src/lib/user-error.ts
 #: src/pages/AccountSettingsOverlay.tsx
@@ -1839,6 +1889,10 @@ msgstr "Impossible de soumettre cette réponse"
 msgid "Could not take control"
 msgstr "Impossible de prendre le contrôle"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Could not test MCP server"
+msgstr "Impossible de tester le serveur MCP"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not update"
 msgstr "Impossible de mettre à jour"
@@ -1882,6 +1936,7 @@ msgstr ""
 #: src/pages/Board.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/bot-rail.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "Créer"
@@ -2023,6 +2078,7 @@ msgstr "Par défaut ({0})"
 msgid "Default scope"
 msgstr "Portée par défaut"
 
+#: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/BotContextMenu.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -2033,7 +2089,9 @@ msgstr "Portée par défaut"
 msgid "Delete"
 msgstr "Supprimer"
 
+#. placeholder {0}: passkeyLabel(deleting, t`Passkey`)
 #. placeholder {0}: pendingDelete.name
+#: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "Delete \"{0}\"?"
 msgstr "Supprimer « {0} » ?"
@@ -2076,6 +2134,7 @@ msgstr "Supprimer l'espace"
 msgid "deleted"
 msgstr "supprimé"
 
+#: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Deleting…"
@@ -2155,6 +2214,7 @@ msgstr "Déconnexion en cours…"
 
 #: src/components/AskCard.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/PasskeyOffer.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Dismiss"
@@ -2206,7 +2266,6 @@ msgstr "Vous n'avez pas de compte ?"
 
 #: src/lib/ticket-status.ts
 #: src/pages/ActivityList.tsx
-#: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "Terminé"
 
@@ -2250,6 +2309,10 @@ msgstr "Dupliquer"
 #: src/pages/shell/bot-panel.tsx
 msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
 msgstr "ex. Agent Hivenet, Préventes, bot de feuilles de temps"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Each name can be used once."
+msgstr "Chaque nom ne peut être utilisé qu’une fois."
 
 #: src/components/AskCard.tsx
 msgid "Edit"
@@ -2314,10 +2377,18 @@ msgstr "Saisissez un nombre entier de 1 à 1000 pour la limite d'images."
 msgid "Enter an API key before testing."
 msgstr "Saisissez une clé API avant de tester."
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Environment variables"
+msgstr "Variables d'environnement"
+
 #: src/lib/roster-status.ts
 #: src/pages/Shell.tsx
 msgid "Error"
 msgstr ""
+
+#: src/components/McpServerHealthLine.tsx
+msgid "Error details"
+msgstr "Détails de l’erreur"
 
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -2430,6 +2501,10 @@ msgstr "Champs indiquant un changement"
 msgid "Fields to compare, e.g. id, modifiedTime (optional)"
 msgstr "Champs à comparer, par ex. id, modifiedTime (facultatif)"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "File"
+msgstr "Fichier"
+
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders on the computer"
 msgstr "Fichiers ou dossiers de l’ordinateur"
@@ -2491,10 +2566,6 @@ msgstr "Finalisation de la connexion MCP…"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Flag unexpected actions"
 msgstr "Signaler les actions inattendues"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Fleet management"
-msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Follow System"
@@ -2710,6 +2781,10 @@ msgstr "Entrées"
 msgid "Install update"
 msgstr "Installer la mise à jour"
 
+#: src/components/McpServerHealthLine.tsx
+msgid "Installing…"
+msgstr "Installation…"
+
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 msgid "Instance API key"
 msgstr "Clé API de l'instance"
@@ -2756,6 +2831,10 @@ msgstr "Quantité de l'intervalle"
 msgid "Interval unit"
 msgstr "Unité de l'intervalle"
 
+#: src/lib/user-error.ts
+msgid "Invalid code"
+msgstr "Code non valide"
+
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Isolated"
@@ -2794,6 +2873,7 @@ msgid "key"
 msgstr "clé"
 
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/shell/bot-panel.tsx
 msgid "Knowledge"
 msgstr "Connaissances"
 
@@ -2818,10 +2898,6 @@ msgstr "Plus tard"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "Quitter"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Lets this bot organize, retune and schedule the bots it creates. You approve each change."
-msgstr "Permet à ce bot d’organiser, d’ajuster et de planifier les bots qu’il crée. Vous approuvez chaque modification."
 
 #: src/pages/Shell.tsx
 msgid "Library"
@@ -2980,6 +3056,10 @@ msgstr "Gérer les serveurs MCP"
 msgid "Manage messaging settings"
 msgstr "Gérer les paramètres de messagerie"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage the bots it creates"
+msgstr "Gérer les bots qu’il crée"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
 msgstr "Manuel"
@@ -3094,6 +3174,10 @@ msgstr "Zone de composition"
 msgid "Message event"
 msgstr "Événement de message"
 
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Message from {chip}"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Message from {peer}"
 msgstr "Message de {peer}"
@@ -3105,6 +3189,10 @@ msgstr "Message d’un autre agent"
 #: src/pages/Shell.tsx
 msgid "Message…"
 msgstr "Message…"
+
+#: src/components/ai/CollaborationMarker.tsx
+msgid "Messaged {chip}"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Messaged {peer}"
@@ -3244,6 +3332,7 @@ msgstr "Micro coupé"
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/Auth.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/bot-panel-header.tsx
@@ -3369,6 +3458,7 @@ msgid "No matching artifacts on this page."
 msgstr "Aucun artefact correspondant sur cette page."
 
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/shell/chat-model-picker.tsx
 msgid "No matching models"
 msgstr "Aucun modèle correspondant"
 
@@ -3445,6 +3535,10 @@ msgstr "Aucun pour le moment"
 msgid "Normal"
 msgstr ""
 
+#: src/components/McpServerHealthLine.tsx
+msgid "Not checked yet"
+msgstr "Pas encore vérifié"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Not connected"
 msgstr "Non connecté"
@@ -3456,6 +3550,10 @@ msgstr "Pas dans le catalogue de plugins"
 #: src/pages/shell/message-cards.tsx
 msgid "Not now"
 msgstr "Pas maintenant"
+
+#: src/components/McpServerHealthLine.tsx
+msgid "Not working"
+msgstr "Ne fonctionne pas"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Nothing is still running"
@@ -3481,6 +3579,14 @@ msgstr "Utilise maintenant {0}."
 #: src/pages/McpOAuthCallback.tsx
 msgid "OAuth authorization was cancelled."
 msgstr "L'autorisation OAuth a été annulée."
+
+#: src/pages/McpServersOverlay.tsx
+msgid "OAuth client ID (optional)"
+msgstr "ID client OAuth (optionnel)"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "OAuth client secret (optional)"
+msgstr "Secret client OAuth (optionnel)"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "OAuth connected"
@@ -3517,6 +3623,10 @@ msgstr "Ouvrir"
 #: src/pages/Shell.tsx
 msgid "Open {0}"
 msgstr "Ouvrir {0}"
+
+#: src/pages/shell/composer-attachments.tsx
+msgid "Open {name}"
+msgstr ""
 
 #. placeholder {0}: oauth.verificationUri.replace(/^https:\/\//, "")
 #: src/pages/ModelSettingsOverlay.tsx
@@ -3602,6 +3712,10 @@ msgstr "Organique"
 msgid "Organization API key"
 msgstr "Clé API de l'organisation"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval."
+msgstr "Organisez la barre latérale et modifiez les bots. Les modifications des groupes, instructions, modèles et routines nécessitent votre approbation."
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "Message d’origine indisponible"
@@ -3627,6 +3741,14 @@ msgstr "Incident PagerDuty"
 #: src/pages/ScratchpadSection.tsx
 msgid "Park"
 msgstr "Mettre en attente"
+
+#: src/components/PasskeySettings.tsx
+msgid "Passkey"
+msgstr "Clé d’accès"
+
+#: src/components/PasskeySettings.tsx
+msgid "Passkeys"
+msgstr "Clés d’accès"
 
 #: src/components/AskCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
@@ -3709,7 +3831,7 @@ msgstr "Épingler"
 
 #: src/pages/Shell.tsx
 msgid "Pinned"
-msgstr ""
+msgstr "Épinglés"
 
 #: src/components/ArtifactFileCard.tsx
 msgid "Play {name}"
@@ -3778,9 +3900,9 @@ msgstr "Demande de fusion"
 msgid "Queued"
 msgstr "En file d'attente"
 
-#: src/pages/Shell.tsx
-msgid "Quote"
-msgstr "Citer"
+#: src/pages/memory-providers/HonchoSettingsForm.tsx
+msgid "rakazo-shared and IDs starting with bot- are reserved for Rakazo."
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "React"
@@ -3880,6 +4002,10 @@ msgstr "Recréer un ordinateur qui ne fonctionne pas."
 msgid "Recreating the computer"
 msgstr "Recréation de l'ordinateur"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Redirect URI"
+msgstr "URI de redirection"
+
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -3915,17 +4041,13 @@ msgid "Reload"
 msgstr "Recharger"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove"
 msgstr "Retirer"
-
-#. placeholder {0}: attachment.file.name
-#: src/pages/Shell.tsx
-msgid "Remove {0}"
-msgstr "Retirer {0}"
 
 #. placeholder {0}: bot.name
 #: src/pages/GroupPanel.tsx
@@ -3935,6 +4057,10 @@ msgstr ""
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Remove {full}"
 msgstr "Supprimer {full}"
+
+#: src/pages/shell/composer-attachments.tsx
+msgid "Remove {name}"
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
@@ -3982,6 +4108,10 @@ msgstr "Retiré, mais l'actualisation de la liste a échoué"
 msgid "Removing…"
 msgstr "Retrait en cours…"
 
+#: src/components/PasskeySettings.tsx
+msgid "Rename"
+msgstr "Renommer"
+
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
@@ -4021,10 +4151,26 @@ msgstr "Répondre"
 msgid "Reply cancelled"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Reply to attachment…"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Reply to file…"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Reply…"
+msgstr ""
+
 #. placeholder {0}: replyNameRef.current
 #: src/pages/Shell.tsx
 msgid "Replying to {0}"
 msgstr ""
+
+#: src/lib/user-error.ts
+msgid "Request a new code"
+msgstr "Demandez un nouveau code"
 
 #: src/pages/shell/message-cards.tsx
 msgid "Research & writing"
@@ -4089,8 +4235,10 @@ msgid "Restoring your workspace"
 msgstr "Restauration de votre espace de travail"
 
 #: src/components/AccountAccess.tsx
+#: src/components/PasskeySettings.tsx
 #: src/pages/Auth.tsx
 #: src/pages/ModelBackupsSettings.tsx
+#: src/pages/PluginsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 msgid "Retry"
 msgstr "Réessayer"
@@ -4172,6 +4320,7 @@ msgstr "L'horaire d'exécution doit être dans le futur."
 msgid "running"
 msgstr "en cours"
 
+#: src/components/McpServerHealthLine.tsx
 #: src/pages/ActivityList.tsx
 msgid "Running"
 msgstr "En cours"
@@ -4189,6 +4338,7 @@ msgid "Runs when this bot receives a verified message from this provider."
 msgstr "S'exécute lorsque ce bot reçoit un message vérifié de ce fournisseur."
 
 #: src/components/AskCard.tsx
+#: src/components/PasskeySettings.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/Board.tsx
 #: src/pages/ExternalConversationSettings.tsx
@@ -4258,10 +4408,16 @@ msgstr "Enregistrement en cours…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Dites oui ou non, ou répondez en une phrase."
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Scopes (optional)"
+msgstr "Portées (facultatif)"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-picker.tsx
+#: src/pages/shell/bot-rail.tsx
+#: src/pages/shell/chat-model-picker.tsx
 #: src/pages/shell/command-palette.tsx
 msgid "Search"
 msgstr "Rechercher"
@@ -4292,6 +4448,8 @@ msgid "Search language"
 msgstr "Rechercher une langue"
 
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-model-picker.tsx
 msgid "Search models"
 msgstr "Rechercher des modèles"
 
@@ -4408,10 +4566,6 @@ msgstr "Paramètres : Utilisation"
 msgid "Setup help"
 msgstr "Aide à la configuration"
 
-#: src/pages/shell/avatar-studio-popover.tsx
-msgid "Shape"
-msgstr "Forme"
-
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -4434,6 +4588,7 @@ msgid "Show all"
 msgstr ""
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-rail.tsx
 msgid "Show bots"
 msgstr "Afficher les bots"
 
@@ -4442,6 +4597,7 @@ msgid "Show list"
 msgstr "Afficher la liste"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/ScratchpadSection.tsx
 msgid "Show more"
 msgstr "Afficher plus"
 
@@ -4478,10 +4634,11 @@ msgid "Sign in"
 msgstr "Se connecter"
 
 #: src/components/AccountAccess.tsx
+#: src/lib/passkeys.ts
 #: src/lib/user-error.ts
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Sign in again"
-msgstr ""
+msgstr "Se reconnecter"
 
 #: src/pages/Auth.tsx
 msgid "Sign in to Rakazo"
@@ -4490,6 +4647,10 @@ msgstr "Connectez-vous à Rakazo"
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "Connectez-vous à votre compte existant pour associer SSO"
+
+#: src/components/PasskeySignIn.tsx
+msgid "Sign in with passkey"
+msgstr "Se connecter avec une clé d’accès"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Sign in with the subscription, or test the API key instead."
@@ -4722,6 +4883,10 @@ msgstr "Tester"
 msgid "Test API key"
 msgstr "Tester la clé API"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Test connection"
+msgstr "Tester la connexion"
+
 #: src/pages/RoutineEditor.tsx
 msgid "Test run"
 msgstr "Exécution de test"
@@ -4731,6 +4896,7 @@ msgid "Test sign-in"
 msgstr "Tester la connexion"
 
 #: src/components/ModelConnectionPreflightNotice.tsx
+#: src/pages/McpServersOverlay.tsx
 msgid "Testing…"
 msgstr "Test en cours…"
 
@@ -4783,6 +4949,7 @@ msgstr "Ce bot s'exécute sur cet ordinateur, pas sur un bureau Linux. Le shell 
 msgid "This call is no longer ringing."
 msgstr "Cet appel ne sonne plus."
 
+#: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "This can't be undone."
 msgstr "Cette action est irréversible."
@@ -4971,6 +5138,7 @@ msgid "Type your answer"
 msgstr "Saisissez votre réponse"
 
 #: src/pages/BotContextMenu.tsx
+#: src/pages/Shell.tsx
 msgid "Unassigned"
 msgstr "Non assigné"
 
@@ -5098,6 +5266,10 @@ msgstr ""
 msgid "Use {hostLabel}"
 msgstr "Utiliser {hostLabel}"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Use {oauthEnvReference} for the access token."
+msgstr "Utilisez {oauthEnvReference} pour le jeton d'accès."
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Use a found model"
@@ -5110,6 +5282,14 @@ msgstr "Utilisez Connecter pour vérifier la clé."
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Use default guidance"
 msgstr "Utiliser les instructions par défaut"
+
+#: src/pages/Auth.tsx
+msgid "Use email code"
+msgstr "Utiliser un code par e-mail"
+
+#: src/pages/Auth.tsx
+msgid "Use password"
+msgstr "Utiliser un mot de passe"
 
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Use Protected input for passwords."
@@ -5127,6 +5307,10 @@ msgstr ""
 msgid "Use your own key"
 msgstr "Utiliser votre propre clé"
 
+#: src/pages/memory-providers/HonchoSettingsForm.tsx
+msgid "User peer"
+msgstr ""
+
 #: src/components/AskCard.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Username"
@@ -5136,9 +5320,10 @@ msgstr ""
 msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
 msgstr "Utilise les identifiants {hostCredentialSource} propres à ce serveur pour accéder à {selectedProviderName}."
 
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
-msgstr ""
+msgstr "Valeur"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Values are encrypted and never shown again."

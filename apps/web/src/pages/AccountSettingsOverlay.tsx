@@ -11,6 +11,7 @@ import { SuccessPop } from "../components/ai/primitives";
 import { ComputersUnavailableHint } from "../components/ComputersUnavailableHint";
 import { DesktopUpdateSection } from "../components/DesktopUpdates";
 import { ListboxSelect } from "../components/ListboxSelect";
+import { PasskeySettings } from "../components/PasskeySettings";
 import {
   SettingsCard,
   SettingsDescription,
@@ -171,6 +172,8 @@ export function GeneralSettingsPanels({
           </div>
         </AccountAccess>
       </SettingsGroup>
+
+      <PasskeySettings />
 
       <SettingsGroup label={<Trans>Appearance</Trans>}>
         <SettingsRow label={<Trans>Theme</Trans>}>

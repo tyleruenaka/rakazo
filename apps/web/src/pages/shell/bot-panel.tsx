@@ -10,14 +10,17 @@ import type {
   VoiceInfo,
 } from "@rakazo/contracts";
 import {
+  BOT_COMPUTER_MODES,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
   isBuiltinToolName,
 } from "@rakazo/contracts";
 import {
+  chatModelChoices,
   connectedModelChoices,
   credentialForModel,
+  MODEL_SEARCH_THRESHOLD,
   modelOptionKey,
   parseModelOptionKey,
   resolveSelectableModelId,
@@ -33,27 +36,30 @@ import {
   TooltipTrigger,
 } from "@rakazo/ui-web";
 import { Download, Eraser, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
+import { InfoTooltip } from "../../components/InfoTooltip";
 import { InstructionSettings } from "../../components/InstructionSettings";
 import { ListboxSelect } from "../../components/ListboxSelect";
 import { SettingsCard, SettingsGroup, SettingsRow } from "../../components/SettingsLayout";
 import { botProfilePatch } from "../../lib/bot-profile-patch";
 import { thinkingLevelLabel } from "../../lib/model-catalog";
+import { lazyComponent } from "../../lib/preload-recovery";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
 
-const ScratchpadSection = lazy(() =>
-  import("../ScratchpadSection").then((module) => ({ default: module.ScratchpadSection })),
+const ScratchpadSection = lazyComponent(() =>
+  import("../ScratchpadSection").then((module) => module.ScratchpadSection),
 );
 
-const KnowledgeSection = lazy(() =>
-  import("../KnowledgeSection").then((module) => ({ default: module.KnowledgeSection })),
+const KnowledgeSection = lazyComponent(() =>
+  import("../KnowledgeSection").then((module) => module.KnowledgeSection),
 );
 
-const fieldLabelClass = "mt-4 block text-[14px] text-muted-foreground";
+const rowLabelClass = "text-[14px] text-muted-foreground";
+const fieldLabelClass = `mt-4 block ${rowLabelClass}`;
 
 function ComputerModePicker({
   value,
@@ -72,7 +78,7 @@ function ComputerModePicker({
         <Trans>Computer</Trans>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        {(["team", "dedicated"] as const).map((mode) => (
+        {BOT_COMPUTER_MODES.map((mode) => (
           <Toggle
             key={mode}
             variant="outline"
@@ -323,6 +329,14 @@ export function BotSettings({
     ? modelOptionKey(selectedModel.provider, selectedModel.modelId)
     : "";
 
+  const modelChoices = chatModelChoices(
+    connectedOptions,
+    selectedModelKey,
+    me?.defaultModel
+      ? `${t`Space default`} (${catalogLabel(catalog, me.defaultProvider, me.defaultModel) ?? me.defaultModel})`
+      : t`Space default`,
+  );
+
   const effectiveProvider = selectedModel?.provider ?? me?.defaultProvider ?? null;
   const effectiveModelId = selectedModel?.modelId ?? me?.defaultModel ?? null;
   const effectiveEntry =
@@ -502,7 +516,7 @@ export function BotSettings({
           }}
         />
       </div>
-      <label htmlFor={`${ids}-name`} className="mt-4 block text-[13.5px] text-muted-foreground/80">
+      <label htmlFor={`${ids}-name`} className={fieldLabelClass}>
         <Trans>Name</Trans>
         <Input
           id={`${ids}-name`}
@@ -538,19 +552,18 @@ export function BotSettings({
         />
       </label>
       <div className="mt-6 flex items-center justify-between pt-4 border-t border-border/20">
-        <div className="space-y-0.5 pe-4">
+        <div className="flex items-center gap-1 pe-4">
           <div id={`${ids}-notify-finish-label`} className="text-[14px] text-muted-foreground">
             <Trans>Notifications</Trans>
           </div>
-          <div id={`${ids}-notify-finish-desc`} className="text-[12px] text-muted-foreground/70">
-            <Trans>Get notified when this Bot finishes or needs input</Trans>
-          </div>
+          <InfoTooltip label={t`Notifications`}>
+            {t`Get notified when this Bot finishes or needs input`}
+          </InfoTooltip>
         </div>
         <Switch
           id={`${ids}-notify-finish`}
           checked={notifyOnFinish}
           aria-labelledby={`${ids}-notify-finish-label`}
-          aria-describedby={`${ids}-notify-finish-desc`}
           onCheckedChange={(checked) => {
             setNotifyOnFinish(checked);
             void enqueueSave({ notifyOnFinish: checked });
@@ -573,33 +586,41 @@ export function BotSettings({
           </span>
         </summary>
         <div className="mt-4 space-y-7">
+          <InstructionSettings key={bot.id} bot={bot} />
           <SettingsCard>
+            <SettingsRow label={<Trans>Computer</Trans>}>
+              <ListboxSelect
+                label={t`Computer`}
+                options={BOT_COMPUTER_MODES.map((mode) => ({
+                  value: mode,
+                  label: mode === "team" ? t`Team` : t`Private`,
+                }))}
+                value={computerMode}
+                onChange={setComputerMode}
+              />
+            </SettingsRow>
             <SettingsRow label={<Trans>Model</Trans>}>
               <ListboxSelect
                 label={t`Model`}
-                options={[
-                  {
-                    value: "",
-                    label: me?.defaultModel
-                      ? `${t`Space default`} (${catalogLabel(catalog, me.defaultProvider, me.defaultModel) ?? me.defaultModel})`
-                      : t`Space default`,
-                  },
-                  ...(selectedModelKey &&
-                  !connectedOptions.some((option) => option.key === selectedModelKey)
-                    ? [
-                        {
-                          value: selectedModelKey,
-                          label: selectedModel?.modelId ?? selectedModelKey,
-                        },
-                      ]
-                    : []),
-                  ...connectedOptions.map((option) => ({ value: option.key, label: option.label })),
-                ]}
+                options={modelChoices.map((choice) => ({
+                  value: choice.key,
+                  label: choice.label,
+                  detail: choice.detail,
+                }))}
                 value={selectedModelKey}
                 onChange={(next) => {
                   setModelKey(next);
                   setThinkingLevel("");
                 }}
+                search={
+                  modelChoices.length > MODEL_SEARCH_THRESHOLD
+                    ? {
+                        placeholder: t`Search models`,
+                        clearLabel: t`Clear`,
+                        className: "w-[320px]",
+                      }
+                    : undefined
+                }
               />
             </SettingsRow>
             {thinkingOptions.length ? (
@@ -621,64 +642,6 @@ export function BotSettings({
                 />
               </SettingsRow>
             ) : null}
-          </SettingsCard>
-          <SettingsCard>
-            {voices.length ? (
-              <SettingsRow label={<Trans>Voice</Trans>}>
-                <ListboxSelect
-                  label={t`Voice`}
-                  options={[
-                    { value: "", label: t`Account default` },
-                    ...voices.map((voice) => ({ value: voice.id, label: voice.label })),
-                  ]}
-                  value={voiceId}
-                  onChange={setVoiceId}
-                />
-              </SettingsRow>
-            ) : null}
-            <SettingsRow label={<Trans>Read replies aloud</Trans>} htmlFor={`${ids}-auto-speak`}>
-              <Switch
-                id={`${ids}-auto-speak`}
-                checked={autoSpeak}
-                onCheckedChange={(checked) => setAutoSpeak(checked)}
-              />
-            </SettingsRow>
-          </SettingsCard>
-          <SettingsCard>
-            <SettingsRow label={<Trans>Computer</Trans>}>
-              <ListboxSelect
-                label={t`Computer`}
-                options={[
-                  { value: "team", label: t`Team` },
-                  { value: "dedicated", label: t`Private` },
-                ]}
-                value={computerMode}
-                onChange={setComputerMode}
-              />
-            </SettingsRow>
-            <SettingsRow
-              label={<Trans>Fleet management</Trans>}
-              htmlFor={`${ids}-fleet-management`}
-              description={
-                <Trans>
-                  Lets this bot organize, retune and schedule the bots it creates. You approve each
-                  change.
-                </Trans>
-              }
-            >
-              <Switch
-                id={`${ids}-fleet-management`}
-                checked={fleetManagement}
-                disabled={saving}
-                onCheckedChange={(checked) => {
-                  setFleetManagement(checked);
-                  void enqueueSave({ fleetManagement: checked });
-                }}
-              />
-            </SettingsRow>
-          </SettingsCard>
-          <InstructionSettings key={bot.id} bot={bot} />
-          <SettingsGroup label={<Trans>Knowledge</Trans>}>
             {memoryProviderConfigured ? (
               <SettingsRow label={<Trans>Memory scope</Trans>}>
                 <ListboxSelect
@@ -693,19 +656,65 @@ export function BotSettings({
                 />
               </SettingsRow>
             ) : null}
-            {advancedOpened ? (
-              <ErrorBoundary fallback={<SectionLoadFailed />}>
-                <Suspense fallback={null}>
-                  <KnowledgeSection botId={bot.id} onSkillsChange={onSkillsChange} />
-                </Suspense>
-              </ErrorBoundary>
+          </SettingsCard>
+          <SettingsCard>
+            <SettingsRow label={<Trans>Read replies aloud</Trans>} htmlFor={`${ids}-auto-speak`}>
+              <Switch
+                id={`${ids}-auto-speak`}
+                checked={autoSpeak}
+                onCheckedChange={(checked) => setAutoSpeak(checked)}
+              />
+            </SettingsRow>
+            {voices.length ? (
+              <SettingsRow label={<Trans>Voice</Trans>}>
+                <ListboxSelect
+                  label={t`Voice`}
+                  options={[
+                    { value: "", label: t`Account default` },
+                    ...voices.map((voice) => ({ value: voice.id, label: voice.label })),
+                  ]}
+                  value={voiceId}
+                  onChange={setVoiceId}
+                />
+              </SettingsRow>
             ) : null}
-          </SettingsGroup>
+            <SettingsRow
+              label={
+                <span className="flex items-center gap-1">
+                  <label htmlFor={`${ids}-fleet-management`}>
+                    <Trans>Manage the bots it creates</Trans>
+                  </label>
+                  <InfoTooltip label={t`Manage the bots it creates`}>
+                    {t`Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.`}
+                  </InfoTooltip>
+                </span>
+              }
+            >
+              <Switch
+                id={`${ids}-fleet-management`}
+                checked={fleetManagement}
+                disabled={saving}
+                onCheckedChange={(checked) => {
+                  setFleetManagement(checked);
+                  void enqueueSave({ fleetManagement: checked });
+                }}
+              />
+            </SettingsRow>
+          </SettingsCard>
           <ErrorBoundary fallback={<SectionLoadFailed />}>
             <Suspense fallback={null}>
               <ScratchpadSection botId={bot.id} />
             </Suspense>
           </ErrorBoundary>
+          {advancedOpened ? (
+            <SettingsGroup label={<Trans>Knowledge</Trans>}>
+              <ErrorBoundary fallback={<SectionLoadFailed />}>
+                <Suspense fallback={null}>
+                  <KnowledgeSection botId={bot.id} onSkillsChange={onSkillsChange} />
+                </Suspense>
+              </ErrorBoundary>
+            </SettingsGroup>
+          ) : null}
           <SettingsGroup
             label={
               <label htmlFor={`${ids}-disabled-tools`}>

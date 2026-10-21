@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useSidebarUpdate } from "./DesktopUpdates";
+import { IconTooltip } from "./IconTooltip";
 
 type Props = {
   name: string;
@@ -150,16 +151,17 @@ export function SidebarUpdateButton({ className }: { className?: string }) {
   const update = useSidebarUpdate();
   if (!update.available) return null;
   return (
-    <Button
-      size="icon-lg"
-      className={cn("rounded-full", className)}
-      aria-label={t`Install update`}
-      title={t`Install update`}
-      disabled={update.busy}
-      onClick={update.install}
-    >
-      <Download aria-hidden="true" />
-    </Button>
+    <IconTooltip label={t`Install update`}>
+      <Button
+        size="icon-lg"
+        className={cn("rounded-full", className)}
+        aria-label={t`Install update`}
+        disabled={update.busy}
+        onClick={update.install}
+      >
+        <Download aria-hidden="true" />
+      </Button>
+    </IconTooltip>
   );
 }
 

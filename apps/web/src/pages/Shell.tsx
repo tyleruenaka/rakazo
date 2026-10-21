@@ -36,10 +36,12 @@ import type { ComposerMention, FoldedTranscript, SlashActionId } from "@rakazo/c
 import {
   accountDisplay,
   answerableAskMessageIds,
+  anySignal,
   attachmentsForThread,
   buildComposerMentionOptions,
   clampMentionHighlightIndex,
   cronFromPreset,
+  dismissableAskMessageIds,
   expandPeerReplies,
   foldPeerReplies,
   groupVoiceChats,
@@ -47,6 +49,7 @@ import {
   isActive,
   isPeerReceiptBlocks,
   isRunTerminalEvent,
+  isRunWorking,
   isToolActivityBlock,
   MODEL_REQUIRED_SEND_ERROR,
   mentionChipKey,
@@ -92,6 +95,7 @@ import {
   PopoverTrigger,
   parseBotAvatar,
   resolvePersonaColorDef,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
@@ -177,6 +181,7 @@ import {
 } from "../components/composer/HoldToTalk";
 import { lazyOverlay } from "../components/ErrorBoundary";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
+import { PasskeyOffer } from "../components/PasskeyOffer";
 import { AccountMenu, SidebarFooter, SidebarUpdateButton } from "../components/SidebarFooter";
 import {
   LIVE_TOOL_STEP_WINDOW,
@@ -233,6 +238,7 @@ import {
   subscribeComposerEnterToSend,
 } from "../lib/composer-enter-to-send-pref";
 import {
+  bootComputerOnce,
   embeddableScreenUrl,
   loadComputerScreen,
   screenIframeSandbox,
@@ -308,6 +314,7 @@ import {
   transcriptMovedDown,
 } from "../lib/transcript-scroll";
 import { speaker } from "../lib/tts";
+import { useDesktopBadge } from "../lib/use-desktop-badge";
 import { errorText } from "../lib/user-error";
 import { ActivityList } from "./ActivityList";
 import type { ContextMenuPosition } from "./BotContextMenu";
@@ -361,7 +368,7 @@ import { pinnedRosterLayout, rosterReorderStep } from "./shell/pinned-roster";
 import { PinnedTile, PinnedTileGrid } from "./shell/pinned-tile";
 import type { RosterDropTarget } from "./shell/roster-drop";
 import { resolveRosterDrop } from "./shell/roster-drop";
-import { commitSpaceRename, sidebarGroupsForSpaces } from "./shell/space-sidebar";
+import { commitSpaceRename, countUnreadChats, sidebarGroupsForSpaces } from "./shell/space-sidebar";
 import { WindowChrome } from "./WindowChrome";
 
 const BotContextMenu = lazyOverlay(() =>
@@ -419,7 +426,7 @@ const COMPOSER_ONE_LINE_GAP_PX = 14;
 const COMPOSER_COLLAPSE_SLACK_PX = 16;
 
 function threadSnapshotSignal(parent: AbortSignal): AbortSignal {
-  return AbortSignal.any([parent, AbortSignal.timeout(THREAD_SNAPSHOT_TIMEOUT_MS)]);
+  return anySignal([parent, AbortSignal.timeout(THREAD_SNAPSHOT_TIMEOUT_MS)]);
 }
 
 function voiceStatusRefreshTimeout(): Promise<never> {
@@ -798,7 +805,7 @@ function SpaceShell() {
   const [renameSpaceTarget, setRenameSpaceTarget] = useState<Space | null>(null);
   const [spaceMenu, setSpaceMenu] = useState<{
     id: string;
-    position: ContextMenuPosition;
+    position: { x: number; y: number };
   } | null>(null);
   const spaceMenuAnchor = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -836,7 +843,10 @@ function SpaceShell() {
     sectionMenuAnchor.current = null;
   }, [sectionMenu]);
   const closeSectionMenu = useCallback(() => setSectionMenu(null), []);
-  const [booting, setBooting] = useState(false);
+  // The bot whose boot shows progress, and every bot whose boot request is still out.
+  const [bootingBotId, setBootingBotId] = useState<string | null>(null);
+  const booting = bootingBotId !== null && bootingBotId === computer?.botId;
+  const bootsInFlight = useRef(new Map<string, symbol>());
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
@@ -904,6 +914,8 @@ function SpaceShell() {
   // Screen-load failures can sit beside a still-valid embed URL; boot and
   // takeover failures must stay visible even when a URL remains.
   const [computerErrorFromScreen, setComputerErrorFromScreen] = useState(false);
+  const computerErrorFromScreenRef = useRef(false);
+  computerErrorFromScreenRef.current = computerErrorFromScreen;
   useEffect(() => {
     if (!computerOpen) {
       setComputerViewport(null);
@@ -1313,8 +1325,11 @@ function SpaceShell() {
         computerVisible.current,
       commit: (screen) => {
         setScreenUrl(screen.url);
-        setComputerError(screen.error);
-        setComputerErrorFromScreen(Boolean(screen.error));
+        // A screen read replaces only its own error; a failed boot keeps its error and Retry.
+        if (screen.error || computerErrorFromScreenRef.current) {
+          setComputerError(screen.error);
+          setComputerErrorFromScreen(Boolean(screen.error));
+        }
         cacheComputerFor(id, { screenUrl: screen.url });
       },
       fallbackError: t`Could not connect to the computer screen`,
@@ -1780,14 +1795,30 @@ function SpaceShell() {
     [bootstrapMe, botSections, bots, groups, spaces],
   );
   const sidebarGroups = useMemo(
-    () => sidebarGroupsForSpaces(sidebarSpaces, query),
-    [sidebarSpaces, query],
+    () =>
+      sidebarGroupsForSpaces(sidebarSpaces, query, {
+        pinned: t`Pinned`,
+        unassigned: t`Unassigned`,
+      }),
+    [sidebarSpaces, query, t],
   );
   // The rail has no search field, so it lists every chat.
   const railChats = useMemo(
-    () => railGroups(sidebarGroupsForSpaces(sidebarSpaces, "")),
+    () =>
+      railGroups(
+        sidebarGroupsForSpaces(sidebarSpaces, "", {
+          pinned: t`Pinned`,
+          unassigned: t`Unassigned`,
+        }),
+      ),
+    [sidebarSpaces, t],
+  );
+  // The Dock badge ignores the roster search box: a filter must not hide unread chats.
+  const unreadChatCount = useMemo(
+    () => countUnreadChats(sidebarGroupsForSpaces(sidebarSpaces, "")),
     [sidebarSpaces],
   );
+  useDesktopBadge(userId ? unreadChatCount : 0);
 
   const spaceSwitchRequest = useRef(0);
   useEffect(
@@ -2145,9 +2176,11 @@ function SpaceShell() {
   const liveSnapshot = threadStale ? null : activeSnapshot;
   const currentRuns = activeThreadRuns(liveSnapshot);
   const answerableAskIds = useMemo(() => answerableAskMessageIds(liveSnapshot), [liveSnapshot]);
-  const workingRuns = currentRuns.filter((run) =>
-    ["running", "queued", "leased"].includes(run.status),
+  const dismissableAskIds = useMemo(
+    () => dismissableAskMessageIds(liveSnapshot, userId),
+    [liveSnapshot, userId],
   );
+  const workingRuns = currentRuns.filter((run) => isRunWorking(run.status));
   const transcriptRunning = workingRuns.length > 0;
   const composerRunning = currentRuns.some((run) => isActive(run.status));
   const runError = threadRunError(liveSnapshot, dismissedRunErrorIds);
@@ -2259,9 +2292,11 @@ function SpaceShell() {
     ).then((lists) => {
       if (!cancelled) setMentionRoutines(lists.flat());
     });
+    // The catalog call reconciles connection rows, so list them after it.
+    const catalogRequest = rpc.connections.catalog({}).catch(() => null);
     void Promise.all([
-      rpc.connections.list().catch(() => null),
-      rpc.connections.catalog({}).catch(() => null),
+      catalogRequest.then(() => rpc.connections.list().catch(() => null)),
+      catalogRequest,
     ]).then(([connections, catalog]) => {
       if (cancelled) return;
       const connected = connections?.filter((row) => row.status === "connected") ?? [];
@@ -2357,7 +2392,7 @@ function SpaceShell() {
     if (botId) void jumpToMessageRef.current({ botId, messageId }).catch(() => undefined);
   }, []);
   const answerMessage = useCallback(
-    async (message: ThreadMessage, text: string, username?: string) => {
+    async (message: ThreadMessage, text: string, username?: string, dismiss?: boolean) => {
       const botId = activeBotId.current;
       const groupId = activeGroupId.current;
       if (!botId && !groupId) return;
@@ -2367,12 +2402,16 @@ function SpaceShell() {
         messageId: message.id,
         answer: text,
         ...(username ? { username } : {}),
+        ...(dismiss ? { dismiss: true as const } : {}),
       });
-      if (groupId && activeGroupId.current === groupId) {
-        await refreshGroupThreadRef.current(groupId);
-      } else if (botId && activeBotId.current === botId) {
-        await refreshThreadRef.current(botId);
-      }
+      // The answer is saved; live events can reconcile a failed refresh.
+      try {
+        if (groupId && activeGroupId.current === groupId) {
+          await refreshGroupThreadRef.current(groupId);
+        } else if (botId && activeBotId.current === botId) {
+          await refreshThreadRef.current(botId);
+        }
+      } catch {}
     },
     [],
   );
@@ -2860,12 +2899,12 @@ function SpaceShell() {
   async function bootComputer({
     botId: targetBotId,
     takeControl,
-    overlay,
+    showProgress,
     force = false,
   }: {
     botId: string;
     takeControl: boolean;
-    overlay: boolean;
+    showProgress: boolean;
     force?: boolean;
   }) {
     const epoch = ++computerBootEpoch.current;
@@ -2876,15 +2915,19 @@ function SpaceShell() {
     const targetComputer = computer?.botId === targetBotId ? computer : (cached?.computer ?? null);
     const targetScreen = computer?.botId === targetBotId ? screenUrl : (cached?.screenUrl ?? null);
     const needsBoot = force || targetComputer?.state !== "running" || !targetScreen;
-    if (overlay && needsBoot) setBooting(true);
+    if (showProgress && needsBoot) setBootingBotId(targetBotId);
     setComputerError(null);
     setComputerErrorFromScreen(false);
     try {
       if (needsBoot) {
-        const status = await rpc.computer.boot({ botId: targetBotId });
+        const status = await bootComputerOnce(bootsInFlight.current, targetBotId, () =>
+          rpc.computer.boot({ botId: targetBotId }),
+        );
         if (!stillThisBoot() || !stillThisBot()) return;
-        commitComputer(status);
-        cacheComputerFor(targetBotId, { computer: status });
+        if (status) {
+          commitComputer(status);
+          cacheComputerFor(targetBotId, { computer: status });
+        }
       }
       if (takeControl) {
         await rpc.computer.takeover({ botId: targetBotId });
@@ -2897,7 +2940,7 @@ function SpaceShell() {
       setComputerErrorFromScreen(false);
       throw error;
     } finally {
-      if (stillThisBoot()) setBooting(false);
+      if (stillThisBoot()) setBootingBotId(null);
     }
   }
 
@@ -2935,7 +2978,7 @@ function SpaceShell() {
       await bootComputer({
         botId,
         takeControl: false,
-        overlay: false,
+        showProgress: false,
         force: true,
       }).catch(() => undefined);
     })();
@@ -3099,15 +3142,18 @@ function SpaceShell() {
       commitComputer(targetComputer);
       setScreenUrl(targetScreen);
     }
+    // Reopening during a boot shows it; a second boot would be refused as busy.
+    const bootInFlight = bootsInFlight.current.has(id) || targetComputer?.state === "booting";
     setComputerOpen(true);
     computerVisible.current = true;
+    if (bootInFlight && !takeControl) return true;
     const needsTakeover = takeControl && !userHoldsComputerControl(targetComputer, id);
     const blocked = computerTakeoverBlocked(targetComputer, snapshot?.run?.status);
     try {
       await bootComputer({
         botId: id,
         takeControl: needsTakeover && !blocked,
-        overlay: (needsTakeover && !blocked) || targetComputer?.state !== "running",
+        showProgress: (needsTakeover && !blocked) || targetComputer?.state !== "running",
         force: targetComputer?.state !== "running",
       });
       return true;
@@ -3153,18 +3199,45 @@ function SpaceShell() {
   const embeddedScreenUrl = embeddableScreenUrl(screenUrl);
   const hasControl = userHoldsComputerControl(computer, computerBot?.id);
   const hideScreenLoadError = computerErrorFromScreen && Boolean(embeddedScreenUrl);
-  const computerScreenError =
-    computerError && !hideScreenLoadError ? (
-      <div role="alert" className="flex flex-col items-center gap-3 px-6 text-center text-sm">
-        <p className="text-destructive">{computerError}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => computerBot && void refreshComputerScreen(computerBot.id)}
-        >
-          <Trans>Retry screen</Trans>
-        </Button>
-      </div>
+  const computerFailure =
+    computerError && !hideScreenLoadError
+      ? computerError
+      : !booting && computer?.state === "error"
+        ? t`Computer failed to boot`
+        : null;
+  const computerScreenError = computerFailure ? (
+    <div role="alert" className="flex flex-col items-center gap-3 px-6 text-center text-sm">
+      <p className="text-destructive">{computerFailure}</p>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          if (!computerBot) return;
+          if (computer?.state === "running") {
+            // An explicit retry clears any error; background screen reads clear only their own.
+            setComputerError(null);
+            setComputerErrorFromScreen(false);
+            void refreshComputerScreen(computerBot.id);
+          } else
+            void bootComputer({
+              botId: computerBot.id,
+              takeControl: false,
+              showProgress: true,
+              force: true,
+            }).catch(() => undefined);
+        }}
+      >
+        <Trans>Retry screen</Trans>
+      </Button>
+    </div>
+  ) : null;
+  // Booting shows inline with the screen's own Close; leaving it lets the boot finish.
+  const computerBooting =
+    booting || computer?.state === "booting" ? (
+      <span className="flex flex-col items-center gap-3">
+        <Spinner aria-hidden className="size-5 motion-reduce:animate-none" />
+        {t`Booting live desktop…`}
+      </span>
     ) : null;
   const computerPreviewScreen =
     !computerOpen &&
@@ -3332,6 +3405,112 @@ function SpaceShell() {
     />
   );
 
+  const botMenuContent =
+    contextChat && botMenu ? (
+      <BotContextMenu
+        bot={contextChat}
+        position={botMenu.position}
+        onClose={closeBotMenu}
+        sections={botSections}
+        onTogglePinned={() => {
+          setBotMenu(null);
+          const request = contextBot
+            ? rpc.bots.update({ botId: contextBot.id, pinned: !contextBot.pinned })
+            : rpc.groups.update({
+                groupId: contextGroup!.id,
+                pinned: !contextGroup!.pinned,
+              });
+          void request.then(() => refreshBots());
+        }}
+        onToggleUnread={() => {
+          const unread = !contextChat.unread;
+          setBotMenu(null);
+          if (contextBot) {
+            const request = unread ? markBotUnread(contextBot.id) : markBotRead(contextBot.id);
+            void request.catch(() => undefined);
+          } else {
+            const request = unread
+              ? rpc.threads.markUnread({ groupId: contextGroup!.id })
+              : rpc.threads.markRead({ groupId: contextGroup!.id });
+            void request
+              .then(() =>
+                setGroups((current) =>
+                  current.map((group) =>
+                    group.id === contextGroup!.id ? { ...group, unread } : group,
+                  ),
+                ),
+              )
+              .catch(() => undefined);
+          }
+        }}
+        onMoveToSection={(sectionId) => {
+          setBotMenu(null);
+          if (sectionId === contextChat.sectionId) return;
+          const request = contextBot
+            ? rpc.bots.update({ botId: contextBot.id, sectionId })
+            : rpc.groups.update({ groupId: contextGroup!.id, sectionId });
+          void request.then(() => refreshBots());
+        }}
+        onCreateSection={() => {
+          setNewSectionTarget(
+            contextBot ? { kind: "bot", chat: contextBot } : { kind: "group", chat: contextGroup! },
+          );
+          setBotMenu(null);
+        }}
+        onRenameSection={(sectionId) => {
+          const section = botSections.find((item) => item.id === sectionId);
+          const spaceId = bootstrapMe?.spaceId;
+          if (section && spaceId) setRenameSectionTarget({ section, spaceId });
+          setBotMenu(null);
+        }}
+        onEdit={() => {
+          const destKey =
+            userId && bootstrapMe?.spaceId
+              ? rightPanelStorageKey(
+                  userId,
+                  bootstrapMe.spaceId,
+                  contextBot ? "bot" : "group",
+                  contextChat.id,
+                )
+              : null;
+          explicitPanelTarget.current = destKey;
+          pendingPanelRestore.current = null;
+          navigate(contextBot ? `/app/${contextBot.id}` : `/app/g/${contextGroup!.id}`);
+          // Mark the destination key restored so we do not write settings onto the source chat.
+          setPanelState(contextBot ? "settings" : "group-settings");
+          setRestoredPanelKey(destKey);
+          setBotMenu(null);
+        }}
+        onDuplicate={() => {
+          setBotMenu(null);
+          const request = contextBot
+            ? rpc.bots.duplicate({ botId: contextBot.id })
+            : rpc.groups.duplicate({ groupId: contextGroup!.id });
+          void request.then(async (chat) => {
+            await refreshBots();
+            navigate(contextBot ? `/app/${chat.id}` : `/app/g/${chat.id}`);
+          });
+        }}
+        onClear={() => {
+          setClearTarget(
+            contextBot ? { kind: "bot", chat: contextBot } : { kind: "group", chat: contextGroup! },
+          );
+          setBotMenu(null);
+        }}
+        onArchive={() => {
+          setBotMenu(null);
+          const request = contextBot
+            ? rpc.bots.archive({ botId: contextBot.id })
+            : rpc.groups.archive({ groupId: contextGroup!.id });
+          void request.then(() => refreshBots(true));
+        }}
+        onDelete={() => {
+          if (contextBot) setDeleteTarget(contextBot);
+          else setDeleteGroupTarget(contextGroup!);
+          setBotMenu(null);
+        }}
+      />
+    ) : null;
   const shell = (
     <div
       data-testid="shell-root"
@@ -3387,14 +3566,17 @@ function SpaceShell() {
       {bootstrapMe !== undefined ? (
         <HostComputerPrompt initialMe={bootstrapMe ?? undefined} onMeUpdated={setBootstrapMe} />
       ) : null}
-      {mobileSidebarOpen ? (
-        <button
-          type="button"
-          aria-label={t`Close navigation`}
-          onClick={() => setMobileSidebarOpen(false)}
-          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),295px)] z-30 bg-overlay md:hidden"
-        />
-      ) : null}
+      <button
+        type="button"
+        aria-label={t`Close navigation`}
+        aria-hidden={mobileSidebarOpen ? undefined : true}
+        inert={mobileSidebarOpen ? undefined : true}
+        tabIndex={mobileSidebarOpen ? undefined : -1}
+        onClick={() => setMobileSidebarOpen(false)}
+        className={`absolute inset-y-0 end-0 start-[min(calc(100%-48px),295px)] z-30 bg-overlay transition-opacity duration-150 ease-out motion-reduce:transition-none md:hidden ${
+          mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
       <aside
         data-testid="bots-sidebar"
         data-space-switch="sidebar"
@@ -3402,7 +3584,9 @@ function SpaceShell() {
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
         // Grok's column: 88 <-> 295 in 0.2s; the rail covers it from 130px down.
         className={`@container/sidebar absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[295px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:relative md:z-auto md:translate-x-0 md:overflow-hidden md:duration-200 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
+          mobileSidebarOpen
+            ? "translate-x-0"
+            : "max-md:-translate-x-full max-md:rtl:translate-x-full"
         } ${botsSidebarCollapsed ? "md:w-[88px]" : "md:w-[295px]"}`}
       >
         <div
@@ -4027,8 +4211,8 @@ function SpaceShell() {
                 </span>
                 <span>{archivedBots.length + archivedGroups.length}</span>
               </button>
-              {archivedOpen ? (
-                <>
+              <Collapsible open={archivedOpen} className="contents">
+                <CollapsibleContent className="flex flex-col">
                   {archivedBots.map((bot) => (
                     <div key={bot.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2">
                       <BotAvatar
@@ -4094,11 +4278,13 @@ function SpaceShell() {
                       </Button>
                     </div>
                   ))}
-                </>
-              ) : null}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           ) : null}
         </div>
+        {/* The collapsed rail has no room for the offer; it returns with the full sidebar. */}
+        {sidebarActive ? <PasskeyOffer /> : null}
         <SidebarFooter
           logos={footerLogos}
           {...accountMenuProps}
@@ -4145,7 +4331,7 @@ function SpaceShell() {
       </aside>
 
       {/* The full-screen computer covers the sidebar, so its edge must not catch clicks there. */}
-      {computerOpen || booting ? null : (
+      {computerOpen ? null : (
         <button
           type="button"
           data-testid="bots-sidebar-edge"
@@ -4331,6 +4517,7 @@ function SpaceShell() {
             olderCursor={activeSnapshot?.olderCursor ?? null}
             loadingOlder={loadingOlder}
             answerableAskIds={answerableAskIds}
+            dismissableAskIds={dismissableAskIds}
             running={transcriptRunning}
             workingBots={workingBots}
             onCallBack={
@@ -4898,116 +5085,7 @@ function SpaceShell() {
       </ResizableSidePanel>
 
       <Suspense fallback={null}>
-        {contextChat && botMenu ? (
-          <BotContextMenu
-            bot={contextChat}
-            position={botMenu.position}
-            onClose={closeBotMenu}
-            sections={botSections}
-            onTogglePinned={() => {
-              setBotMenu(null);
-              const request = contextBot
-                ? rpc.bots.update({ botId: contextBot.id, pinned: !contextBot.pinned })
-                : rpc.groups.update({
-                    groupId: contextGroup!.id,
-                    pinned: !contextGroup!.pinned,
-                  });
-              void request.then(() => refreshBots());
-            }}
-            onToggleUnread={() => {
-              const unread = !contextChat.unread;
-              setBotMenu(null);
-              if (contextBot) {
-                const request = unread ? markBotUnread(contextBot.id) : markBotRead(contextBot.id);
-                void request.catch(() => undefined);
-              } else {
-                const request = unread
-                  ? rpc.threads.markUnread({ groupId: contextGroup!.id })
-                  : rpc.threads.markRead({ groupId: contextGroup!.id });
-                void request
-                  .then(() =>
-                    setGroups((current) =>
-                      current.map((group) =>
-                        group.id === contextGroup!.id ? { ...group, unread } : group,
-                      ),
-                    ),
-                  )
-                  .catch(() => undefined);
-              }
-            }}
-            onMoveToSection={(sectionId) => {
-              setBotMenu(null);
-              if (sectionId === contextChat.sectionId) return;
-              const request = contextBot
-                ? rpc.bots.update({ botId: contextBot.id, sectionId })
-                : rpc.groups.update({ groupId: contextGroup!.id, sectionId });
-              void request.then(() => refreshBots());
-            }}
-            onCreateSection={() => {
-              setNewSectionTarget(
-                contextBot
-                  ? { kind: "bot", chat: contextBot }
-                  : { kind: "group", chat: contextGroup! },
-              );
-              setBotMenu(null);
-            }}
-            onRenameSection={(sectionId) => {
-              const section = botSections.find((item) => item.id === sectionId);
-              const spaceId = bootstrapMe?.spaceId;
-              if (section && spaceId) setRenameSectionTarget({ section, spaceId });
-              setBotMenu(null);
-            }}
-            onEdit={() => {
-              const destKey =
-                userId && bootstrapMe?.spaceId
-                  ? rightPanelStorageKey(
-                      userId,
-                      bootstrapMe.spaceId,
-                      contextBot ? "bot" : "group",
-                      contextChat.id,
-                    )
-                  : null;
-              explicitPanelTarget.current = destKey;
-              pendingPanelRestore.current = null;
-              navigate(contextBot ? `/app/${contextBot.id}` : `/app/g/${contextGroup!.id}`);
-              // Mark the destination key restored so we do not write settings onto the source chat.
-              setPanelState(contextBot ? "settings" : "group-settings");
-              setRestoredPanelKey(destKey);
-              setBotMenu(null);
-            }}
-            onDuplicate={() => {
-              setBotMenu(null);
-              const request = contextBot
-                ? rpc.bots.duplicate({ botId: contextBot.id })
-                : rpc.groups.duplicate({ groupId: contextGroup!.id });
-              void request.then(async (chat) => {
-                await refreshBots();
-                navigate(contextBot ? `/app/${chat.id}` : `/app/g/${chat.id}`);
-              });
-            }}
-            onClear={() => {
-              setClearTarget(
-                contextBot
-                  ? { kind: "bot", chat: contextBot }
-                  : { kind: "group", chat: contextGroup! },
-              );
-              setBotMenu(null);
-            }}
-            onArchive={() => {
-              setBotMenu(null);
-              const request = contextBot
-                ? rpc.bots.archive({ botId: contextBot.id })
-                : rpc.groups.archive({ groupId: contextGroup!.id });
-              void request.then(() => refreshBots(true));
-            }}
-            onDelete={() => {
-              if (contextBot) setDeleteTarget(contextBot);
-              else setDeleteGroupTarget(contextGroup!);
-              setBotMenu(null);
-            }}
-          />
-        ) : null}
-
+        {botMenuContent}
         {spaceMenu ? (
           <DropdownMenu
             open
@@ -5401,16 +5479,7 @@ function SpaceShell() {
         ) : null}
       </Suspense>
 
-      {booting ? (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[22px] bg-background/95">
-          <div className="text-[19px] font-medium text-foreground">
-            <Trans>Booting up {computerBot?.name ?? active?.name}’s computer</Trans>
-          </div>
-          <div className="h-[5px] w-[min(420px,70%)] overflow-hidden rounded-full bg-accent">
-            <div className="h-full w-2/3 rounded-full bg-primary" />
-          </div>
-        </div>
-      ) : computerOpen && computerBot ? (
+      {computerOpen && computerBot ? (
         <div className="fixed inset-0 z-30 bg-computer-backdrop">
           <div
             data-testid="computer-viewport"
@@ -5492,6 +5561,7 @@ function SpaceShell() {
                   ) : (
                     <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80">
                       {computerScreenError ??
+                        computerBooting ??
                         (computer?.state === "suspended"
                           ? t`Computer is asleep`
                           : computerLabel(computer?.mode, computerBot.name))}
@@ -5626,6 +5696,7 @@ const Transcript = memo(function Transcript({
   olderCursor,
   loadingOlder,
   answerableAskIds,
+  dismissableAskIds,
   running,
   workingBots,
   onCallBack,
@@ -5658,13 +5729,19 @@ const Transcript = memo(function Transcript({
   olderCursor: number | null;
   loadingOlder: boolean;
   answerableAskIds: Set<string>;
+  dismissableAskIds: Set<string>;
   running: boolean;
   workingBots: GroupAvatarMember[];
   /** Calls the bot back from a missed call in the transcript. */
   onCallBack?: () => void;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
-  onAnswer: (message: ThreadMessage, text: string, username?: string) => Promise<void>;
+  onAnswer: (
+    message: ThreadMessage,
+    text: string,
+    username?: string,
+    dismiss?: boolean,
+  ) => Promise<void>;
   onReply: (message: ThreadMessage) => void;
   onQuote: (message: ThreadMessage, quote: string) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
@@ -6081,6 +6158,7 @@ const Transcript = memo(function Transcript({
                         artifactTarget={artifactTarget}
                         message={message}
                         canAnswer={answerableAskIds.has(message.id)}
+                        canDismiss={dismissableAskIds.has(message.id)}
                         onOpenBot={onOpenBot}
                         onOpenPeerMessages={onOpenPeerMessages}
                         peerReplies={
@@ -6855,7 +6933,7 @@ export const Composer = memo(function Composer({
           ref={runErrorRef}
           role="alert"
           data-testid="composer-error"
-          className="mb-3 flex items-center gap-2 rounded-[14px] border border-destructive/40 bg-background bg-linear-to-r from-destructive/10 to-destructive/10 px-4 py-2 text-[13px] text-destructive"
+          className="mb-3 flex items-center gap-2 rounded-[14px] border border-destructive/40 bg-background bg-linear-to-r from-destructive/10 to-destructive/10 px-4 py-2 text-[13px] text-destructive animate-in fade-in-0 slide-in-from-bottom-1 duration-150 motion-reduce:animate-none"
         >
           <div className="min-w-0 flex-1">
             {sendError === MODEL_REQUIRED_SEND_ERROR ? (
@@ -6922,7 +7000,10 @@ export const Composer = memo(function Composer({
             role="listbox"
             aria-label={t`Mentions`}
             data-testid="mention-picker"
-            className={composerMenuClass}
+            className={cn(
+              composerMenuClass,
+              "animate-in fade-in-0 slide-in-from-bottom-1 duration-150 motion-reduce:animate-none",
+            )}
           >
             {mentionOptions.map((mention, index) => {
               const optionId = `${mentionListboxId}-option-${index}`;
@@ -7588,6 +7669,7 @@ export function ComputerControlPill({
 const MessageView = memo(function MessageView({
   artifactTarget,
   canAnswer,
+  canDismiss,
   message,
   onAnswer,
   onOpenBot,
@@ -7613,8 +7695,14 @@ const MessageView = memo(function MessageView({
 }: {
   artifactTarget: ArtifactTarget;
   canAnswer: boolean;
+  canDismiss: boolean;
   message: ThreadMessage;
-  onAnswer: (message: ThreadMessage, text: string, username?: string) => Promise<void>;
+  onAnswer: (
+    message: ThreadMessage,
+    text: string,
+    username?: string,
+    dismiss?: boolean,
+  ) => Promise<void>;
   onOpenBot: (botId: string) => void;
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   /** Set on a received marker whose peer run has folded replies. */
@@ -8080,7 +8168,9 @@ const MessageView = memo(function MessageView({
                 key={i}
                 block={block}
                 canAnswer={canAnswer}
+                canDismiss={canDismiss}
                 onAnswer={(text, username) => onAnswer(message, text, username)}
+                onDismiss={() => onAnswer(message, "", undefined, true)}
               />
             );
           }

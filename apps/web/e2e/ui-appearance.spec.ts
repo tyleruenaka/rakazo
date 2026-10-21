@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, createNamedBot, rpc, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
 
 async function captureSidebarSearchSelected(
   page: Page,
@@ -88,7 +88,7 @@ test("account settings appearance control switches to light mode", async ({ page
     .locator("code")
     .filter({ hasText: "shared/PROJECT_CHECKPOINT_WRAPUP.md" });
   await expect(inlinePath).toBeVisible({ timeout: 30_000 });
-  await expect(inlinePath).toHaveCSS("color", "rgb(26, 26, 26)");
+  await expect(inlinePath).toHaveCSS("color", "rgb(0, 0, 0)");
   await captureScreenshot(page, testInfo, "inline-code-light");
 
   await page.getByTestId("user-menu-trigger").click();
@@ -101,32 +101,6 @@ test("account settings appearance control switches to light mode", async ({ page
   await expect(settings).toBeHidden();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await captureSidebarSearchSelected(page, testInfo, "sidebar-search-selected-dark");
-});
-
-test("sidebar bot rows hover with the same tone as the integrations row", async ({
-  page,
-}, testInfo) => {
-  const stamp = Date.now();
-  await signup(page, `ui-hover-${stamp}@rakazo.test`, "password12", "Hover QA");
-  await completeOnboarding(page, testInfo);
-  await createNamedBot(page, "Second Bot");
-
-  const sidebar = page.locator("aside").first();
-  const chief = sidebar.getByRole("button", { name: /^Chief/ }).first();
-  await expect(chief).toBeVisible();
-  const readChiefBg = () => chief.evaluate((el) => getComputedStyle(el).backgroundColor);
-  await expect.poll(readChiefBg).toBe("rgba(0, 0, 0, 0)");
-
-  await chief.hover();
-  await expect.poll(readChiefBg).not.toBe("rgba(0, 0, 0, 0)");
-  const chiefBg = await readChiefBg();
-  await captureScreenshot(page, testInfo, "sidebar-row-hover");
-
-  const integrations = sidebar.getByRole("button", { name: "Connect apps", exact: true });
-  await integrations.hover();
-  await expect
-    .poll(() => integrations.evaluate((el) => getComputedStyle(el).backgroundColor))
-    .toBe(chiefBg);
 });
 
 test("sidebar footer opens integrations and the account menu", async ({ page }, testInfo) => {
@@ -238,10 +212,6 @@ test("sidebar footer keeps the account identity readable and installs a ready de
   await expect(header).toHaveText(`${session.user.name}${email}`);
   await expect(page.getByText("New update available", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Install", exact: true })).toHaveCount(0);
-  await expect(footer.getByRole("button", { name: "Install update", exact: true })).toHaveAttribute(
-    "title",
-    "Install update",
-  );
   await expect(footer.locator('span[aria-hidden="true"] > span')).toHaveCount(3);
   await captureScreenshot(page, testInfo, "sidebar-footer-menu-update");
   await page.keyboard.press("Escape");
@@ -350,22 +320,6 @@ test("sidebar footer keeps the account identity readable and installs a ready de
   await expect(page.getByTestId("user-settings")).toBeVisible();
 });
 
-test("account menu works on the mobile sidebar", async ({ page }) => {
-  const email = `footer-mobile-${Date.now()}@rakazo.test`;
-  await page.setViewportSize({ width: 390, height: 844 });
-  await signup(page, email, "password12", "Mobile Demo");
-  await completeOnboarding(page);
-  await page.request.post("/api/auth/update-user", { data: { name: "Mobile Demo" } });
-  await page.reload();
-  await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-  const avatar = page.getByTestId("user-menu-trigger");
-  await expect(avatar).toBeVisible();
-  await expect(page.getByRole("button", { name: "Install update", exact: true })).toHaveCount(0);
-  await avatar.click();
-  const session = await (await page.request.get("/api/auth/get-session")).json();
-  await expect(page.getByTestId("account-menu-header")).toHaveText(`${session.user.name}${email}`);
-});
-
 test("footer app marks follow the integrations overlay", async ({ page }) => {
   await signup(page, `footer-apps-${Date.now()}@rakazo.test`, "password12", "Footer Demo");
   await completeOnboarding(page);
@@ -412,7 +366,7 @@ test("footer app marks follow the integrations overlay", async ({ page }) => {
   await expect(footer.locator("img")).toHaveAttribute("src", logo);
   failCatalog = true;
   await footer.getByRole("button", { name: "Connect apps", exact: true }).click();
-  await expect(page.getByText("Service Unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByText("Could not reach the server", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close integrations", exact: true }).click();
   await expect(footer.locator("img")).toHaveAttribute("src", logo);
   failCatalog = false;

@@ -42,6 +42,9 @@ export type ColorTokens = {
   controlOpenBorder: string;
   /** Icon in a round outlined header button, a step softer than text. */
   controlIcon: string;
+  /** Fill and hairline where native Liquid Glass is unavailable (Android, iOS before 26). */
+  glassFill: string;
+  glassStroke: string;
   primary: string;
   primaryForeground: string;
   /** Disabled filled button. */
@@ -50,6 +53,7 @@ export type ColorTokens = {
   secondary: string;
   secondaryForeground: string;
   chatUser: string;
+  /** White in both themes: the user bubble is a solid fill (light grey in dark, near-black in light). */
   chatUserForeground: string;
   /** Composer placeholder. */
   chatPlaceholder: string;
@@ -104,9 +108,14 @@ export type ColorTokens = {
   markdownMarker: string;
   muted: string;
   mutedForeground: string;
+  /** Tertiary text: placeholders, list markers, quote bars, timestamps. */
+  faintForeground: string;
   accent: string;
   accentForeground: string;
+  /** Destructive text and outlines. */
   destructive: string;
+  /** Solid destructive fill (Hang up, a filled Delete); its text is `destructiveForeground`. */
+  destructiveFill: string;
   destructiveForeground: string;
   border: string;
   input: string;
@@ -143,7 +152,7 @@ export type ColorTokens = {
   replyRing: string;
   replyHover: string;
   link: string;
-  /** Backing behind a link's site icon. White in both themes so dark logos stay visible. */
+  /** Backing behind a link's site icon. White in both themes so dark logos stay visible on any bubble. */
   faviconPlate: string;
   success: string;
   warning: string;
@@ -176,6 +185,8 @@ export const darkTokens = {
   description: "#ACACAC",
   popover: "#1F1F1F",
   popoverForeground: "#F5F5F5",
+  glassFill: "#2C2C2E",
+  glassStroke: "#FCFCFC26",
   popoverBorder: "#353535",
   popoverAccent: "#2B2B2B",
   paletteHighlight: "#303030",
@@ -222,9 +233,11 @@ export const darkTokens = {
   markdownMarker: "#919191",
   muted: "#1B1B1B",
   mutedForeground: "#A8A8A8",
+  faintForeground: "#939393",
   accent: "#242424",
   accentForeground: "#F5F5F5",
   destructive: "#FF6464",
+  destructiveFill: "#E5484D",
   destructiveForeground: "#FFFFFF",
   border: "#2A2A2A",
   input: "#2C2C2C",
@@ -249,11 +262,11 @@ export const darkTokens = {
   replyForeground: "rgba(245, 245, 245, 0.66)",
   replyRing: "rgba(255, 255, 255, 0.1)",
   replyHover: "rgba(255, 255, 255, 0.038)",
-  link: "#3B82F6",
+  link: "#3D84F7",
   faviconPlate: "#FFFFFF",
   success: "#4ECB71",
   warning: "#E9C46A",
-  statusWorking: "#3B82F6",
+  statusWorking: "#3D84F7",
   unread: "#4D9BFF",
   avatarWhite: "#FFFFFF",
   avatarGrey: "#777777",
@@ -277,6 +290,8 @@ export const lightTokens = {
   description: "#767676",
   popover: "#FFFFFF",
   popoverForeground: "#1C1C1C",
+  glassFill: "#FFFFFF",
+  glassStroke: "#14141416",
   popoverBorder: "#E3E3E3",
   popoverAccent: "#F2F2F2",
   paletteHighlight: "#EDEDED",
@@ -323,9 +338,11 @@ export const lightTokens = {
   markdownMarker: "#797979",
   muted: "#EFEFEF",
   mutedForeground: "#646464",
+  faintForeground: "#808080",
   accent: "#E9E9E9",
   accentForeground: "#1C1C1C",
   destructive: "#DC2626",
+  destructiveFill: "#E5484D",
   destructiveForeground: "#FFFFFF",
   border: "#E3E3E3",
   input: "#EDEDED",
@@ -352,7 +369,7 @@ export const lightTokens = {
   replyHover: "rgba(28, 28, 28, 0.059)",
   link: "#2563EB",
   faviconPlate: "#FFFFFF",
-  success: "#228B3B",
+  success: "#208437",
   warning: "#B7791F",
   statusWorking: "#2563EB",
   unread: "#086ED3",
@@ -369,6 +386,28 @@ export const lightTokens = {
 export const tokens = darkTokens;
 
 export const RADIUS = "0.75rem";
+
+export const fontWeight = { regular: "400", medium: "500", semibold: "600" } as const;
+
+/**
+ * Native text styles on the system font, in points: iOS body text is 17/22. Titles use the
+ * font's own line spacing, written out so they don't inherit a smaller body line height.
+ */
+export const typeScale = {
+  title: { fontSize: 22, lineHeight: 26, fontWeight: fontWeight.semibold },
+  headline: { fontSize: 19, lineHeight: 23, fontWeight: fontWeight.semibold },
+  cardTitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.medium },
+  body: { fontSize: 17, lineHeight: 22 },
+  secondary: { fontSize: 15, lineHeight: 19 },
+  caption: { fontSize: 14, lineHeight: 18 },
+  footnote: { fontSize: 12, lineHeight: 16 },
+} as const;
+
+/**
+ * Text grows with the iOS text size until body text reaches 23pt, the xxxLarge size. Larger
+ * accessibility sizes keep that size, so message bubbles, rows and cards keep their layout.
+ */
+export const MAX_FONT_SCALE = 23 / typeScale.body.fontSize;
 
 export const botColors = [
   "#3EC5A8",

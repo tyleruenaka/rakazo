@@ -64,6 +64,13 @@ vi.mock("@rakazo/ui-web", async (importOriginal) => ({
       {children}
     </button>
   ),
+  ToggleGroup: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  ToggleGroupItem: ({ children }: { children?: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  OptionSelect: ({ "data-testid": testId }: { "data-testid"?: string }) => (
+    <div data-testid={testId} />
+  ),
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
 }));
 
@@ -115,7 +122,7 @@ import { localTimezone } from "../lib/local-timezone";
 import { getRemoteImagesEnabled } from "../lib/remote-images-preference";
 import { TOOL_ACTIVITY_STORAGE_KEY } from "../lib/tool-activity-preference";
 import { setUiAppearance } from "../lib/ui-appearance";
-import { GeneralSettingsPanels } from "./AccountSettingsOverlay";
+import { GeneralSettingsPanels, UsageSettingsPanel } from "./AccountSettingsOverlay";
 
 afterEach(() => {
   localStorage.clear();
@@ -341,6 +348,26 @@ it("keeps the saved zone on the timezone trigger and offers this device's zone f
   } finally {
     await act(async () => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([
+  [201, "2 runs · 201 tokens"],
+  [null, "2 runs · — tokens"],
+])("shows usage totals (%s)", async (totalTokens, expected) => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <UsageSettingsPanel usage={{ runs: 2, inputTokens: 10, outputTokens: 1, totalTokens }} />,
+      ),
+    );
+    expect(container.textContent).toContain(expected);
+  } finally {
+    await act(async () => root.unmount());
     vi.unstubAllGlobals();
   }
 });

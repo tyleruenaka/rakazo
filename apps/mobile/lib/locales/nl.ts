@@ -1,4 +1,13 @@
 export const NL_MESSAGES: Record<string, string> = {
+  "To:": "Aan:",
+  Next: "Volgende",
+  "Ex: Project Falcon": "Bijv. Project Falcon",
+  "Search bots": "Bots zoeken",
+  "About {label}": "Over {label}",
+  "Manage the bots it creates": "De bots beheren die deze bot maakt",
+  "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
+    "Orden de zijbalk en bewerk bots. Wijzigingen aan groepen, instructies, modellen en routines vereisen je goedkeuring.",
+
   Resets: "Resetdatum",
   Limit: "Limiet",
   "Provider message": "Bericht van aanbieder",
@@ -21,8 +30,6 @@ export const NL_MESSAGES: Record<string, string> = {
   "Update from {name}": "Update van {name}",
   "{name} asked: {text}": "{name} vraagt: {text}",
   "{name} asked": "{name} vraagt",
-  "Lets this bot organize, retune and schedule the bots it creates. You approve each change.":
-    "Laat deze bot de bots organiseren, afstemmen en plannen die hij zelf maakt. Jij keurt elke wijziging goed.",
   "Too many attempts. Try again in a few minutes.":
     "Te veel pogingen. Probeer het over een paar minuten opnieuw.",
   "The server had a problem. Try again in a moment.":
@@ -112,6 +119,10 @@ export const NL_MESSAGES: Record<string, string> = {
   "Already have an account?": "Heb je al een account?",
   "Back to sign in": "Terug naar aanmelden",
   "Check your email": "Controleer je e-mail",
+  "Use password": "Wachtwoord gebruiken",
+  "Use email code": "E-mailcode gebruiken",
+  "Invalid code": "Ongeldige code",
+  "Request a new code": "Vraag een nieuwe code aan",
   "Checking…": "Bezig met controleren…",
   "Custom server": "Eigen server",
   "Custom server {host}": "Eigen server {host}",
@@ -327,9 +338,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Group not found": "Groep niet gevonden",
   Members: "Leden",
   "Could not create group": "Groep aanmaken mislukt",
-  "Create group": "Groep aanmaken",
   "Creating…": "Bezig met aanmaken…",
-  "Name this group": "Geef deze groep een naam",
   "Could not create space": "Space aanmaken mislukt",
   "Create space": "Space aanmaken",
   "Customer support": "Klantenservice",
@@ -352,7 +361,6 @@ export const NL_MESSAGES: Record<string, string> = {
   Profile: "Profiel",
   Routines: "Routines",
   "Could not load routines": "Routines laden mislukt",
-  "Booting {label}": "{label} opstarten",
   Bot: "Bot",
   "Close computer": "Computer sluiten",
   "Computer keyboard": "Computertoetsenbord",
@@ -629,6 +637,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Save section name": "Sectienaam opslaan",
   "Section name": "Sectienaam",
   "Silence notifications": "Meldingen dempen",
+  Pinned: "Vastgezet",
   Unassigned: "Niet toegewezen",
   Unpin: "Vastzetten opheffen",
   "Could not update computer": "Computer bijwerken mislukt",
@@ -725,6 +734,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Use an http or https URL": "Gebruik een http- of https-URL",
   "Android blocked notifications.": "Android heeft meldingen geblokkeerd.",
   "Could not reach the server": "De server is niet bereikbaar",
+  "Request timed out": "Time-out bij verzoek",
   "Enter a password": "Voer een wachtwoord in",
   "Enter a valid email": "Voer een geldig e-mailadres in",
   "Something went wrong. Try again.": "Er is iets misgegaan. Probeer het opnieuw.",
@@ -750,6 +760,7 @@ export const NL_MESSAGES: Record<string, string> = {
     "Er is een aanmeldpagina geopend — voer daar deze code in:",
   "All providers": "Alle aanbieders",
   Copied: "Gekopieerd",
+  "Copy code": "Code kopiëren",
   "Could not disconnect this provider": "Deze aanbieder loskoppelen mislukt",
   "Default ({level})": "Standaard ({level})",
   "Disconnected {provider}.": "{provider} losgekoppeld.",
@@ -851,7 +862,6 @@ export const NL_MESSAGES: Record<string, string> = {
   "Remove photo": "Foto verwijderen",
   Shape: "Vorm",
   "Shape {number}": "Vorm {number}",
-  "Fleet management": "Vlootbeheer",
   "Try again": "Opnieuw proberen",
   "Your session expired": "Je sessie is verlopen",
   "The server had a problem": "Er is een probleem met de server",
@@ -879,4 +889,13 @@ export const NL_MESSAGES: Record<string, string> = {
     "Het antwoord van deze bot stopte bij de maandlimiet van zijn sleutel. Je eigen sleutel heeft eigen limieten.",
   "This bot's reply stopped at its key's usage limit. Your own key has its own limits.":
     "Het antwoord van deze bot stopte bij de gebruikslimiet van zijn sleutel. Je eigen sleutel heeft eigen limieten.",
+  "Sign in with passkey": "Aanmelden met passkey",
+  Passkeys: "Passkeys",
+  Passkey: "Passkey",
+  "Add passkey": "Passkey toevoegen",
+  Rename: "Naam wijzigen",
+  "Add a passkey for faster sign-in?": "Passkey toevoegen om sneller aan te melden?",
+  "Couldn't start the computer": "De computer kon niet worden gestart",
+  "Something went wrong while it was starting. Try again in a moment.":
+    "Er ging iets mis tijdens het opstarten. Probeer het over een moment opnieuw.",
 };

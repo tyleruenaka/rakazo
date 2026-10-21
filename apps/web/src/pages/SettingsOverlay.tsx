@@ -295,7 +295,10 @@ export function SettingsOverlay({
           </nav>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[32.5px] sm:ps-[40.5px]">
+            <div
+              data-testid="settings-header"
+              className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[32.5px] sm:ps-[40.5px]"
+            >
               <DialogTitle className="shrink-0 text-[16px] leading-6 font-semibold text-foreground">
                 {sectionTitle}
               </DialogTitle>
@@ -331,6 +334,7 @@ export function SettingsOverlay({
             <SpaceRpcProvider spaceId={spaceId}>
               <div
                 key={spaceId ?? "selected"}
+                data-testid="settings-scroll"
                 className={`min-h-0 flex-1 ${
                   section === "models" || section === "voice" || section === "memory"
                     ? "flex flex-col overflow-hidden"

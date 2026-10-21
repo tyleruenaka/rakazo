@@ -7,6 +7,7 @@ import type {
   ConnectorProvider,
   JobPublisher,
   ManagedConnectorProvider,
+  MessagingInboundEvent,
   MessagingSurface,
   NotificationProvider,
   RealtimeFanout,
@@ -79,15 +80,23 @@ import type { Actor, AuthCapabilities } from "@rakazo/contracts";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
 import type { Pool, PrismaClient } from "@rakazo/db";
 import {
+  contentEncryptionOf,
   createBoardEvents,
   createDb,
   createPool,
+  createSecurityEventPruner,
   createThreadEvents,
+  describeRowSecurity,
   IsolationError,
+  installSecurityEventStore,
   parsePositiveInteger,
   provisionMessagingIdentity,
   pushSessionExpiresAt,
   requireMembership,
+  rowSecurityWarning,
+  runAsSystem,
+  securityEventRetentionDays,
+  verifyContentKeys,
 } from "@rakazo/db";
 import type { Logger } from "@rakazo/logging";
 import {
@@ -101,9 +110,18 @@ import { requestLogging } from "@rakazo/logging/hono";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { mountAppAssociation, nativePasskeys } from "./app-association.js";
 import { storeInboundAttachment } from "./artifacts.js";
 import { createBillingService } from "./billing.js";
 import { mountBillingRoutes } from "./billing-webhook.js";
+import {
+  clientIpMiddleware,
+  createClientIpResolver,
+  defaultTrustedProxies,
+  requestClientIp,
+  withClientIp,
+} from "./client-ip.js";
+import { cspReportRoutes } from "./csp-report.js";
 import { mountDiagramScript } from "./diagram-script.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
@@ -120,6 +138,7 @@ import { monitoringRoutes } from "./monitoring.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
+import { createAuthResponseAudit } from "./security-audit.js";
 import { isDeferredReservationLost, TeamChatBridge } from "./team-chat-bridge.js";
 import { ModelTeamChatEngagementJudge } from "./team-chat-judge.js";
 import {
@@ -161,25 +180,32 @@ export interface AppHandles {
   stop: () => Promise<void>;
 }
 
-export async function createApp(
-  overrides: Partial<AppEnv> & {
-    prisma?: PrismaClient;
-    realtime?: RealtimeFanout;
-    sandbox?: SandboxProvider;
-    composio?: ComposioProvider;
-    /** Test-only connector providers registered beside the configured ones. */
-    connectors?: ConnectorProvider[];
-    pipedream?: ManagedConnectorProvider;
-    messaging?: MessagingSurface;
-    email?: TransactionalEmailProvider;
-    notifications?: NotificationProvider;
-    billing?: BillingProvider;
-    remoteConnectors?: RemoteConnectorDependencies;
-    logger?: Logger;
-    runtime?: AgentRuntime;
-    contextStrategy?: AgentContextStrategy;
-  } = {},
-): Promise<AppHandles> {
+// Startup and everything it schedules (pollers, team chat, the in-memory job
+// queue, retries) runs across tenants. Requests start without a context and get
+// one per route: tenant for signed-in procedures, system for auth and webhooks.
+export function createApp(overrides: CreateAppOverrides = {}): Promise<AppHandles> {
+  return runAsSystem("api startup and background work", () => buildApp(overrides));
+}
+
+type CreateAppOverrides = Partial<AppEnv> & {
+  prisma?: PrismaClient;
+  realtime?: RealtimeFanout;
+  sandbox?: SandboxProvider;
+  composio?: ComposioProvider;
+  /** Test-only connector providers registered beside the configured ones. */
+  connectors?: ConnectorProvider[];
+  pipedream?: ManagedConnectorProvider;
+  messaging?: MessagingSurface;
+  email?: TransactionalEmailProvider;
+  notifications?: NotificationProvider;
+  billing?: BillingProvider;
+  remoteConnectors?: RemoteConnectorDependencies;
+  logger?: Logger;
+  runtime?: AgentRuntime;
+  contextStrategy?: AgentContextStrategy;
+};
+
+async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   const {
     prisma: prismaOverride,
     realtime: realtimeOverride,
@@ -207,6 +233,15 @@ export async function createApp(
         applicationName: "rakazo-api",
       });
   let { prisma } = created;
+  // Built before anything listens, so a bad TRUSTED_PROXIES entry stops startup.
+  const clientIp = createClientIpResolver({
+    // Unset trusts the proxies a stack is built with: on loopback or on the API's own networks.
+    // Trusting none would make the web proxy every client, one sign-in rate-limit bucket for all.
+    trustedProxies: env.trustedProxies.length > 0 ? env.trustedProxies : defaultTrustedProxies(),
+    header: env.clientIpHeader,
+  });
+  const rowSecurity = rowSecurityWarning(await describeRowSecurity(prisma));
+  if (rowSecurity) logger.warn(rowSecurity);
   const realtime =
     realtimeOverride ??
     (created.pool
@@ -220,6 +255,12 @@ export async function createApp(
   if (secrets.describe().capabilities.degraded)
     logger.warn("Secret storage degraded; encrypted credentials remain available");
   prisma = withSecretPersistence(prisma, secrets);
+  installSecurityEventStore(prisma);
+  const unreadableMasterKeys = await verifyContentKeys(prisma);
+  if (unreadableMasterKeys.length)
+    logger.error("Stored space keys need master keys that are not configured", undefined, {
+      masterKeyIds: unreadableMasterKeys,
+    });
   const analytics = createProductAnalytics();
   const events = createThreadEvents(prisma, realtime, {
     analytics,
@@ -317,7 +358,7 @@ export async function createApp(
   const memoryProviders = new SpaceMemoryProviderResolver(prisma, secrets);
   const oauthLogins = new PiOAuthLogins();
   const home = new LocalAgentHomeStore(env.dataDir);
-  const artifacts = new LocalArtifactStore(env.dataDir);
+  const artifacts = new LocalArtifactStore(env.dataDir, contentEncryptionOf(prisma)?.ring);
   const memory = new MarkdownMemoryStore(prisma);
   const mcp = new McpConnector(
     prisma,
@@ -325,6 +366,7 @@ export async function createApp(
     {
       stdioEnabled: env.mcpStdioEnabled,
       allowedCommands: env.mcpStdioAllowedCommands,
+      ...env.mcpStdio,
       network: remoteConnectors,
       events,
       allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
@@ -380,7 +422,7 @@ export async function createApp(
     composio:
       composioOverride ??
       (isComposioEnabled(env.composioApiKey)
-        ? new ComposioConnector(env.composioApiKey)
+        ? new ComposioConnector({ apiKey: env.composioApiKey })
         : undefined),
     pipedream,
   });
@@ -428,6 +470,7 @@ export async function createApp(
     },
     onEmailError: (error) => getLogger().error("transactional email delivery failed", error),
     extraOrigins: MOBILE_AUTH_ORIGINS,
+    androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
     beforeDeleteUser: async (userId) => {
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);
@@ -469,6 +512,9 @@ export async function createApp(
       );
     },
   });
+  const oauthTokenUpgrade = auth
+    .encryptStoredOAuthTokens()
+    .catch((error) => getLogger().error("oauth token encryption upgrade failed", error));
   // One provider instance so emulator launches and polls share the same Map.
   const cloudAgent = createCloudAgentConnection({
     CLOUD_AGENT_PROVIDER: env.cloudAgentProvider,
@@ -557,6 +603,10 @@ export async function createApp(
         notifications,
         reconcileCloudAgents: () => reconcileCloudAgents({ prisma, jobs, cloudAgent }),
         reconcileComputerUpdates: () => reconcileComputerUpdates({ prisma, jobs }),
+        reconcileSecurityEventRetention: createSecurityEventPruner(
+          prisma,
+          securityEventRetentionDays(),
+        ),
       })
     : undefined;
   reconciler?.start();
@@ -579,6 +629,7 @@ export async function createApp(
     oauthLogins,
     integrationSettings,
     mcpOAuth,
+    mcp,
     composio: stack.composio,
     connectors: stack.connector,
     remoteConnectors,
@@ -618,6 +669,7 @@ export async function createApp(
   });
   const app = new Hono();
   app.use("*", requestLogging(logger));
+  app.use("*", clientIpMiddleware(clientIp, env.clientIpHeader));
   app.use(
     "*",
     cors({
@@ -644,9 +696,13 @@ export async function createApp(
       passwordReset: env.passwordAuth !== false && Boolean(email),
       resetUrl:
         env.passwordAuth !== false && email ? new URL("/reset-password", env.webOrigin).href : null,
+      emailCode: auth.emailCodeSignIn,
       billing: Boolean(billing),
+      passkeyRpId: auth.passkeyRpId,
+      nativePasskeys: nativePasskeys(env, auth.passkeyRpId),
     } satisfies AuthCapabilities);
   });
+  mountAppAssociation(app, env);
   if (localEmailEmulator && env.nodeEnv === "development") {
     app.get(
       "/api/dev/emails",
@@ -656,20 +712,43 @@ export async function createApp(
         }),
     );
   }
-  app.route("/", monitoringRoutes(env.browserMonitoring));
+  app.route(
+    "/",
+    monitoringRoutes(
+      env.browserMonitoring,
+      fetch,
+      async (request) => (await auth.api.getSession({ headers: request.headers }))?.user.id,
+    ),
+  );
+  app.route("/", cspReportRoutes(requestClientIp));
   mountApiRequestBodyLimits(app, env.maxUploadSizeBytes);
   mountScreenTarget(app, prisma, env.screenProxySecret);
   mountDiagramScript(app);
+  const auditAuthResponse = createAuthResponseAudit();
+  // Account and session tables, signup bootstrap and account deletion span tenants;
+  // webhooks authenticate a bot or provider, then resolve the tenant from it.
+  for (const [path, reason] of [
+    ["/api/auth/*", "authentication"],
+    ["/api/v1/bots/*", "bot webhook"],
+    ["/api/v1/messaging/*", "messaging webhook"],
+    ["/api/v1/phone/*", "messaging webhook"],
+  ] as const) {
+    app.use(path, (_c, next) => runAsSystem(reason, next));
+  }
   app.on(["GET", "POST"], "/api/auth/*", async (c) => {
     const path = new URL(c.req.url).pathname.replace("/api/auth", "");
     if (isBlockedAuthPath(path)) {
       return c.json({ error: "Not available in version 1" }, 404);
     }
-    return auth.handler(emptyAuthBodyAsJson(c.req.raw));
+    const ip = requestClientIp(c);
+    const response = await auth.handler(withClientIp(emptyAuthBodyAsJson(c.req.raw), ip));
+    await auditAuthResponse(path, ip, response);
+    return response;
   });
   mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
   const requestSession = async (request: Request) => {
-    const session = await auth.api.getSession({ headers: sessionHeaders(request) });
+    // The bearer plugin turns a signed `Authorization: Bearer` into the session cookie.
+    const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user) return null;
     const actor = await actorFromMembership(
       requireMembership(prisma, session.user.id, request.headers.get("x-rakazo-space-id")),
@@ -702,7 +781,7 @@ export async function createApp(
     if (matched) return c.newResponse(response.body, response);
     await next();
   });
-  mountVoiceHttpRoutes(app, { prisma, secrets }, async (c) => {
+  mountVoiceHttpRoutes(app, { prisma, secrets, env }, async (c) => {
     const actor = await sessionActor(c.req.raw);
     if (actor) enrichLogContext({ "user.id": actor.userId, "space.id": actor.spaceId });
     return actor;
@@ -842,6 +921,7 @@ export async function createApp(
               deploymentProvider: env.defaultProvider,
               deploymentModel: env.defaultModel,
               deploymentModelKey: env.deploymentModelKey,
+              allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
               providerOverride: env.teamChatJudgeProvider,
               modelOverride: env.teamChatJudgeModel,
             })
@@ -852,6 +932,7 @@ export async function createApp(
               deploymentProvider: env.defaultProvider,
               deploymentModel: env.defaultModel,
               deploymentModelKey: env.deploymentModelKey,
+              allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
             });
       const bridge = new TeamChatBridge({
         prisma,
@@ -912,7 +993,7 @@ export async function createApp(
         })();
       }
     }
-    messaging.onInbound(async (event) => {
+    const handleInbound = async (event: MessagingInboundEvent) => {
       if (event.type !== "message") {
         await applyMessagingOutboundStatus(prisma, event);
         return;
@@ -937,7 +1018,8 @@ export async function createApp(
         throw new Error("Team chat bridge is unavailable");
       }
       await inbound(event);
-    });
+    };
+    messaging.onInbound((event) => runAsSystem("messaging inbound", () => handleInbound(event)));
     mountMessagingWebhookRoutes(app, { messaging });
     // Start polling-mode adapters (e.g. Telegram with no public webhook URL
     // registered) immediately rather than waiting for the first webhook
@@ -1042,6 +1124,7 @@ export async function createApp(
       await teamChatBridge?.stop();
       await email?.drain?.();
       await reconciler?.stop();
+      await oauthTokenUpgrade;
       await jobs.close();
       await secrets.close();
       await realtime.close();
@@ -1122,15 +1205,6 @@ function emptyAuthBodyAsJson(request: Request) {
   return new Request(request, { headers, body: "{}" });
 }
 
-function sessionHeaders(request: Request) {
-  const headers = new Headers(request.headers);
-  const authz = headers.get("authorization");
-  if (authz?.toLowerCase().startsWith("bearer ") && !headers.get("cookie")) {
-    headers.set("cookie", `better-auth.session_token=${authz.slice(7).trim()}`);
-  }
-  return headers;
-}
-
 /**
  * An ORPCError is a decision the router made (BAD_REQUEST, UNAUTHORIZED, ...) and reaches the
  * caller intact. Everything else is flattened into an opaque "Internal server error", so
@@ -1139,8 +1213,14 @@ function sessionHeaders(request: Request) {
  * The cause chain matters as much as the message: undici and most SDKs report a bare
  * "fetch failed" and keep the host and errno one level down.
  */
-/** Log the failure, then give a provider rate limit its own status instead of a generic 500. */
+/** Log the failure, then give known failures their own status instead of a generic 500. */
 export function handleRpcError(error: unknown, path: readonly string[]): void {
+  // A missing or foreign resource is the caller's mistake (a stale client, a deleted bot),
+  // not a server failure, so it is a warning rather than an error report.
+  if (error instanceof IsolationError) {
+    getLogger().warn(`rpc ${path.join("/")} not found`, { "error.stack": error.stack });
+    throw new ORPCError("NOT_FOUND", { message: error.message, cause: error });
+  }
   logUnexpectedRpcError(error, path);
   if (error instanceof SandboxRateLimitError) {
     throw new ORPCError("TOO_MANY_REQUESTS", { message: error.message, cause: error });

@@ -7,11 +7,14 @@ import type {
   IntegrationCatalogSurface,
 } from "@rakazo/contracts";
 import {
-  abortableDelay,
   buildFeaturedConnectorTiles,
   CONNECTION_CATALOG_PAGE_SIZE,
+  catalogItemAccounts,
+  catalogItemKey,
+  connectCatalogItem,
   filterConnectionCatalogItems,
   humanizeToolName,
+  isCatalogItemConnected,
 } from "@rakazo/core";
 import {
   Button,
@@ -19,6 +22,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Collapsible,
+  CollapsibleContent,
   Dialog,
   DialogClose,
   DialogContent,
@@ -28,7 +33,7 @@ import {
   NativeSelectOption,
   Spinner,
 } from "@rakazo/ui-web";
-import { Check, ChevronDown, ChevronLeft, ChevronUp, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
 import { connectedAppMarks } from "../lib/connected-apps";
@@ -39,10 +44,6 @@ import { errorText } from "../lib/user-error";
 type SourceKind = "treg" | "executor" | "mcp" | "api" | "graphql";
 
 type ConnectionTool = { name: string; description: string };
-
-function itemKey(item: Pick<ConnectionCatalogItem, "connectorId" | "slug">) {
-  return `${item.connectorId}:${item.slug}`;
-}
 
 function markConnected(
   items: ConnectionCatalogItem[],
@@ -55,21 +56,6 @@ function markConnected(
   );
 }
 
-function activeAccounts(
-  connections: Connection[],
-  item: Pick<ConnectionCatalogItem, "connectorId" | "slug">,
-) {
-  return connections.filter(
-    (row) =>
-      row.connectorId === item.connectorId &&
-      row.provider === item.slug &&
-      (row.status === "connected" || row.status === "pending"),
-  );
-}
-
-function nextAccountLabel(itemName: string, existingCount: number) {
-  return existingCount <= 0 ? itemName : `${itemName} ${existingCount + 1}`;
-}
 export function PluginsOverlay({
   onConnectedAppsChange,
   onClose,
@@ -117,10 +103,12 @@ export function PluginsOverlay({
   const [scrolled, setScrolled] = useState(false);
 
   async function refresh() {
+    // The catalog call reconciles connection rows, so list them after it settles.
+    const catalog = rpc.connections.catalog({});
     const [items, installs, rows, catalogFeed] = await Promise.all([
-      rpc.connections.catalog({}),
+      catalog,
       rpc.capabilities.list(),
-      rpc.connections.list(),
+      catalog.catch(() => undefined).then(() => rpc.connections.list()),
       optionalCatalogFeedProbe(rpc.capabilities.catalogSearch({ query: "" })),
     ]);
     setCatalogLoaded(true);
@@ -144,10 +132,16 @@ export function PluginsOverlay({
     return items;
   }
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
+    setCatalogError(null);
     void refresh()
       .catch((err: unknown) => setCatalogError(errorText(err, t`Could not load integrations`)))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
     return () => connectionAttempt.current?.abort();
   }, []);
 
@@ -207,9 +201,7 @@ export function PluginsOverlay({
   }
 
   function itemConnected(item: ConnectionCatalogItem) {
-    return (
-      item.connected || activeAccounts(connections, item).some((row) => row.status === "connected")
-    );
+    return isCatalogItemConnected(connections, item);
   }
 
   async function notifyAppConnected(item: ConnectionCatalogItem) {
@@ -228,43 +220,23 @@ export function PluginsOverlay({
     const controller = new AbortController();
     connectionAttempt.current = controller;
     setCatalogError(null);
-    const key = itemKey(item);
+    const key = catalogItemKey(item);
     setPending(key);
     try {
-      const existing = activeAccounts(connections, item).filter(
-        (row) => row.status === "connected",
-      );
-      const started = await rpc.connections.begin({
-        connectorId: item.connectorId,
-        provider: item.slug,
-        displayName: nextAccountLabel(item.name, existing.length),
+      const result = await connectCatalogItem(item, connections, {
+        begin: (input) => rpc.connections.begin(input),
+        complete: (input) => rpc.connections.complete(input),
+        openUrl: (url) => window.open(url, "rakazo-plugin-connect", "noopener,noreferrer"),
+        signal: controller.signal,
       });
-      if (started.authorizationUrl)
-        window.open(started.authorizationUrl, "rakazo-plugin-connect", "noopener,noreferrer");
-      if (item.noAuth && !started.authorizationUrl) {
-        if (controller.signal.aborted) return;
+      if (result.status === "aborted") return;
+      if (result.status === "connected") {
         setItemConnected(item, true);
         void notifyAppConnected(item);
         await refresh().catch(() => undefined);
         setToolsTick((tick) => tick + 1);
         return;
       }
-      for (let i = 0; i < 45; i += 1) {
-        if (controller.signal.aborted) return;
-        const row = await rpc.connections
-          .complete({ connectionId: started.connectionId })
-          .catch(() => undefined);
-        if (row?.status === "connected") {
-          if (controller.signal.aborted) return;
-          setItemConnected(item, true);
-          void notifyAppConnected(item);
-          await refresh().catch(() => undefined);
-          setToolsTick((tick) => tick + 1);
-          return;
-        }
-        await abortableDelay(2_000, controller.signal);
-      }
-      if (controller.signal.aborted) return;
       setCatalogError(
         t`Connection to ${item.name} is still pending. You can close this and check again.`,
       );
@@ -285,7 +257,9 @@ export function PluginsOverlay({
     setPending(row.id);
     try {
       await rpc.connections.revoke({ connectionId: row.id });
-      const remaining = activeAccounts(connections, item).filter((entry) => entry.id !== row.id);
+      const remaining = catalogItemAccounts(connections, item).filter(
+        (entry) => entry.id !== row.id,
+      );
       if (remaining.every((entry) => entry.status !== "connected")) {
         setItemConnected(item, false);
       }
@@ -299,14 +273,14 @@ export function PluginsOverlay({
   }
 
   async function uninstall(item: ConnectionCatalogItem) {
-    const matches = activeAccounts(connections, item);
+    const matches = catalogItemAccounts(connections, item);
     if (matches.length === 0) {
       setItemConnected(item, false);
       closeDetail();
       return;
     }
     setCatalogError(null);
-    setPending(`uninstall:${itemKey(item)}`);
+    setPending(`uninstall:${catalogItemKey(item)}`);
     try {
       for (const row of matches) {
         await rpc.connections.revoke({ connectionId: row.id });
@@ -442,7 +416,7 @@ export function PluginsOverlay({
   }
 
   function renderCatalogActions(item: ConnectionCatalogItem) {
-    const key = itemKey(item);
+    const key = catalogItemKey(item);
     const connected = itemConnected(item);
     const connecting = pending === key;
     if (connected) {
@@ -508,7 +482,7 @@ export function PluginsOverlay({
     );
     return (
       <div
-        key={itemKey(item)}
+        key={catalogItemKey(item)}
         data-testid={tileTestId ? `connection-tile-${item.slug.toLowerCase()}` : undefined}
         className="flex min-w-0 items-center gap-2.5 py-[13px]"
       >
@@ -533,8 +507,8 @@ export function PluginsOverlay({
   }
 
   function renderDetail(item: ConnectionCatalogItem) {
-    const accounts = activeAccounts(connections, item);
-    const key = itemKey(item);
+    const accounts = catalogItemAccounts(connections, item);
+    const key = catalogItemKey(item);
     const connecting = pending === key;
     const uninstalling = pending === `uninstall:${key}`;
     const toolCount = tools.length;
@@ -642,33 +616,34 @@ export function PluginsOverlay({
                 <Plural value={toolCount} one="# tool" other="# tools" />
               )}
             </span>
-            {toolsOpen ? (
-              <ChevronUp className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-4 text-muted-foreground" />
-            )}
+            <ChevronDown
+              aria-hidden="true"
+              className={`size-4 text-muted-foreground transition-transform duration-150 ease-out motion-reduce:transition-none ${toolsOpen ? "rotate-180" : ""}`}
+            />
           </button>
-          {toolsOpen ? (
-            <CardContent className="border-t border-border pt-3">
-              {toolsLoading ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>Loading tools…</Trans>
-                </p>
-              ) : tools.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>No tools available.</Trans>
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {tools.map((tool) => (
-                    <li key={tool.name} className="text-sm text-foreground">
-                      {humanizeToolName(tool.name)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          ) : null}
+          <Collapsible open={toolsOpen} className="contents">
+            <CollapsibleContent className="flex flex-col">
+              <CardContent className="border-t border-border pt-3">
+                {toolsLoading ? (
+                  <p className="text-sm text-muted-foreground">
+                    <Trans>Loading tools…</Trans>
+                  </p>
+                ) : tools.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    <Trans>No tools available.</Trans>
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {tools.map((tool) => (
+                      <li key={tool.name} className="text-sm text-foreground">
+                        {humanizeToolName(tool.name)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
       </div>
     );
@@ -712,14 +687,14 @@ export function PluginsOverlay({
                   {connectedApps.slice(0, 4).map((app, index) =>
                     app.logo ? (
                       <img
-                        key={itemKey(app)}
+                        key={catalogItemKey(app)}
                         src={app.logo}
                         alt=""
                         className={`size-[18px] rounded-[5px] bg-favicon-plate object-contain ${index ? "-ms-1" : ""}`}
                       />
                     ) : (
                       <span
-                        key={itemKey(app)}
+                        key={catalogItemKey(app)}
                         aria-hidden="true"
                         className={`grid size-[18px] place-items-center rounded-[5px] bg-accent text-[10px] font-semibold text-foreground ${index ? "-ms-1" : ""}`}
                       >
@@ -793,13 +768,22 @@ export function PluginsOverlay({
                 />
               </div>
             ) : null}
-            {catalogError ? <p className="mb-4 text-sm text-destructive">{catalogError}</p> : null}
+            {catalogError ? (
+              <div className="mb-4 flex items-center gap-3">
+                <p className="text-sm text-destructive">{catalogError}</p>
+                {!catalogLoaded ? (
+                  <Button variant="outline" size="sm" onClick={load}>
+                    <Trans>Retry</Trans>
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
 
             {detailItem ? (
               renderDetail(detailItem)
             ) : (
               <>
-                {!loading && showFeatured && catalog.length === 0 ? (
+                {catalogLoaded && showFeatured && catalog.length === 0 ? (
                   <div className="mb-6" data-testid="featured-connectors">
                     <p className="text-[13.5px] leading-6 text-muted-foreground/80">
                       <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
@@ -807,24 +791,24 @@ export function PluginsOverlay({
                   </div>
                 ) : null}
 
-                {!loading && catalog.length === 0 && !showFeatured ? (
+                {catalogLoaded && catalog.length === 0 && !showFeatured ? (
                   <p className="text-muted-foreground/80">
                     <Trans>No managed app catalog is configured on this deployment.</Trans>
                   </p>
                 ) : null}
-                {!loading && catalog.length > 0 && visible.length === 0 && !showFeatured ? (
+                {catalogLoaded && catalog.length > 0 && visible.length === 0 && !showFeatured ? (
                   <p className="text-muted-foreground/80">
                     <Trans>No apps match your search.</Trans>
                   </p>
                 ) : null}
                 {/* Featured apps and the rest of the catalog fill one grid, so no gap or empty cell sits between them. */}
-                {(!loading && showFeatured && catalog.length > 0) || visible.length > 0 ? (
+                {(catalogLoaded && showFeatured && catalog.length > 0) || visible.length > 0 ? (
                   <div className="grid grid-cols-2 gap-x-8">
-                    {!loading && showFeatured && catalog.length > 0 ? (
+                    {catalogLoaded && showFeatured && catalog.length > 0 ? (
                       <div className="contents" data-testid="featured-connectors">
                         {featuredTiles.map((tile) => {
                           const item = tile.item;
-                          const key = item ? itemKey(item) : tile.id;
+                          const key = item ? catalogItemKey(item) : tile.id;
                           const disabled = tile.missing || !item;
                           if (item && !tile.missing) {
                             // Featured is the stable hit target for connection-tile-* in E2E.

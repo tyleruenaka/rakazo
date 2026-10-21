@@ -2,6 +2,7 @@ import type { TelegramBotCredentials } from "@rakazo/adapters";
 import {
   boatApiKeyFromEnv,
   boatApiUrlFromEnv,
+  mcpStdioOptionsFromEnv,
   resolveCloudAgentProvider,
   resolveDeploymentModel,
   resolveSandboxProvider,
@@ -17,6 +18,7 @@ import {
   resolveSupervisorToken,
   uploadSizeFromEnv,
 } from "@rakazo/core";
+import { monitoringPseudonymSecret } from "@rakazo/logging";
 
 export { resolveCloudAgentProvider, resolveSandboxProvider } from "@rakazo/adapters";
 
@@ -32,9 +34,17 @@ export interface AppEnv {
   authSecret: string;
   authUrl: string;
   webOrigin: string;
+  /** `<TEAM_ID>.<bundle id>` of iOS apps that may use this domain's passkeys. */
+  passkeyAppleAppIds: string[];
+  /** SHA-256 signing certificate fingerprints of Android apps that may use this domain's passkeys. */
+  passkeyAndroidCertFingerprints: string[];
   privacyPolicyUrl?: string;
   apiUrl: string;
   apiHost: string;
+  /** Proxies whose forwarded client address is believed; empty means local networks. */
+  trustedProxies: string[];
+  /** The header those proxies set. */
+  clientIpHeader: string;
   signupsEnabled: string | undefined;
   signupAllowlist: string | undefined;
   encryptionKey: string;
@@ -111,12 +121,16 @@ export interface AppEnv {
   wakeupDriver: string;
   mcpStdioEnabled: boolean;
   mcpStdioAllowedCommands: string[];
+  /** Package dir, install/startup timeouts and idle reaping for stdio MCP servers. */
+  mcpStdio: ReturnType<typeof mcpStdioOptionsFromEnv>;
   /** Deployment-owner escape for remote MCP on RFC1918 / Docker-network hosts. */
   mcpAllowPrivateEndpoint: boolean;
   port: number;
   gitSha: string | undefined;
   /** Browser error reporting, served to the web app at runtime. The DSN is public by design. */
-  browserMonitoring: { dsn: string; environment?: string; release?: string } | undefined;
+  browserMonitoring:
+    | { dsn: string; environment?: string; release?: string; pseudonymSecret?: string }
+    | undefined;
   /** Private Compose control-network URL for the opt-in updater sidecar. */
   updaterUrl: string | undefined;
   /** Bearer shared with the updater; never sent to the browser. */
@@ -187,9 +201,16 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     authSecret,
     authUrl: source.BETTER_AUTH_URL ?? source.WEB_ORIGIN ?? "http://127.0.0.1:5173",
     webOrigin: source.WEB_ORIGIN ?? "http://127.0.0.1:5173",
+    passkeyAppleAppIds: list(source.PASSKEY_APPLE_APP_IDS),
+    passkeyAndroidCertFingerprints: androidCertFingerprints(source.PASSKEY_ANDROID_CERT_SHA256),
     privacyPolicyUrl: optional(source.PRIVACY_POLICY_URL),
     apiUrl: source.API_URL ?? "http://127.0.0.1:3100",
     apiHost: source.API_HOST ?? "127.0.0.1",
+    trustedProxies: (source.TRUSTED_PROXIES ?? "")
+      .split(/[\s,]+/)
+      .map((value) => value.trim())
+      .filter(Boolean),
+    clientIpHeader: optional(source.CLIENT_IP_HEADER)?.toLowerCase() ?? "x-forwarded-for",
     signupsEnabled: source.SIGNUPS_ENABLED,
     signupAllowlist: source.SIGNUP_ALLOWLIST,
     encryptionKey: resolveEncryptionKey(source),
@@ -261,6 +282,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
+    mcpStdio: mcpStdioOptionsFromEnv(source),
     mcpAllowPrivateEndpoint: source.MCP_ALLOW_PRIVATE_ENDPOINT === "true",
     port: Number(source.API_PORT ?? 3100),
     gitSha: optional(source.GIT_SHA) ?? optional(source.RAKAZO_GIT_SHA),
@@ -285,10 +307,26 @@ function browserMonitoringFromEnv(source: NodeJS.ProcessEnv): AppEnv["browserMon
     dsn,
     environment: optional(source.SENTRY_ENVIRONMENT),
     release: optional(source.SENTRY_RELEASE) ?? (sha === "unknown" ? undefined : sha),
+    pseudonymSecret: monitoringPseudonymSecret(source),
   };
 }
 
 function optional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
+}
+
+function list(value: string | undefined): string[] {
+  return (value ?? "").split(/[\s,]+/).filter(Boolean);
+}
+
+/** SHA-256 signing certificate fingerprints, normalized to the `AA:BB:…` form Digital Asset Links uses. */
+function androidCertFingerprints(value: string | undefined): string[] {
+  return list(value).map((fingerprint) => {
+    const hex = fingerprint.replace(/:/g, "");
+    if (!/^[0-9a-f]{64}$/i.test(hex)) {
+      throw new Error("PASSKEY_ANDROID_CERT_SHA256 must list SHA-256 fingerprints");
+    }
+    return hex.toUpperCase().match(/../g)!.join(":");
+  });
 }

@@ -3,6 +3,7 @@
 import { i18n } from "@lingui/core";
 import { ORPCError } from "@orpc/client";
 import type { Bot } from "@rakazo/contracts";
+import { BOT_SETTINGS_ADVANCED_ORDER } from "@rakazo/contracts";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { act, cloneElement } from "react";
 import type { Root } from "react-dom/client";
@@ -98,8 +99,10 @@ vi.mock("../../components/ListboxSelect", () => ({
 }));
 vi.mock("./avatar-studio-popover", () => ({ AvatarStudioPopover: () => null }));
 vi.mock("./bot-credentials", () => ({ BotCredentialsSection: () => null }));
-vi.mock("../ScratchpadSection", () => ({ ScratchpadSection: () => null }));
-vi.mock("../KnowledgeSection", () => ({ KnowledgeSection: () => null }));
+vi.mock("../ScratchpadSection", () => ({ ScratchpadSection: () => <div>Open work</div> }));
+vi.mock("../KnowledgeSection", () => ({
+  KnowledgeSection: () => <div>Memory / Shared skills</div>,
+}));
 
 import { InstructionSettings } from "../../components/InstructionSettings";
 import { rpc } from "../../lib/rpc";
@@ -219,6 +222,51 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("keeps advanced controls inside details in the shared order", async () => {
+  vi.mocked(rpc.voice.voices).mockResolvedValueOnce([
+    { id: "fixture-voice", label: "Fixture voice" },
+  ]);
+  await render();
+  const advanced = container.querySelector<HTMLDetailsElement>(
+    '[data-testid="bot-settings-advanced"]',
+  )!;
+  expect(advanced.open).toBe(false);
+  await act(async () => {
+    advanced.open = true;
+    advanced.dispatchEvent(new Event("toggle"));
+  });
+  const labels = {
+    instructions: "Instructions",
+    computer: "Computer",
+    model: "Model",
+    readAloud: "Read replies aloud",
+    voice: "Voice",
+    fleetManagement: "Manage the bots it creates",
+    scratchpad: "Open work",
+    knowledge: "Memory / Shared skills",
+    disabledTools: "Disabled tools",
+  };
+  const controls = [...container.querySelectorAll("div, span, label")].filter((node) =>
+    [...node.childNodes].some(
+      (child) =>
+        child.nodeType === Node.TEXT_NODE &&
+        Object.values(labels).some((label) => child.textContent === label),
+    ),
+  );
+  expect(controls).toHaveLength(Object.keys(labels).length);
+  for (const control of controls) expect(control.closest("details")).toBe(advanced);
+  expect(
+    controls.map(
+      (node) =>
+        Object.entries(labels).find(([, label]) =>
+          [...node.childNodes].some(
+            (child) => child.nodeType === Node.TEXT_NODE && child.textContent === label,
+          ),
+        )![0],
+    ),
+  ).toEqual(BOT_SETTINGS_ADVANCED_ORDER.filter((key) => key in labels));
+});
+
 describe("BotSettings model choices", () => {
   it("submits DeepSeek API ids and does not offer a display label", async () => {
     vi.mocked(rpc.models.credentials).mockResolvedValueOnce([
@@ -251,7 +299,7 @@ describe("BotSettings model choices", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const model = container.querySelector("select");
+    const model = container.querySelector('select[aria-label="Model"]');
     if (!(model instanceof HTMLSelectElement)) throw new Error("Missing model select");
     const values = [...model.options].map((option) => option.value);
     expect(values).toContain("deepseek::deepseek-flash");
@@ -300,7 +348,8 @@ describe("BotSettings thinking options", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const [model, thinking] = [...container.querySelectorAll("select")];
+    const model = container.querySelector('select[aria-label="Model"]');
+    const thinking = container.querySelector('select[aria-label="Thinking"]');
     if (!(model instanceof HTMLSelectElement)) throw new Error("Missing model select");
     expect(model.value).toBe("openai-compatible::beta");
     if (!(thinking instanceof HTMLSelectElement)) throw new Error("Missing thinking select");

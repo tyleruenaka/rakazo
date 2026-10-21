@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArtifactPreviewPane } from "../components/ArtifactPreviewPane";
 import { ArtifactThumbnail } from "../components/ArtifactThumbnail";
+import { IconTooltip } from "../components/IconTooltip";
 import type { ArtifactKind } from "../lib/artifact-kind";
 import { ARTIFACT_KINDS, filterArtifactsByKind } from "../lib/artifact-kind";
 import { takeInitialBootstrap } from "../lib/bootstrap";
@@ -619,18 +620,19 @@ function ViewModeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      title={label}
-      onClick={onClick}
-      className={`flex size-7 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring ${
-        active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
-      }`}
-    >
-      {children}
-    </button>
+    <IconTooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={`flex size-7 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring ${
+          active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+        }`}
+      >
+        {children}
+      </button>
+    </IconTooltip>
   );
 }
 
@@ -645,22 +647,23 @@ function DeleteArtifactButton({
 }) {
   const { t } = useLingui();
   return (
-    <button
-      type="button"
-      aria-label={t`Delete ${artifact.name}`}
-      title={t`Delete ${artifact.name}`}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onRequestDelete(artifact);
-      }}
-      className={cn(
-        "absolute grid size-7 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100",
-        className,
-      )}
-    >
-      <Trash2 size={14} strokeWidth={1.75} />
-    </button>
+    <IconTooltip label={t`Delete ${artifact.name}`}>
+      <button
+        type="button"
+        aria-label={t`Delete ${artifact.name}`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onRequestDelete(artifact);
+        }}
+        className={cn(
+          "absolute grid size-7 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100",
+          className,
+        )}
+      >
+        <Trash2 size={14} strokeWidth={1.75} />
+      </button>
+    </IconTooltip>
   );
 }
 

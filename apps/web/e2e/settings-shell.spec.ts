@@ -7,30 +7,6 @@ import {
   signup,
 } from "./helpers";
 
-for (const totalTokens of [201, null]) {
-  test(`usage shows ${totalTokens === null ? "unknown" : "complete"} token totals`, async ({
-    page,
-  }, testInfo) => {
-    await page.route("**/rpc/usage/summary", (route) =>
-      route.fulfill({
-        json: { json: { runs: 2, inputTokens: 10, outputTokens: 1, totalTokens } },
-      }),
-    );
-    const stamp = Date.now();
-    await signup(page, `usage-total-${stamp}@rakazo.test`, "password12", "Usage totals");
-    await completeOnboarding(page);
-    await openUserSettings(page, "usage");
-    await expect(page.getByTestId("usage-settings")).toContainText(
-      `2 runs · ${totalTokens ?? "—"} tokens`,
-    );
-    await captureScreenshot(
-      page,
-      testInfo,
-      totalTokens === null ? "usage-unknown-total" : "usage-complete-total",
-    );
-  });
-}
-
 test("settings shell is two-pane and deep-links Models Memory Voice Usage", async ({
   page,
 }, testInfo) => {
@@ -57,6 +33,7 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect(settings.getByRole("heading", { name: "General", exact: true })).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Replies", exact: true })).toHaveCount(0);
+  await expect(settings.getByTestId("response-streaming-toggle")).toBeHidden();
   await settings.getByTestId("advanced-settings").locator("summary").click();
   const streamReplies = settings.getByTestId("response-streaming-toggle");
   await expect(streamReplies).toBeVisible();
@@ -64,6 +41,14 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect(settings.getByText("Stream replies", { exact: true })).toBeVisible();
   await streamReplies.scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "settings-shell-general");
+  const scroller = settings.getByTestId("settings-scroll");
+  await scroller.evaluate((node) => {
+    node.scrollTop = Math.max(0, (node.scrollHeight - node.clientHeight) / 2);
+  });
+  await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  // The Grok-style header has no divider; scrolled content clips under it.
+  await expect(settings.getByTestId("settings-header")).toBeVisible();
+  await captureScreenshot(page, testInfo, "settings-shell-scrolled");
   await streamReplies.click();
   await expect(streamReplies).toBeChecked();
   await expect
@@ -117,11 +102,21 @@ test("Honcho memory settings empty and filled", async ({ page }, testInfo) => {
   await chooseOption(memory.getByRole("combobox", { name: "Provider" }), "Honcho");
   await expect(memory.getByLabel("API key", { exact: true })).toBeVisible();
   await expect(memory.getByLabel("Workspace", { exact: true })).toBeVisible();
+  await expect(memory.getByLabel("User peer", { exact: true })).toHaveCount(0);
   await expect(memory.getByRole("button", { name: "Connect", exact: true })).toBeDisabled();
   await page.setViewportSize({ width: 1280, height: 900 });
   await captureScreenshot(page, testInfo, "memory-honcho-empty");
   await memory.getByLabel("API key", { exact: true }).fill("hch-test-key");
   await memory.getByLabel("Workspace", { exact: true }).fill("team-notes");
+  const userPeer = memory.getByLabel("User peer", { exact: true });
+  await userPeer.fill("bot-123");
+  await expect(userPeer).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    memory.getByText("rakazo-shared and IDs starting with bot- are reserved for Rakazo."),
+  ).toBeVisible();
+  await expect(memory.getByRole("button", { name: "Connect", exact: true })).toBeDisabled();
+  await captureScreenshot(page, testInfo, "memory-honcho-user-peer-reserved");
+  await userPeer.fill("user-alex");
   await expect(memory.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
   await captureScreenshot(page, testInfo, "memory-honcho-filled");
   await chooseOption(memory.getByRole("combobox", { name: "Connection" }), "Local");

@@ -2,6 +2,8 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { CLOUDFLARE_AI_GATEWAY_CONFIG_MESSAGE, FLEET_TOOL_NAMES } from "@rakazo/contracts";
 import { ONCE_ROUTINE_CRON } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
+import { RunHistoryWriteError } from "@rakazo/db";
+import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import {
   appendToolCompletionAudit,
@@ -26,6 +28,7 @@ import {
   withRecentTurnImages,
 } from "./executor.js";
 import { UnavailableModelForAuthError, validateConnectedModelChoice } from "./model-selection.js";
+import { PRIVATE_MODEL_ENDPOINT_MESSAGE } from "./openai-compatible-url.js";
 import { RetiredModelCredentialError, serializeModelSecret } from "./pi-oauth.js";
 import { parseUpdateBotPatch } from "./update-bot-patch.js";
 
@@ -96,6 +99,8 @@ describe("tool completion audit", () => {
 
   it("does not fail the run when the audit append fails", async () => {
     const append = vi.fn().mockRejectedValue(new Error("database unavailable"));
+    const sink = createTestSink();
+    installLogger(createLogger({ service: "test", sinks: [sink] }));
 
     await expect(
       appendToolCompletionAudit(
@@ -119,6 +124,29 @@ describe("tool completion audit", () => {
         }),
       }),
     );
+    expect(sink.events).toEqual([
+      expect.objectContaining({
+        message: "agent tool completion audit append failed",
+        "error.detail": "database unavailable",
+      }),
+    ]);
+    installLogger(createLogger({ service: "test", level: "off", sinks: [] }));
+  });
+
+  it("drops the audit quietly when the run was cancelled before the tool finished", async () => {
+    const append = vi.fn().mockRejectedValue(new RunHistoryWriteError());
+    const sink = createTestSink();
+    installLogger(createLogger({ service: "test", sinks: [sink] }));
+
+    await appendToolCompletionAudit(
+      { events: { append } },
+      { spaceId: "space-1", threadId: "thread-1", botId: "bot-1", runId: "run-1" },
+      { name: "shell", executionId: "call-1", durationMs: 4 },
+    );
+
+    expect(append).toHaveBeenCalledOnce();
+    expect(sink.events).toEqual([]);
+    installLogger(createLogger({ service: "test", level: "off", sinks: [] }));
   });
 
   it("records rejected scripted tool results as errors", () => {
@@ -1019,6 +1047,8 @@ function compatibleExecutor(
   return createRunExecutor({
     prisma: prisma as unknown as PrismaClient,
     secretStore: { load: vi.fn(() => plaintext), put: vi.fn() },
+    // The fixture endpoint is on loopback; private-endpoint access has its own tests.
+    mcpAllowPrivateEndpoint: true,
     ...extra,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 }
@@ -1715,6 +1745,21 @@ describe("createRunExecutor", () => {
     expect(tools).not.toContain("board_tickets");
     expect(tools.some((tool) => tool.startsWith("ticket_"))).toBe(false);
     expect(tools).toContain("web_fetch");
+  });
+
+  it("offers forget_memory only when the memory provider can forget", () => {
+    const names = (semanticMemoryForgets: boolean) =>
+      selectBuiltinToolsForRun({
+        graphicalToolsAllowed: false,
+        groupId: null,
+        trigger: "message",
+        semanticMemoryEnabled: true,
+        semanticMemoryForgets,
+        messagingChannelRun: false,
+      }).map((tool) => tool.name);
+    expect(names(false)).toEqual(expect.arrayContaining(["recall_memory", "save_memory"]));
+    expect(names(false)).not.toContain("forget_memory");
+    expect(names(true)).toContain("forget_memory");
   });
 
   it("keeps a creation intro from answering a user message that arrived during it", () => {
@@ -3048,6 +3093,36 @@ description: Prepare standup notes
     },
   );
 
+  describe("private model endpoints at run time", () => {
+    const scope = { userId: "user-1", spaceId: "ws-1" };
+    const plaintext = compatibleSecret(["space-model"]);
+    function executorFor(ownerUserId: string | null, mcpAllowPrivateEndpoint = false) {
+      const prisma = compatiblePrismaParts({ "ws-1": "space-model" }, plaintext);
+      prisma.deploymentSettings.findUnique = vi.fn(async () =>
+        ownerUserId ? { ownerUserId } : null,
+      ) as never;
+      return compatibleExecutor(prisma, plaintext, { mcpAllowPrivateEndpoint });
+    }
+
+    it("refuses a saved private endpoint for a user who is not the deployment owner", async () => {
+      await expect(
+        executorFor("owner-user").resolveConnectedModel(scope, COMPATIBLE_PROVIDER, "space-model"),
+      ).rejects.toThrow(PRIVATE_MODEL_ENDPOINT_MESSAGE);
+      await expect(executorFor(null).resolveModel(scope)).rejects.toThrow(
+        PRIVATE_MODEL_ENDPOINT_MESSAGE,
+      );
+    });
+
+    it.each([
+      ["the deployment owner", "user-1", false],
+      ["any user under the instance flag", "owner-user", true],
+    ] as const)("lets %s run a saved private endpoint", async (_who, owner, flag) => {
+      await expect(
+        executorFor(owner, flag).resolveConnectedModel(scope, COMPATIBLE_PROVIDER, "space-model"),
+      ).resolves.toMatchObject({ baseUrl: COMPATIBLE_BASE_URL, allowPrivateEndpoint: true });
+    });
+  });
+
   it("resolves a helper model enabled only in the connection's list", async () => {
     const plaintext = compatibleSecret(["space-model", "second-model"]);
     const executor = compatibleExecutor(
@@ -3418,6 +3493,7 @@ description: Prepare standup notes
     const executor = createRunExecutor({
       prisma,
       secretStore: { load: vi.fn(() => plaintext), put: vi.fn() },
+      mcpAllowPrivateEndpoint: true,
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await expect(

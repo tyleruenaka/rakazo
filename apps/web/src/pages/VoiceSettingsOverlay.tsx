@@ -20,6 +20,7 @@ import {
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { settingsNativeSelectClass } from "../components/SettingsLayout";
+import { importChunk } from "../lib/preload-recovery";
 import { useBoundSpaceId, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 
@@ -199,7 +200,7 @@ export function VoiceSettingsOverlay({
     setNotice(null);
     markPending("test");
     try {
-      const { speaker } = await import("../lib/tts.js");
+      const { speaker } = await importChunk(() => import("../lib/tts.js"));
       await speaker.speak(t`Hi, this is how I'll sound when I read replies out loud.`, { spaceId });
       if (speaker.state.error) {
         setError(speaker.state.error);

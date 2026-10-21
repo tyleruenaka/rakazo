@@ -138,7 +138,7 @@ export function chatMermaidConfig(
       activationBkgColor: palette.secondary,
       activationBorderColor: line,
       sequenceNumberColor: surface,
-      errorBkgColor: palette.destructive,
+      errorBkgColor: palette.destructiveFill,
       errorTextColor: palette.destructiveForeground,
     },
   };

@@ -3,7 +3,7 @@ import { captureScreenshot, completeOnboarding, openUserSettings, signup } from 
 
 test.use({ timezoneId: "Pacific/Auckland" });
 
-test("timezone setting adopts the browser zone, saves a choice, and offers this device's zone back", async ({
+test("account settings save avatar style and timezone, and offer this device's zone back", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
@@ -11,6 +11,37 @@ test("timezone setting adopts the browser zone, saves a choice, and offers this 
   await completeOnboarding(page);
 
   const settings = await openUserSettings(page);
+
+  // Avatar style previews differ for robot and organic.
+  const picker = settings.getByTestId("avatar-style-select");
+  await expect(picker).toHaveText("Organic");
+  await picker.click();
+  const robot = page.getByTestId("avatar-style-robot");
+  const organic = page.getByTestId("avatar-style-organic");
+  await expect(robot).toBeVisible();
+  await expect(organic).toBeVisible();
+  await expect(organic).toHaveAttribute("aria-selected", "true");
+  await expect(robot).toHaveAttribute("aria-selected", "false");
+  await expect(robot.locator(".rakazo-bot-avatar")).toBeVisible();
+  await expect(organic.locator(".rakazo-organic-avatar")).toBeVisible();
+  await expect(robot.locator(".rakazo-organic-avatar")).toHaveCount(0);
+  await expect(organic.locator(".rakazo-bot-avatar")).toHaveCount(0);
+
+  const robotMarkup = await robot
+    .locator("svg")
+    .first()
+    .evaluate((el) => el.outerHTML);
+  const organicMarkup = await organic
+    .locator("svg")
+    .first()
+    .evaluate((el) => el.outerHTML);
+  expect(robotMarkup).not.toBe(organicMarkup);
+
+  await captureScreenshot(page, testInfo, "account-avatars-style-previews");
+
+  await robot.click();
+  await expect(picker).toHaveText("Robot");
+
   const select = settings.getByTestId("timezone-select");
   // First sign-in saves the browser's zone without asking.
   await expect(select).toHaveText("Pacific/Auckland");
@@ -30,9 +61,10 @@ test("timezone setting adopts the browser zone, saves a choice, and offers this 
   await captureScreenshot(page, testInfo, "account-timezone-setting");
   await page.keyboard.press("Escape");
 
-  // A saved choice survives a reload; the browser zone does not overwrite it.
+  // Saved choices survive a reload; the browser zone does not overwrite the timezone.
   await page.reload();
   const reopened = await openUserSettings(page);
+  await expect(reopened.getByTestId("avatar-style-select")).toHaveText("Robot");
   const reopenedSelect = reopened.getByTestId("timezone-select");
   await expect(reopenedSelect).toHaveText("Europe/London");
 
