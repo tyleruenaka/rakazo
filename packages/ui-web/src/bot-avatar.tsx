@@ -14,8 +14,7 @@ import {
   shippedBotAvatarShapePath,
   shippedHash,
 } from "@rakazo/core";
-import { tokens } from "@rakazo/ui-tokens";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { memo, useId, useMemo, useSyncExternalStore } from "react";
 import type { AvatarStyle } from "./avatar-style.js";
 import { useAvatarStyle } from "./avatar-style.js";
@@ -95,6 +94,129 @@ export interface BotAvatarProps {
   variant?: AvatarStyle;
 }
 
+/** Grok's white and grey swatches follow the theme: white draws black in light mode. */
+const THEMED_FILLS: Record<string, string> = {
+  "#fff": "var(--avatar-white)",
+  "#ffffff": "var(--avatar-white)",
+  "#777777": "var(--avatar-grey)",
+};
+
+export function botAvatarFill(color: string): string {
+  return THEMED_FILLS[color.toLowerCase()] ?? color;
+}
+
+/**
+ * Grok Bot's eyes as fractions of the avatar box (measured at 24, 40 and 72px): two stadiums
+ * tilted 28deg left, the pair rising 15deg to the right, set up and right of center.
+ */
+const EYES = { length: 0.2, width: 0.085, gap: 0.18, rise: 15, tilt: -28, x: 0.11, y: -0.12 };
+
+/** Pointed studio shapes are too narrow up top, so their eyes sit lower. */
+const SHAPE_EYES: Partial<Record<string, { x: number; y: number }>> = {
+  wedge: { x: 0.03, y: -0.04 },
+  teardrop: { x: 0.11, y: -0.06 },
+};
+
+const round = (value: number) => Math.round(value * 100) / 100;
+
+/** The eye pair centered on (0, 0) for a box `unit` viewBox units wide. */
+function eyePair(unit: number) {
+  const w = round(EYES.width * unit);
+  const h = round(EYES.length * unit);
+  const rise = (EYES.rise * Math.PI) / 180;
+  return [-1, 1].map((side) => {
+    const cx = round((side * EYES.gap * unit * Math.cos(rise)) / 2);
+    const cy = round((-side * EYES.gap * unit * Math.sin(rise)) / 2);
+    return (
+      <rect
+        key={side}
+        x={round(cx - w / 2)}
+        y={round(cy - h / 2)}
+        width={w}
+        height={h}
+        rx={round(w / 2)}
+        transform={`rotate(${EYES.tilt} ${cx} ${cy})`}
+      />
+    );
+  });
+}
+
+/** Where the eye pair sits in a square viewBox starting at `min`, `unit` wide. */
+function eyeOrigin(min: number, unit: number, at: { x: number; y: number } = EYES) {
+  const center = min + unit / 2;
+  return `translate(${round(center + at.x * unit)} ${round(center + at.y * unit)})`;
+}
+
+/** Eyes are cut out of the body, so they show whatever sits behind the avatar, as in Grok. */
+function EyeMask({
+  id,
+  min,
+  unit,
+  children,
+}: {
+  id: string;
+  min: number;
+  unit: number;
+  children: ReactNode;
+}) {
+  // Padded so working animations and glows that leave the viewBox are not clipped.
+  const region = { x: min - unit / 2, y: min - unit / 2, width: unit * 2, height: unit * 2 };
+  return (
+    <mask id={id} maskUnits="userSpaceOnUse" {...region}>
+      <rect {...region} fill="white" />
+      <g fill="black">{children}</g>
+    </mask>
+  );
+}
+
+const SHAPE_MIN = -15;
+const SHAPE_UNIT = 259;
+
+/** A studio shape, flat in the bot color with cut-out eyes. `before` draws under the body. */
+function ShapeArt({
+  shape,
+  path,
+  fill,
+  maskId,
+  size,
+  className,
+  style,
+  before,
+}: {
+  shape: string;
+  path: string;
+  fill: string;
+  maskId: string;
+  size: number;
+  className?: string;
+  style?: CSSProperties;
+  before?: ReactNode;
+}) {
+  return (
+    <svg
+      viewBox={VIEWBOX}
+      width={size}
+      height={size}
+      aria-hidden="true"
+      className={cn("overflow-visible", className)}
+      style={style}
+    >
+      <defs>
+        <EyeMask id={maskId} min={SHAPE_MIN} unit={SHAPE_UNIT}>
+          <g
+            transform={eyeOrigin(SHAPE_MIN, SHAPE_UNIT, SHAPE_EYES[shape])}
+            className="grok-character-eyes"
+          >
+            {eyePair(SHAPE_UNIT)}
+          </g>
+        </EyeMask>
+      </defs>
+      {before}
+      <path d={path} mask={`url(#${maskId})`} style={{ fill }} />
+    </svg>
+  );
+}
+
 export const BotAvatar = memo(function BotAvatar({
   color,
   size = 36,
@@ -167,6 +289,7 @@ export const BotAvatar = memo(function BotAvatar({
         size={size}
         isWorking={isWorking}
         className={className}
+        maskId={`${id}-eyes`}
       />
     );
   }
@@ -226,37 +349,22 @@ export const BotAvatar = memo(function BotAvatar({
           </linearGradient>
         </defs>
       </svg>
-      <svg
-        viewBox={VIEWBOX}
-        width={size}
-        height={size}
-        aria-hidden="true"
+      <ShapeArt
+        shape={SHIPPED_SHAPE_KEYS[parsed.shapeIndex] ?? "hex"}
+        path={shapePath}
+        fill={botAvatarFill(colorDef.hex)}
+        maskId={`${id}-eyes`}
+        size={size}
         className={cn(
-          "overflow-visible transition-transform duration-300",
-          isWorking
-            ? "animate-pulse scale-[1.04] motion-reduce:animate-none"
-            : "hover:scale-[1.03] motion-reduce:hover:scale-100",
+          "transition-transform duration-300",
+          isWorking && "animate-pulse scale-[1.04] motion-reduce:animate-none",
         )}
-        style={{
-          filter: isWorking
-            ? `drop-shadow(0 0 8px ${colorDef.light}) drop-shadow(0 0 2px #ffffff)`
-            : "drop-shadow(0 2px 4px rgba(0,0,0,0.45))",
-        }}
-      >
-        <defs>
-          <linearGradient id={`grok-ink-${id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={colorDef.light} />
-            <stop offset="100%" stopColor={colorDef.dark} />
-          </linearGradient>
-        </defs>
-        <g>
-          <path d={shapePath} fill={`url(#grok-ink-${id})`} />
-          <g fill={colorDef.eyeColor} className="grok-character-eyes">
-            <ellipse cx={CENTER - 29} cy={CENTER - 8} rx={10} ry={7} />
-            <ellipse cx={CENTER + 29} cy={CENTER - 8} rx={10} ry={7} />
-          </g>
-        </g>
-      </svg>
+        style={
+          isWorking
+            ? { filter: `drop-shadow(0 0 8px ${colorDef.light}) drop-shadow(0 0 2px #ffffff)` }
+            : undefined
+        }
+      />
     </div>
   );
 });
@@ -361,7 +469,6 @@ function RobotAvatar({
   const idleDuration = (4.2 + ((seed * 7) % 28) / 10).toFixed(2);
   const idleDelay = (-(((seed * 13) % 45) / 10)).toFixed(2);
   const { visorW, visorH, eyeW, eyeH, eyeGap, eyeRadius } = robotFaceLayout(size);
-  const eyeGlow = `0 0 4px #fff, 0 0 8px #fff, 0 0 14px ${colorDef.light}`;
   const idleEyeAnimation = {
     "--rakazo-eye-animation-name": `rakazo-eyes-idle-${eyeVariant}`,
     "--rakazo-eye-animation-duration": `${idleDuration}s`,
@@ -385,10 +492,10 @@ function RobotAvatar({
       style={{
         width: size,
         height: size,
-        background: `radial-gradient(circle at 35% 26%, ${colorDef.light}, ${colorDef.hex} 55%, ${colorDef.dark} 100%)`,
+        background: botAvatarFill(colorDef.hex),
         boxShadow: isWorking
           ? `0 0 0 2px rgba(255,255,255,0.25), 0 0 ${Math.round(size * 0.45)}px ${colorDef.hex}`
-          : `0 2px ${Math.max(4, Math.round(size * 0.15))}px rgba(0,0,0,0.4)`,
+          : undefined,
       }}
     >
       <svg
@@ -429,7 +536,6 @@ function RobotAvatar({
           boxSizing: "border-box",
           borderRadius: Math.round(visorH * 0.52),
           background: "linear-gradient(180deg, #101014 0%, #030305 100%)",
-          boxShadow: "inset 0 1.5px 3px rgba(0,0,0,0.95), 0 1px 1px rgba(255,255,255,0.18)",
           border: "1px solid rgba(255,255,255,0.14)",
         }}
       >
@@ -451,7 +557,6 @@ function RobotAvatar({
                   height: eyeH,
                   borderRadius: eyeRadius,
                   backgroundColor: "#fff",
-                  boxShadow: eyeGlow,
                 }}
               />
             ))}
@@ -468,12 +573,14 @@ function OrganicAvatar({
   size,
   isWorking,
   className,
+  maskId,
 }: {
   color: string;
   identity?: string;
   size: number;
   isWorking: boolean;
   className?: string;
+  maskId: string;
 }) {
   const reducedMotion = useSyncExternalStore(
     subscribeToReducedMotion,
@@ -499,42 +606,46 @@ function OrganicAvatar({
         flex: "none",
       }}
     >
-      {(["idle", "working"] as const).map((mode) => (
-        <path
-          key={mode}
-          className={`rakazo-organic-avatar-body rakazo-organic-avatar-body-${mode}`}
-          d={shapeA}
-          fill={color}
-          style={
-            {
-              "--rakazo-organic-path": `path("${shapeA}")`,
-              filter:
-                mode === "working"
-                  ? `drop-shadow(0 0 ${Math.round(size * 0.16)}px ${color})`
-                  : "drop-shadow(0 2px 3px rgba(0,0,0,.34))",
-            } as CSSProperties
-          }
-        >
-          {!reducedMotion ? (
-            <animate
-              attributeName="d"
-              values={`${shapeA};${shapeB};${shapeA}`}
-              dur={duration}
-              repeatCount="indefinite"
-            />
-          ) : null}
-        </path>
-      ))}
-      <g transform={`rotate(${(seed % 9) - 4})`}>
-        {(["idle", "working"] as const).map((mode) => (
-          <g
-            key={mode}
-            className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
-            fill={tokens.background}
-          >
-            <rect x="-14" y="-12" width="7" height="24" rx="3.5" />
-            <rect x="7" y="-12" width="7" height="24" rx="3.5" />
+      <defs>
+        <EyeMask id={maskId} min={-60} unit={120}>
+          <g transform={`${eyeOrigin(-60, 120)} rotate(${(seed % 9) - 4})`}>
+            {(["idle", "working"] as const).map((mode) => (
+              <g
+                key={mode}
+                className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
+              >
+                {eyePair(120)}
+              </g>
+            ))}
           </g>
+        </EyeMask>
+      </defs>
+      <g mask={`url(#${maskId})`}>
+        {(["idle", "working"] as const).map((mode) => (
+          <path
+            key={mode}
+            className={`rakazo-organic-avatar-body rakazo-organic-avatar-body-${mode}`}
+            d={shapeA}
+            style={
+              {
+                "--rakazo-organic-path": `path("${shapeA}")`,
+                fill: botAvatarFill(color),
+                filter:
+                  mode === "working"
+                    ? `drop-shadow(0 0 ${Math.round(size * 0.16)}px ${color})`
+                    : undefined,
+              } as CSSProperties
+            }
+          >
+            {!reducedMotion ? (
+              <animate
+                attributeName="d"
+                values={`${shapeA};${shapeB};${shapeA}`}
+                dur={duration}
+                repeatCount="indefinite"
+              />
+            ) : null}
+          </path>
         ))}
       </g>
     </svg>
@@ -553,6 +664,10 @@ function subscribeToReducedMotion(onChange: () => void): () => void {
   return () => media.removeEventListener("change", onChange);
 }
 
+/** Box of a studio shape, and its selection ring: 1px, 3px off the outline, as in Grok. */
+const PREVIEW_SIZE = 40;
+const PREVIEW_PX = SHAPE_UNIT / PREVIEW_SIZE;
+
 export function GrokShapePreview({
   shapeIndex,
   color,
@@ -564,9 +679,9 @@ export function GrokShapePreview({
   selected?: boolean;
   onClick?: () => void;
 }) {
+  const maskId = `${useId().replace(/[^a-zA-Z0-9-_]/g, "")}-eyes`;
   const key = SHIPPED_SHAPE_KEYS[shapeIndex % SHIPPED_SHAPE_KEYS.length] ?? "hex";
   const path = shippedBotAvatarShapePath(shapeIndex);
-  const colorDef = resolvePersonaColorDef("preview", color);
 
   return (
     <button
@@ -574,20 +689,23 @@ export function GrokShapePreview({
       onClick={onClick}
       aria-label={key}
       aria-pressed={selected ?? false}
-      className={cn(
-        "relative flex size-11 items-center justify-center rounded-xl transition-transform hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
-        selected
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-white/10"
-          : "hover:bg-white/5",
-      )}
+      className="flex size-14 items-center justify-center rounded-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <svg viewBox={VIEWBOX} className="size-8 overflow-visible" aria-hidden="true">
-        <path d={path} fill={colorDef.light} />
-        <g fill={colorDef.eyeColor}>
-          <ellipse cx={CENTER - 29} cy={CENTER - 8} rx={10} ry={7} />
-          <ellipse cx={CENTER + 29} cy={CENTER - 8} rx={10} ry={7} />
-        </g>
-      </svg>
+      <ShapeArt
+        shape={key}
+        path={path}
+        fill={botAvatarFill(color)}
+        maskId={maskId}
+        size={PREVIEW_SIZE}
+        before={
+          selected ? (
+            <g fill="none" strokeLinejoin="round">
+              <path d={path} className="stroke-input-focus" strokeWidth={8 * PREVIEW_PX} />
+              <path d={path} className="stroke-popover" strokeWidth={6 * PREVIEW_PX} />
+            </g>
+          ) : null
+        }
+      />
     </button>
   );
 }

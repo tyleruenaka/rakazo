@@ -7,9 +7,9 @@ vi.mock("@lingui/core/macro", () => ({
   t: (parts: TemplateStringsArray) => parts.join(""),
 }));
 vi.mock("@rakazo/ui-web", () => ({
-  BotAvatar: () => null,
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(" "),
 }));
+vi.mock("./avatar-studio-popover", () => ({ AvatarStudioPopover: () => null }));
 
 import { InlineBotField } from "./bot-panel-header";
 

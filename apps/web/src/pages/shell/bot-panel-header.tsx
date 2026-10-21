@@ -1,22 +1,42 @@
 import { t } from "@lingui/core/macro";
 import type { Bot } from "@rakazo/contracts";
 import { BOT_NAME_MAX_LENGTH, BOT_TITLE_MAX_LENGTH } from "@rakazo/contracts";
-import { BotAvatar, cn } from "@rakazo/ui-web";
+import { cn } from "@rakazo/ui-web";
 import { useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
+import { AvatarStudioPopover } from "./avatar-studio-popover";
 
-/** Avatar, name, and label at the top of the bot panel. Name and label edit in place. */
+/**
+ * Avatar, name, and label at the top of the bot panel. Name and label edit in place; the
+ * avatar opens Avatar Studio below it.
+ */
 export function BotPanelHeader({
   bot,
   onSave,
 }: {
   bot: Bot;
-  onSave: (patch: { name?: string; title?: string }) => Promise<void>;
+  onSave: (patch: { name?: string; title?: string; color?: string }) => Promise<void>;
 }) {
+  // Show a picked look at once and save picks in order, as bot settings do.
+  const [color, setColor] = useState<string | null>(null);
+  const colorSaves = useRef(Promise.resolve());
+
+  function saveColor(next: string) {
+    setColor(next);
+    colorSaves.current = colorSaves.current
+      .then(() => onSave({ color: next }))
+      .catch(() => setColor(null));
+  }
+
   return (
     <div className="flex flex-col items-center">
       <div className="mt-3 grid h-20 place-items-center">
-        <BotAvatar color={bot.color} identity={bot.id} size={67} status={bot.status} />
+        <AvatarStudioPopover
+          value={color ?? bot.color}
+          identity={bot.id}
+          status={bot.status}
+          onChange={saveColor}
+        />
       </div>
       <InlineBotField
         label={t`Name`}

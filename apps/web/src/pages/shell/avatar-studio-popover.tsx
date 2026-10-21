@@ -2,20 +2,20 @@ import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import {
   BotAvatar,
+  botAvatarFill,
+  cn,
   DEFAULT_GROK_BOT_COLOR,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   defaultBotAvatarValue,
   GROK_BOT_COLORS,
   GrokShapePreview,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   parseBotAvatar,
 } from "@rakazo/ui-web";
-import { Check, Pencil, Upload, X } from "lucide-react";
-import { type ClipboardEvent, type DragEvent, useRef, useState } from "react";
+import { Pencil, Upload } from "lucide-react";
+import type { ClipboardEvent, DragEvent } from "react";
+import { useRef, useState } from "react";
 
 export interface AvatarStudioPopoverProps {
   value: string;
@@ -113,148 +113,114 @@ export function AvatarStudioPopover({
     }
   }
 
+  const tabClass = (active: boolean) =>
+    cn(
+      "h-[25px] rounded-full px-2 text-[13px] transition-colors",
+      active ? "bg-card-hover text-foreground" : "text-description hover:text-foreground",
+    );
+
   return (
-    <>
-      <button
-        type="button"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         disabled={disabled}
-        onClick={() => setOpen(true)}
-        className="group relative cursor-pointer rounded-2xl outline-none transition-transform hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-ring"
+        className="group relative grid cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={t`Customize bot avatar`}
         data-testid="avatar-studio-trigger"
       >
-        <BotAvatar color={value} identity={identity} size={size} status={status} />
-        <div className="absolute -right-1 -bottom-1 flex size-6 items-center justify-center rounded-full border-2 border-background bg-secondary text-foreground shadow-md transition-transform group-hover:scale-110">
-          <Pencil size={12} strokeWidth={2.2} />
+        <span className="group-hover:brightness-30 group-data-popup-open:brightness-30">
+          <BotAvatar color={value} identity={identity} size={size} status={status} />
+        </span>
+        <Pencil
+          size={16}
+          strokeWidth={1.5}
+          aria-hidden
+          className="pointer-events-none absolute text-white opacity-0 group-hover:opacity-100 group-data-popup-open:opacity-100"
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        sideOffset={2}
+        aria-label={t`Avatar Studio`}
+        className="w-[297px] gap-0 border-card-border p-0"
+        data-testid="avatar-studio"
+      >
+        <div className="flex items-center justify-between border-b-[0.5px] border-card-border px-2 pt-2 pb-[8.5px]">
+          <div className="flex gap-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("bot")}
+              aria-pressed={activeTab === "bot"}
+              className={tabClass(activeTab === "bot")}
+            >
+              <Trans>Bot</Trans>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("upload")}
+              aria-pressed={activeTab === "upload"}
+              className={tabClass(activeTab === "upload")}
+            >
+              <Trans>Upload</Trans>
+            </button>
+          </div>
+          <button type="button" onClick={restoreDefaultAvatar} className={tabClass(false)}>
+            <Trans>Reset</Trans>
+          </button>
         </div>
-      </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="w-[360px] max-w-full gap-4 rounded-3xl p-5 sm:max-w-[360px]"
-          data-testid="avatar-studio"
-        >
-          <DialogHeader className="flex-row items-center justify-between space-y-0">
-            <DialogTitle className="text-[14px] font-semibold tracking-tight">
-              <Trans>Avatar Studio</Trans>
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              <Trans>Choose a bot shape, color, or upload an image</Trans>
-            </DialogDescription>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label={t`Close`}
-            >
-              <X size={16} />
-            </button>
-          </DialogHeader>
-
-          <div className="flex flex-col items-center justify-center py-2">
-            <BotAvatar color={value} identity={identity} size={78} status={status} />
-          </div>
-
-          <div className="flex items-center justify-between border-b border-border pb-1">
-            <div className="flex items-center rounded-full bg-muted p-1 text-xs">
+        {activeTab === "bot" ? (
+          <div className="px-2 pt-3.5 pb-6" data-testid="avatar-studio-bot-tab">
+            <div className="flex flex-wrap justify-center">
               <button
                 type="button"
-                onClick={() => setActiveTab("bot")}
-                aria-pressed={activeTab === "bot"}
-                className={`rounded-full px-3 py-1 font-medium transition-colors ${
-                  activeTab === "bot"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                data-testid="avatar-studio-default"
+                aria-label={t`Default`}
+                aria-pressed={isDefaultLook}
+                onClick={restoreDefaultAvatar}
+                className="flex size-14 items-center justify-center rounded-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Trans>Bot</Trans>
+                <span
+                  className={cn(
+                    "rounded-full",
+                    isDefaultLook &&
+                      "ring-1 ring-input-focus ring-offset-[3px] ring-offset-popover",
+                  )}
+                >
+                  <BotAvatar color={defaultBotAvatarValue(value)} identity={identity} size={40} />
+                </span>
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("upload")}
-                aria-pressed={activeTab === "upload"}
-                className={`rounded-full px-3 py-1 font-medium transition-colors ${
-                  activeTab === "upload"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Trans>Upload</Trans>
-              </button>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((shapeIndex) => (
+                <GrokShapePreview
+                  key={shapeIndex}
+                  shapeIndex={shapeIndex}
+                  color={currentColor}
+                  selected={!parsed.isImage && parsed.shapeIndex === shapeIndex}
+                  onClick={() => selectShape(shapeIndex)}
+                />
+              ))}
             </div>
-
-            <button
-              type="button"
-              onClick={restoreDefaultAvatar}
-              className="px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Trans>Reset</Trans>
-            </button>
-          </div>
-
-          {activeTab === "bot" ? (
-            <div className="space-y-4 pt-1" data-testid="avatar-studio-bot-tab">
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                    <Trans>Shape</Trans>
-                  </div>
+            <div className="mx-auto mt-[26px] flex w-[224px] flex-wrap justify-center gap-4">
+              {GROK_BOT_COLORS.map((color) => {
+                const selected =
+                  currentColor.toLowerCase() === color.toLowerCase() && !parsed.isImage;
+                return (
                   <button
+                    key={color}
                     type="button"
-                    data-testid="avatar-studio-default"
-                    aria-pressed={isDefaultLook}
-                    onClick={restoreDefaultAvatar}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      isDefaultLook
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Trans>Default</Trans>
-                  </button>
-                </div>
-                <div className="grid grid-cols-4 place-items-center gap-2">
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((shapeIndex) => (
-                    <GrokShapePreview
-                      key={shapeIndex}
-                      shapeIndex={shapeIndex}
-                      color={currentColor}
-                      selected={!parsed.isImage && parsed.shapeIndex === shapeIndex}
-                      onClick={() => selectShape(shapeIndex)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-2">
-                <div className="mb-2 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                  <Trans>Color</Trans>
-                </div>
-                <div className="grid grid-cols-6 place-items-center gap-2">
-                  {GROK_BOT_COLORS.map((color) => {
-                    const selected =
-                      currentColor.toLowerCase() === color.toLowerCase() && !parsed.isImage;
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => selectColor(color)}
-                        aria-label={t`Color ${color}`}
-                        aria-pressed={selected}
-                        className={`size-6 rounded-full border transition-transform hover:scale-110 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring ${
-                          selected
-                            ? "scale-105 border-transparent ring-2 ring-foreground ring-offset-2 ring-offset-popover"
-                            : "border-border"
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+                    onClick={() => selectColor(color)}
+                    aria-label={t`Color ${color}`}
+                    aria-pressed={selected}
+                    className={cn(
+                      "size-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selected && "ring-1 ring-input-focus ring-offset-[3px] ring-offset-popover",
+                    )}
+                    style={{ backgroundColor: botAvatarFill(color) }}
+                  />
+                );
+              })}
             </div>
-          ) : (
+          </div>
+        ) : (
+          <div className="p-2">
             <button
               type="button"
               aria-label={t`Image upload area`}
@@ -292,20 +258,9 @@ export function AvatarStudioPopover({
                 <Trans>Choose file</Trans>
               </span>
             </button>
-          )}
-
-          <DialogFooter className="border-border sm:justify-end">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              <Check size={14} />
-              <Trans>Done</Trans>
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
