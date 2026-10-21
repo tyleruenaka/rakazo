@@ -4149,43 +4149,57 @@ function SpaceShell() {
           </div>
           <div className="flex items-center gap-2">
             {bootstrapMe?.phoneCallsEnabled && !inGroup && active ? (
-              <button
-                type="button"
-                data-testid="call-button"
-                aria-label={call?.botId === active.id ? t`Open call` : t`Call`}
-                title={call?.botId === active.id ? t`Open call` : t`Call`}
-                onClick={() => {
-                  if (call?.botId === active.id) {
-                    setCallMinimized(false);
-                    return;
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      data-testid="call-button"
+                      aria-label={call?.botId === active.id ? t`Open call` : t`Call`}
+                      onClick={() => {
+                        if (call?.botId === active.id) {
+                          setCallMinimized(false);
+                          return;
+                        }
+                        callBot(active);
+                      }}
+                      data-active={call?.botId === active.id ? "" : undefined}
+                      className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
+                    />
                   }
-                  callBot(active);
-                }}
-                data-active={call?.botId === active.id ? "" : undefined}
-                className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
-              >
-                <Phone size={17} strokeWidth={1.6} />
-              </button>
+                >
+                  <Phone size={17} strokeWidth={1.6} />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {call?.botId === active.id ? t`Open call` : t`Call`}
+                </TooltipContent>
+              </Tooltip>
             ) : null}
             {!inGroup && active ? (
-              <button
-                type="button"
-                aria-label={t`Agent computer`}
-                aria-pressed={panel === "computer"}
-                title={t`Agent computer`}
-                onClick={() => {
-                  const next = panel === "computer" ? null : "computer";
-                  setPanel(next);
-                  if (next === "computer" && active) {
-                    // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
-                    void refreshThread(active.id).catch(() => undefined);
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={t`Agent computer`}
+                      aria-pressed={panel === "computer"}
+                      onClick={() => {
+                        const next = panel === "computer" ? null : "computer";
+                        setPanel(next);
+                        if (next === "computer" && active) {
+                          // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
+                          void refreshThread(active.id).catch(() => undefined);
+                        }
+                      }}
+                      data-active={panel === "computer" ? "" : undefined}
+                      className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
+                    />
                   }
-                }}
-                data-active={panel === "computer" ? "" : undefined}
-                className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
-              >
-                <Monitor size={17} strokeWidth={1.6} />
-              </button>
+                >
+                  <Monitor size={17} strokeWidth={1.6} />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t`Agent computer`}</TooltipContent>
+              </Tooltip>
             ) : null}
           </div>
         </div>
