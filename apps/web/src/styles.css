@@ -95,9 +95,17 @@ body,
     0 1px 4px rgb(0 0 0 / 0.04);
 }
 
-/* The transcript fades out under the floating header. */
+/* The transcript fades out under the floating header. At the bottom it is cut 38px up (the
+   composer's 16px bottom padding plus half its 44px bar), like Grok: messages show past the
+   bar's top corners, but nothing below its bottom corners or in the strip under it. */
 .rk-transcript-fade {
-  mask-image: linear-gradient(to bottom, transparent, black 60px);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 60px,
+    black calc(100% - 38px),
+    transparent calc(100% - 38px)
+  );
 }
 
 /* A 6px pill thumb 1px from the edge, no track. Chromium ignores these pseudo-elements once
