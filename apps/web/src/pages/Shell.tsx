@@ -658,7 +658,28 @@ function SpaceShell() {
     }
   }
 
+  // Last-known thread per bot, so switching back paints the transcript instantly
+  // instead of blanking while threads.get round-trips. Same LRU cap as computers.
+  const threadCacheRef = useRef(new Map<string, ThreadSnapshot>());
+  // The bot whose transcript shows a cached snapshot until threads.get returns.
+  // Its run state, asks and actions stay off so nothing acts on stale state.
+  const [staleThreadBotId, setStaleThreadBotId] = useState<string | null>(null);
+  const staleThreadRef = useRef<string | null>(null);
+  function setThreadStale(botId: string | null) {
+    staleThreadRef.current = botId;
+    setStaleThreadBotId(botId);
+  }
+
   function commitSnapshot(next: ThreadSnapshot | null) {
+    if (next?.botId && !next.groupId) {
+      const cache = threadCacheRef.current;
+      cache.delete(next.botId);
+      cache.set(next.botId, next);
+      if (cache.size > COMPUTER_CACHE_LIMIT) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+    }
     snapshotRef.current = next;
     setSnapshot(withLiveStreamingProgress(next, streamResponsesRef.current));
   }
@@ -1242,6 +1263,7 @@ function SpaceShell() {
       expandedHistoryThread.current === snap.threadId,
     );
     commitSnapshot(reconciled.snapshot);
+    setThreadStale(null);
     commitComputer(reconciled.computer);
     cacheComputerFor(id, { computer: reconciled.computer });
     if (
@@ -1479,7 +1501,9 @@ function SpaceShell() {
   }, []);
 
   useEffect(() => {
-    if (!active || !snapshot || snapshot.botId !== active.id) return;
+    // A cached thread must not set the baseline, or a reply that came while away is spoken.
+    if (!active || !snapshot || snapshot.botId !== active.id || staleThreadBotId === active.id)
+      return;
     const lastBot = [...snapshot.messages].reverse().find((message) => message.role === "bot");
     if (autoSpokenBotId.current !== active.id) {
       autoSpokenBotId.current = active.id;
@@ -1500,6 +1524,7 @@ function SpaceShell() {
     snapshot?.messages,
     snapshot?.run?.status,
     snapshot?.botId,
+    staleThreadBotId,
     active?.autoSpeak,
     active?.id,
     call?.botId,
@@ -1541,6 +1566,13 @@ function SpaceShell() {
     }
     expandedHistoryThread.current = null;
     historyEpoch.current += 1;
+    // A pending search jump waits for its own fresh page instead of the cached thread.
+    const cachedThread =
+      pendingJump || bootstrappedThread.current?.botId === active.id
+        ? undefined
+        : threadCacheRef.current.get(active.id);
+    if (cachedThread) commitSnapshot(cachedThread);
+    setThreadStale(cachedThread ? active.id : null);
     const abort = new AbortController();
     void runThreadSubscription({
       signal: abort.signal,
@@ -1557,7 +1589,8 @@ function SpaceShell() {
       loadHead: () =>
         rpc.threads.head({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) }),
       refresh: () => refreshThread(active.id, threadSnapshotSignal(abort.signal)),
-      currentSnapshot: () => snapshotRef.current,
+      // A cached snapshot is not ready: the subscription must wait for a fresh one.
+      currentSnapshot: () => (staleThreadRef.current === active.id ? null : snapshotRef.current),
       subscribe: (cursor, signal) =>
         rpc.threads.subscribe({ botId: active.id, cursor }, { signal }),
       beforeEvent: (event) => {
@@ -2007,6 +2040,7 @@ function SpaceShell() {
       messages: targetInPage ? page.messages : snap.messages,
       olderCursor: targetInPage ? page.olderCursor : snap.olderCursor,
     });
+    setThreadStale(null);
     if (threadTarget.botId) {
       commitComputer(snap.computer ?? null);
       // Don't block parent-scroll on routines metadata; a list failure must not abort the jump.
@@ -2101,16 +2135,19 @@ function SpaceShell() {
     setReplyTarget(null);
     setReplyQuote(null);
   }, []);
-  const currentRuns = activeThreadRuns(activeSnapshot);
-  const answerableAskIds = useMemo(() => answerableAskMessageIds(activeSnapshot), [activeSnapshot]);
+  const threadStale = !inGroup && staleThreadBotId === active?.id;
+  // The cached transcript shows, but its runs and asks wait for fresh data.
+  const liveSnapshot = threadStale ? null : activeSnapshot;
+  const currentRuns = activeThreadRuns(liveSnapshot);
+  const answerableAskIds = useMemo(() => answerableAskMessageIds(liveSnapshot), [liveSnapshot]);
   const workingRuns = currentRuns.filter((run) =>
     ["running", "queued", "leased"].includes(run.status),
   );
   const transcriptRunning = workingRuns.length > 0;
   const composerRunning = currentRuns.some((run) => isActive(run.status));
-  const runError = threadRunError(activeSnapshot, dismissedRunErrorIds);
+  const runError = threadRunError(liveSnapshot, dismissedRunErrorIds);
   const displayedRunError = !sendError ? runError : null;
-  const displayedRunErrorId = displayedRunError ? (activeSnapshot?.run?.id ?? null) : null;
+  const displayedRunErrorId = displayedRunError ? (liveSnapshot?.run?.id ?? null) : null;
   const handleRunErrorPresented = useCallback((runId: string) => {
     rememberSeenRunErrorId(runId);
   }, []);
@@ -4276,6 +4313,7 @@ function SpaceShell() {
         ) : (
           <Transcript
             key={activeSnapshot?.threadId}
+            stale={threadStale}
             scrollRef={messageScroll}
             scrollRequest={scrollRequest}
             onScrollRequestHandled={clearScrollRequest}
@@ -5569,6 +5607,7 @@ export function ComposerDock({
 }
 
 const Transcript = memo(function Transcript({
+  stale,
   scrollRef,
   scrollRequest,
   onScrollRequestHandled,
@@ -5599,6 +5638,8 @@ const Transcript = memo(function Transcript({
   onSpeak,
   onOpenComputer,
 }: {
+  /** A cached snapshot is showing: nothing in it can be acted on until fresh data lands. */
+  stale: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollRequest: { messageId: string; nonce: number } | null;
   onScrollRequestHandled: () => void;
@@ -5874,7 +5915,7 @@ const Transcript = memo(function Transcript({
   );
 
   return (
-    <div className="relative isolate flex min-h-0 flex-1">
+    <div className="relative isolate flex min-h-0 flex-1" inert={stale}>
       <div
         ref={scrollRef}
         data-testid="transcript"
