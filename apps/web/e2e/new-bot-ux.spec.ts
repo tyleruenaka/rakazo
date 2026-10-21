@@ -49,6 +49,12 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
   const edge = page.getByTestId("bots-sidebar-edge");
   await expect(edge).toBeVisible();
+  const rail = page.getByTestId("bots-rail");
+  await expect(rail).toBeVisible();
+  await expect(rail.locator('[aria-current="page"]')).toHaveText("New Bot");
+  // The chat starts right after the 88px rail once the sidebar's width transition ends.
+  await expect.poll(async () => (await rail.boundingBox())?.width).toBe(88);
+  await expect.poll(async () => (await page.locator("main").boundingBox())?.x).toBe(88);
   const restore = page.getByTestId("restore-bots-sidebar");
   await expect(restore).toBeVisible();
   await captureScreenshot(page, testInfo, "bots-sidebar-collapsed");
