@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type { Bot } from "@rakazo/contracts";
 import {
-  Badge,
   BotAvatar,
   Command,
   CommandDialog,
@@ -89,11 +88,10 @@ export function CommandPalette({
       onOpenChange={onOpenChange}
       title={t`Switch bot`}
       description={t`Search bots and switch conversations`}
-      className="sm:max-w-xl"
     >
       <Command
         shouldFilter={false}
-        className="rounded-xl! bg-popover"
+        className="rounded-none bg-transparent p-0"
         data-testid="command-palette"
       >
         <CommandInput
@@ -102,11 +100,11 @@ export function CommandPalette({
           placeholder={t`Search`}
           data-testid="command-palette-search"
         />
-        <CommandList className="max-h-80" data-testid="command-palette-list">
+        <CommandList className="max-h-[404px] p-2" data-testid="command-palette-list">
           <CommandEmpty>
             <Trans>No bots</Trans>
           </CommandEmpty>
-          <CommandGroup>
+          <CommandGroup className="p-0 **:[[cmdk-group-items]]:flex **:[[cmdk-group-items]]:flex-col **:[[cmdk-group-items]]:gap-0.5">
             {filteredBots.map((bot, index) => {
               const subtitle = botSubtitle(bot);
               const titleTag = botTitleTag(bot);
@@ -120,29 +118,35 @@ export function CommandPalette({
                     onSelectBot(bot.id);
                     onOpenChange(false);
                   }}
-                  className="items-center gap-3 rounded-xl! px-2.5 py-2.5"
+                  className="h-[49px] gap-2 rounded-[10px] px-2 py-0 data-selected:bg-palette-highlight"
                 >
-                  <BotAvatar color={bot.color} identity={bot.id} size={32} status={bot.status} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-medium text-foreground" dir="auto">
+                  <BotAvatar color={bot.color} identity={bot.id} size={24} status={bot.status} />
+                  <div className="min-w-0 flex-1 pt-px">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate leading-[18px] text-foreground" dir="auto">
                         {bot.name}
                       </span>
                       {titleTag ? (
-                        <Badge
-                          variant="secondary"
-                          className="max-w-[40%] truncate rounded-full px-1.5 py-0 text-[11px] font-normal text-muted-foreground"
-                        >
+                        <span className="max-w-[40%] shrink-0 truncate rounded-[3px] border-[0.5px] border-chip-border bg-chip bg-clip-padding px-[4.5px] text-[11px] leading-[17px] text-muted-foreground">
                           {titleTag}
-                        </Badge>
+                        </span>
                       ) : null}
                     </div>
                     {subtitle ? (
-                      <div className="mt-0.5 truncate text-[13px] text-muted-foreground" dir="auto">
+                      <div
+                        className="truncate text-[12.8px] leading-[17px] text-muted-foreground"
+                        dir="auto"
+                      >
                         {subtitle}
                       </div>
                     ) : null}
                   </div>
+                  {bot.unread ? (
+                    <span
+                      aria-hidden="true"
+                      className="me-0.5 size-2 shrink-0 rounded-full bg-unread"
+                    />
+                  ) : null}
                   {shortcut ? (
                     <CommandShortcut className="tracking-normal">
                       <Kbd>{shortcut}</Kbd>

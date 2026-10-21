@@ -130,7 +130,7 @@ export function CreateBotForm({
   return (
     <div data-testid="create-bot-form">
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-[13.5px] text-muted-foreground">
+        <span className="text-[14px] font-medium text-foreground">
           <Trans>New bot</Trans>
         </span>
         <Button variant="ghost" size="icon-sm" aria-label={t`Cancel new bot`} onClick={onCancel}>

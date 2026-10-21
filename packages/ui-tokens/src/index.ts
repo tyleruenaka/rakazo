@@ -24,10 +24,14 @@ export type ColorTokens = {
   popoverBorder: string;
   /** Hovered or highlighted menu row. */
   popoverAccent: string;
+  /** Keyboard-highlighted result in the command palette. */
+  paletteHighlight: string;
   /** Neutral fill for small controls: open select, picker hover, switch track, secondary button. */
   control: string;
   /** Border of a control while its menu is open. */
   controlOpenBorder: string;
+  /** Icon in a round outlined header button, a step softer than text. */
+  controlIcon: string;
   primary: string;
   primaryForeground: string;
   /** Disabled filled button. */
@@ -45,6 +49,8 @@ export type ColorTokens = {
   destructiveForeground: string;
   border: string;
   input: string;
+  /** Hairline of an outlined control (round header button, footer pill) on hover. */
+  inputHover: string;
   /** Field border while focused. */
   inputFocus: string;
   /** Placeholder and secondary values in fields and menus. */
@@ -57,6 +63,13 @@ export type ColorTokens = {
   sidebarBorder: string;
   sidebarAccent: string;
   sidebarAccentForeground: string;
+  /** Hovered row or section header in the bot list. */
+  sidebarHover: string;
+  /** Secondary sidebar text; translucent so it lifts on hovered and selected rows. */
+  sidebarMutedForeground: string;
+  /** Translucent tag fill (role chip) that follows the row bg. */
+  chip: string;
+  chipBorder: string;
   link: string;
   /** Backing behind a link's site icon. White in both themes so dark logos stay visible. */
   faviconPlate: string;
@@ -82,8 +95,10 @@ export const darkTokens = {
   popoverForeground: "#F5F5F5",
   popoverBorder: "#353535",
   popoverAccent: "#2B2B2B",
+  paletteHighlight: "#303030",
   control: "#282828",
   controlOpenBorder: "#303030",
+  controlIcon: "#E0E0E0",
   primary: "#F5F5F5",
   primaryForeground: "#121212",
   primaryDisabled: "#3B3B3B",
@@ -100,6 +115,7 @@ export const darkTokens = {
   destructiveForeground: "#FFFFFF",
   border: "#2A2A2A",
   input: "#2C2C2C",
+  inputHover: "#373737",
   inputFocus: "#4E4E4E",
   placeholder: "#939393",
   ring: "#1784FC",
@@ -109,12 +125,16 @@ export const darkTokens = {
   sidebarBorder: "#1C1C1C",
   sidebarAccent: "#202020",
   sidebarAccentForeground: "#F5F5F5",
+  sidebarHover: "#1B1B1B",
+  sidebarMutedForeground: "rgba(245, 245, 245, 0.662)",
+  chip: "rgba(255, 255, 255, 0.02)",
+  chipBorder: "rgba(255, 255, 255, 0.054)",
   link: "#3B82F6",
   faviconPlate: "#FFFFFF",
   success: "#4ECB71",
   warning: "#E9C46A",
   statusWorking: "#3B82F6",
-  unread: "#6199F8",
+  unread: "#4D9BFF",
   overlay: "rgba(0, 0, 0, 0.7)",
   scrollbar: "#1F1F1F",
   popupScrollbar: "#8F8F8F",
@@ -131,8 +151,10 @@ export const lightTokens = {
   popoverForeground: "#1C1C1C",
   popoverBorder: "#E3E3E3",
   popoverAccent: "#F2F2F2",
+  paletteHighlight: "#EDEDED",
   control: "#F2F2F2",
   controlOpenBorder: "#E6E6E6",
+  controlIcon: "#2E2E2E",
   primary: "#1C1C1C",
   primaryForeground: "#FCFCFC",
   primaryDisabled: "#DDDDDD",
@@ -149,6 +171,7 @@ export const lightTokens = {
   destructiveForeground: "#FFFFFF",
   border: "#E3E3E3",
   input: "#EDEDED",
+  inputHover: "#E1E1E1",
   inputFocus: "#C9C9C9",
   placeholder: "#808080",
   ring: "#1E86FC",
@@ -158,13 +181,17 @@ export const lightTokens = {
   sidebarBorder: "#E4E4E4",
   sidebarAccent: "#E4E4E4",
   sidebarAccentForeground: "#1C1C1C",
+  sidebarHover: "#E9E9E9",
+  sidebarMutedForeground: "rgba(28, 28, 28, 0.677)",
+  chip: "rgba(0, 0, 0, 0.037)",
+  chipBorder: "rgba(0, 0, 0, 0.08)",
   link: "#2563EB",
   faviconPlate: "#FFFFFF",
   success: "#228B3B",
   warning: "#B7791F",
   statusWorking: "#2563EB",
-  unread: "#306CCC",
-  overlay: "rgba(20, 20, 22, 0.45)",
+  unread: "#086ED3",
+  overlay: "rgba(0, 0, 0, 0.5)",
   scrollbar: "#D4D4D4",
   popupScrollbar: "#7F7F7F",
   scrollbarHover: "#BDBDBD",

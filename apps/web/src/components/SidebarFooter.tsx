@@ -97,7 +97,7 @@ export function SidebarFooter({
         <DropdownMenuTrigger
           data-testid="user-menu-trigger"
           aria-label={t`Account menu for ${name}`}
-          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:border-foreground/30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
+          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
         >
           {image && failedImage !== image ? (
             <img
@@ -197,22 +197,22 @@ export function SidebarFooter({
         variant="outline"
         ref={pillRef}
         onClick={onIntegrations}
-        className="h-9 min-w-0 flex-1 justify-center gap-2 rounded-full border-border bg-card text-[15px] font-normal hover:bg-accent dark:bg-card dark:hover:bg-accent"
+        className="h-9 min-w-0 flex-1 justify-center gap-[7.5px] ps-[14.5px] text-[14px] font-medium"
       >
         <span ref={labelRef} className="min-w-0 truncate">
           <Trans>Connect apps</Trans>
         </span>
-        <span aria-hidden="true" className="flex shrink-0 items-center -space-x-1">
+        <span aria-hidden="true" className="flex shrink-0 items-center -space-x-[3px]">
           {logos.slice(0, markCount).map((app) => (
             <span
               key={app.name}
-              className="grid size-[18px] shrink-0 place-items-center overflow-hidden rounded-[5px] bg-muted text-[10px] font-medium text-foreground ring-2 ring-card"
+              className="grid size-[15px] shrink-0 place-items-center overflow-hidden rounded-[4px] bg-muted text-[9px] font-medium text-foreground outline-[0.5px] outline-offset-1 outline-input outline-solid ring-1 ring-card group-hover/button:ring-popover-accent"
             >
               {app.logo && !failedLogos.includes(app.logo) ? (
                 <img
                   src={app.logo}
                   alt=""
-                  className="size-full object-contain"
+                  className="size-full bg-favicon-plate object-contain p-px"
                   onError={() => setFailedLogos((failed) => [...failed, app.logo!])}
                 />
               ) : (

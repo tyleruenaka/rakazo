@@ -10,7 +10,7 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-primary-disabled disabled:text-primary-disabled-foreground disabled:opacity-100",
         outline:
-          "border-input bg-card hover:bg-popover-accent hover:text-foreground aria-expanded:bg-popover-accent aria-expanded:text-foreground",
+          "border-input bg-card hover:border-input-hover hover:bg-popover-accent aria-expanded:border-input-hover aria-expanded:bg-popover-accent",
         secondary:
           "border-[0.5px] border-border bg-control text-foreground hover:bg-popover-accent aria-expanded:bg-popover-accent",
         ghost:

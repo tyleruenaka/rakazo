@@ -16,8 +16,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-popover-border: var(--popover-border);
   --color-popover-accent: var(--popover-accent);
+  --color-palette-highlight: var(--palette-highlight);
   --color-control: var(--control);
   --color-control-open-border: var(--control-open-border);
+  --color-control-icon: var(--control-icon);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-disabled: var(--primary-disabled);
@@ -34,6 +36,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-input-hover: var(--input-hover);
   --color-input-focus: var(--input-focus);
   --color-placeholder: var(--placeholder);
   --color-ring: var(--ring);
@@ -43,7 +46,12 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-chip: var(--chip);
+  --color-chip-border: var(--chip-border);
   --color-link: var(--link);
+  --color-favicon-plate: var(--favicon-plate);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-status-working: var(--status-working);
@@ -58,6 +66,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --shadow-popover: 0 1px 3px rgb(0 0 0 / 0.08), 0 6px 20px rgb(0 0 0 / 0.08);
+  --shadow-tooltip: 0 4px 12px rgb(0 0 0 / 0.08);
 }
 
 @layer base {

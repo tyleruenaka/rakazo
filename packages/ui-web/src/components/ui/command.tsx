@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@rakazo/ui-web/components/ui/dialog";
-import { InputGroup, InputGroupAddon } from "@rakazo/ui-web/components/ui/input-group";
 
 import { cn } from "@rakazo/ui-web/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
@@ -44,7 +43,10 @@ function CommandDialog({
   return (
     <Dialog {...props}>
       <DialogContent
-        className={cn("top-1/3 translate-y-0 gap-0 overflow-hidden rounded-xl! p-0", className)}
+        className={cn(
+          "w-[560px] gap-0 overflow-hidden rounded-[14px] border-[0.5px] border-popover-border bg-popover p-0 ring-0 sm:max-w-[560px]",
+          className,
+        )}
         showCloseButton={showCloseButton}
       >
         <DialogHeader className="sr-only">
@@ -62,20 +64,19 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
-        <CommandPrimitive.Input
-          data-slot="command-input"
-          className={cn(
-            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-            className,
-          )}
-          {...props}
-        />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
-        </InputGroupAddon>
-      </InputGroup>
+    <div
+      data-slot="command-input-wrapper"
+      className="flex h-[50px] shrink-0 items-center gap-1 border-b-[0.5px] border-control px-4"
+    >
+      <SearchIcon className="size-4 shrink-0 text-placeholder" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
+        className={cn(
+          "h-full min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-hidden placeholder:text-placeholder disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+        {...props}
+      />
     </div>
   );
 }

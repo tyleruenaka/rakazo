@@ -72,6 +72,7 @@ import {
   AvatarStyleProvider,
   BotAvatar,
   Button,
+  buttonVariants,
   Collapsible,
   CollapsibleContent,
   cn,
@@ -89,6 +90,9 @@ import {
   PopoverTrigger,
   parseBotAvatar,
   resolvePersonaColorDef,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@rakazo/ui-web";
 import {
   ArrowDown,
@@ -96,6 +100,7 @@ import {
   Bell,
   Box,
   ChevronDown,
+  ChevronRight,
   CircleAlert,
   Clock,
   Copy,
@@ -368,6 +373,10 @@ type PendingBrowserNotification = {
 const ATTACHMENT_ACCEPT = [...ATTACHMENT_ALLOWED_MIME_TYPES, ".zip"].join(",");
 /** Identity colour for bots the roster no longer knows about. */
 const FALLBACK_BOT_COLOR = "#85858A";
+const headerButtonClass = cn(
+  buttonVariants({ variant: "outline", size: "icon-lg" }),
+  "app-no-drag text-control-icon",
+);
 const THREAD_SNAPSHOT_TIMEOUT_MS = 2_000;
 /** Bound Settings leave so a hung voice status refresh cannot block dismissal. */
 const VOICE_STATUS_REFRESH_TIMEOUT_MS = 10_000;
@@ -3097,7 +3106,7 @@ function SpaceShell() {
           type="button"
           aria-label={t`Close navigation`}
           onClick={() => setMobileSidebarOpen(false)}
-          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),294px)] z-30 bg-overlay md:hidden"
+          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),295px)] z-30 bg-overlay md:hidden"
         />
       ) : null}
       <aside
@@ -3106,67 +3115,86 @@ function SpaceShell() {
         data-bots-sidebar-density={botsSidebarDensity}
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
         inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
-        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[294px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
+        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[295px] shrink-0 flex-col border-e-[0.5px] border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
         } ${
           botsSidebarCollapsed
             ? "md:w-0 md:max-w-0 md:overflow-hidden md:border-e-0 md:opacity-0 md:pointer-events-none"
-            : "md:w-[294px]"
+            : "md:w-[295px]"
         }`}
       >
         <div className="app-drag flex items-center justify-between pb-2 pe-4 ps-[18px] pt-3">
           <WindowChrome />
           <div className="relative flex items-center gap-2">
-            <button
-              type="button"
-              aria-label={t`Activity`}
-              aria-pressed={activityMode}
-              title={t`Activity`}
-              data-activity-mode={activityMode ? "on" : "off"}
-              onClick={toggleActivityMode}
-              className={`app-no-drag flex size-9 items-center justify-center rounded-full ${
-                activityMode
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-              }`}
-            >
-              <Bell
-                size={17}
-                strokeWidth={1.8}
-                fill={activityMode ? "currentColor" : "none"}
-                aria-hidden="true"
-              />
-            </button>
-            <button
-              type="button"
-              className="app-no-drag hidden size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground md:inline-flex"
-              aria-label={t`Minimize bots`}
-              title={t`Minimize bots`}
-              data-testid="minimize-bots-sidebar"
-              onClick={() => setBotsSidebarCollapsedPref(true)}
-            >
-              <PanelLeftClose size={17} strokeWidth={1.8} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label={t`Search`}
-              aria-expanded={searchOpen || activityMode || query.length > 0}
-              title={t`Search`}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setSearchOpen((open) => !open)}
-              className="app-no-drag flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
-            >
-              <Search size={18} strokeWidth={1.8} aria-hidden="true" />
-            </button>
-            <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
-              <PopoverTrigger
-                className="app-no-drag flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-accent"
-                title={t`Create`}
-                aria-label={t`Create`}
-                data-testid="create-menu-trigger"
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={t`Activity`}
+                    aria-pressed={activityMode}
+                    data-activity-mode={activityMode ? "on" : "off"}
+                    onClick={toggleActivityMode}
+                    className={cn(
+                      headerButtonClass,
+                      activityMode &&
+                        "border-primary bg-primary text-primary-foreground hover:border-primary hover:bg-primary/90 hover:text-primary-foreground",
+                    )}
+                  />
+                }
               >
-                <Plus size={20} strokeWidth={1.7} aria-hidden="true" />
-              </PopoverTrigger>
+                <Bell fill={activityMode ? "currentColor" : "none"} aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t`Activity`}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(headerButtonClass, "hidden md:inline-flex")}
+                    aria-label={t`Minimize bots`}
+                    data-testid="minimize-bots-sidebar"
+                    onClick={() => setBotsSidebarCollapsedPref(true)}
+                  />
+                }
+              >
+                <PanelLeftClose aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t`Minimize bots`}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={t`Search`}
+                    aria-expanded={searchOpen || activityMode || query.length > 0}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setSearchOpen((open) => !open)}
+                    className={headerButtonClass}
+                  />
+                }
+              >
+                <Search aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t`Search`}</TooltipContent>
+            </Tooltip>
+            <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <PopoverTrigger
+                      className={headerButtonClass}
+                      aria-label={t`Create`}
+                      data-testid="create-menu-trigger"
+                    />
+                  }
+                >
+                  <Plus strokeWidth={1.5} className="size-5" aria-hidden="true" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t`Create`}</TooltipContent>
+              </Tooltip>
               {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
               {createMenuOpen ? (
                 <PopoverContent
@@ -3266,7 +3294,7 @@ function SpaceShell() {
             ) : null}
           </InputGroup>
         ) : null}
-        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2.5">
+        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2 pb-2.5">
           {showSpaceSearch ? (
             <SpaceSearchResults
               hits={searchHits}
@@ -3315,18 +3343,22 @@ function SpaceShell() {
                   <div
                     key={group.key}
                     data-sidebar-group={group.key}
-                    className="flex flex-col gap-1"
+                    className={`flex flex-col ${group.title || hasSpaceActions ? "" : "pt-1"}`}
                   >
                     {group.title || hasSpaceActions ? (
                       // biome-ignore lint/a11y/useSemanticElements: groups sidebar controls, not form fields; Move to remains the keyboard alternative.
                       <div
                         role="group"
                         data-roster-drop={rosterDropKey === headerDropKey ? "true" : undefined}
-                        className={`${
-                          group.title && hasSpaceActions
-                            ? "grid pt-[11px] pb-1"
-                            : `flex items-center pt-[11px] pb-1${group.title ? "" : " justify-end"}`
-                        } rounded-lg ${rosterDropKey === headerDropKey ? "bg-sidebar-accent" : ""}`}
+                        className={`group/header relative flex h-[30px] items-center rounded-[6px] transition-[margin] duration-200 ease-out motion-reduce:transition-none ${
+                          collapsed ? "" : "mb-1"
+                        } ${group.title ? "" : "justify-end"} ${
+                          rosterDropKey === headerDropKey
+                            ? "bg-sidebar-accent"
+                            : group.title
+                              ? "hover:bg-sidebar-hover"
+                              : ""
+                        }`}
                         onDragOver={(event) => {
                           if (!headerDropTarget || !rosterDropAction(headerDropTarget, false))
                             return;
@@ -3346,7 +3378,7 @@ function SpaceShell() {
                         {group.title ? (
                           <button
                             type="button"
-                            className={`group/section flex min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-1 text-[12px] leading-4 text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full pe-8" : "flex-1"}`}
+                            className={`group/section flex h-full min-w-0 flex-1 items-center justify-between gap-2 rounded-[6px] px-2 pt-[3px] text-[12px] text-sidebar-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "pe-[34px]" : ""}`}
                             onClick={() => {
                               if (group.emptySpaceId) {
                                 openSpaceChat(group.emptySpaceId, "/onboarding");
@@ -3402,15 +3434,22 @@ function SpaceShell() {
                               ) : null}
                               <span className="truncate">{group.title}</span>
                             </span>
-                            {group.emptySpaceId ? null : (
+                            {group.emptySpaceId ? null : collapsed ? (
+                              <>
+                                <span
+                                  aria-hidden="true"
+                                  className="-mt-px text-[13px] group-hover/header:hidden group-focus-visible/section:hidden"
+                                >
+                                  {group.bots.length}
+                                </span>
+                                <ChevronRight
+                                  className="-mt-px hidden size-4 group-hover/header:block group-focus-visible/section:block"
+                                  aria-hidden="true"
+                                />
+                              </>
+                            ) : (
                               <ChevronDown
-                                size={14}
-                                strokeWidth={1.8}
-                                className={`transition-[transform,opacity] ${
-                                  collapsed
-                                    ? "-rotate-90"
-                                    : "opacity-0 group-hover/section:opacity-100 group-focus-visible/section:opacity-100"
-                                }`}
+                                className="-mt-px hidden size-4 group-hover/header:block group-focus-visible/section:block"
                                 aria-hidden="true"
                               />
                             )}
@@ -3419,12 +3458,8 @@ function SpaceShell() {
                         {hasSpaceActions ? (
                           <Button
                             variant="ghost"
-                            size="icon-sm"
-                            className={
-                              group.title
-                                ? "col-start-1 row-start-1 justify-self-end self-center"
-                                : undefined
-                            }
+                            size="icon-xs"
+                            className="absolute end-[3px] rounded-[6px] text-sidebar-muted-foreground"
                             aria-label={t`Actions for ${group.spaceName}`}
                             onClick={(event) => {
                               const rect = event.currentTarget.getBoundingClientRect();
@@ -3435,13 +3470,14 @@ function SpaceShell() {
                               });
                             }}
                           >
-                            <MoreHorizontal size={14} aria-hidden="true" />
+                            <MoreHorizontal className="size-4" aria-hidden="true" />
                           </Button>
                         ) : null}
                       </div>
                     ) : null}
                     <Collapsible open={!collapsed} className="contents">
-                      <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-1 overflow-hidden transition-[height] duration-150 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
+                      {/* The clip margin keeps the rows' focus ring, which sits 1px outside them. */}
+                      <CollapsibleContent className="flex h-(--collapsible-panel-height) flex-col gap-1 overflow-clip transition-[height,opacity] duration-200 ease-out [overflow-clip-margin:2px] data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
                         {nestedRows.map(({ item, depth, hasChildren, parentId }) => {
                           const parentCollapsed =
                             hasChildren && collapsedRosterParents.has(item.chat.id);
@@ -3500,8 +3536,8 @@ function SpaceShell() {
                             >
                               {hasChildren ? (
                                 <span
-                                  className="absolute inset-y-0 z-10 flex w-3.5 items-center justify-center"
-                                  style={{ insetInlineStart: `${10 + depth * 14}px` }}
+                                  className="absolute inset-y-0 z-10 flex w-4 items-center justify-center"
+                                  style={{ insetInlineStart: `${4 + depth * 16}px` }}
                                 >
                                   <button
                                     type="button"
@@ -3511,12 +3547,11 @@ function SpaceShell() {
                                         ? t`Expand ${item.chat.name}`
                                         : t`Collapse ${item.chat.name}`
                                     }
-                                    className="inline-flex size-3.5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                                    className="inline-flex size-4 items-center justify-center rounded-[4px] text-sidebar-muted-foreground hover:text-foreground"
                                     onClick={() => toggleRosterParent(item.chat.id)}
                                   >
                                     <ChevronDown
-                                      size={12}
-                                      strokeWidth={2}
+                                      size={16}
                                       className={`transition-transform ${
                                         parentCollapsed ? "-rotate-90" : ""
                                       }`}
@@ -3600,20 +3635,20 @@ function SpaceShell() {
                                     position: { x: event.clientX, y: event.clientY },
                                   });
                                 }}
-                                className={`flex w-full items-center ${
+                                className={`flex w-full items-center rounded-[10px] ${
                                   compact
-                                    ? "min-h-11 gap-2 rounded-xl px-2.5 py-1.5"
-                                    : "gap-1.5 rounded-xl px-2.5 py-2"
-                                } text-start ${
+                                    ? "min-h-11 gap-2 ps-2.5 py-1.5"
+                                    : "h-[54px] gap-1.5 ps-1.5"
+                                } ${item.chat.unread ? "pe-6" : compact ? "pe-2.5" : "pe-3"} text-start ${
                                   item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
                                 } ${
                                   selected || rosterDropKey === rowDropKey
                                     ? "bg-sidebar-accent"
-                                    : "group-hover/row:bg-sidebar-accent"
+                                    : "group-hover/row:bg-sidebar-hover"
                                 }`}
                                 style={
                                   treeActive
-                                    ? { paddingInlineStart: `${24 + depth * 14}px` }
+                                    ? { paddingInlineStart: `${22 + depth * 16}px` }
                                     : undefined
                                 }
                               >
@@ -3621,7 +3656,7 @@ function SpaceShell() {
                                   <BotAvatar
                                     color={item.chat.color}
                                     identity={item.chat.id}
-                                    size={compact ? 28 : 38}
+                                    size={compact ? 28 : 40}
                                     status={item.chat.status}
                                   />
                                 ) : (
@@ -3631,35 +3666,29 @@ function SpaceShell() {
                                         ? (activeSnapshot.members ?? item.chat.members)
                                         : item.chat.members
                                     }
-                                    size={compact ? 28 : 38}
+                                    size={compact ? 28 : 40}
                                   />
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                      <span
-                                        dir="auto"
-                                        data-roster-bot-name={item.kind === "bot" ? "" : undefined}
-                                        className="min-w-0 max-w-full shrink-0 truncate text-[14px] leading-5 text-foreground"
-                                      >
-                                        {item.chat.name}
-                                      </span>
-                                      {item.chat.unread ? (
-                                        <span className="sr-only">
-                                          <Trans> (unread)</Trans>
-                                        </span>
-                                      ) : null}
-                                      {!compact && item.kind === "bot" && item.chat.title ? (
-                                        <span className="min-w-0 truncate rounded-[5px] bg-foreground/[0.03] px-[5px] py-[3px] text-[11px] leading-[13px] text-muted-foreground">
-                                          {item.chat.title}
-                                        </span>
-                                      ) : null}
-                                    </div>
+                                  <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                    <span
+                                      dir="auto"
+                                      data-roster-bot-name={item.kind === "bot" ? "" : undefined}
+                                      className={`min-w-0 max-w-full shrink-0 truncate text-[14px] font-medium text-foreground ${
+                                        compact ? "leading-5" : "leading-[21px]"
+                                      }`}
+                                    >
+                                      {item.chat.name}
+                                    </span>
                                     {item.chat.unread ? (
-                                      <span
-                                        aria-hidden="true"
-                                        className="me-1 inline-block size-2 shrink-0 rounded-full bg-unread"
-                                      />
+                                      <span className="sr-only">
+                                        <Trans> (unread)</Trans>
+                                      </span>
+                                    ) : null}
+                                    {!compact && item.kind === "bot" && item.chat.title ? (
+                                      <span className="min-w-0 truncate rounded-[3px] border-[0.5px] border-chip-border bg-chip bg-clip-padding px-[4.5px] text-[11px] leading-[17px] text-sidebar-muted-foreground">
+                                        {item.chat.title}
+                                      </span>
                                     ) : null}
                                   </div>
                                   {compact ? (
@@ -3694,7 +3723,7 @@ function SpaceShell() {
                                       className={`truncate text-[13px] leading-[18px] ${
                                         workStatusLabel
                                           ? "font-medium text-status-working"
-                                          : "text-muted-foreground"
+                                          : "text-sidebar-muted-foreground"
                                       }`}
                                     >
                                       {rosterLine}
@@ -3702,6 +3731,12 @@ function SpaceShell() {
                                   )}
                                 </div>
                               </button>
+                              {item.chat.unread ? (
+                                <span
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute end-2 top-1/2 size-2 -translate-y-1/2 rounded-full bg-unread"
+                                />
+                              ) : null}
                             </div>
                           );
                         })}
@@ -3848,7 +3883,7 @@ function SpaceShell() {
           aria-label={botsSidebarCollapsed ? t`Show bots` : t`Hide bots`}
           aria-pressed={!botsSidebarCollapsed}
           className={`absolute inset-y-0 z-50 hidden w-2 cursor-ew-resize touch-none border-0 bg-transparent p-0 md:block ${
-            botsSidebarCollapsed ? "start-0" : "start-[286px]"
+            botsSidebarCollapsed ? "start-0" : "start-[287px]"
           }`}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -3916,16 +3951,22 @@ function SpaceShell() {
               <Menu size={18} strokeWidth={1.7} />
             </button>
             {botsSidebarCollapsed ? (
-              <button
-                type="button"
-                data-testid="restore-bots-sidebar"
-                aria-label={t`Show bots`}
-                title={t`Show bots`}
-                onClick={() => setBotsSidebarCollapsedPref(false)}
-                className="app-no-drag hidden size-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent md:grid"
-              >
-                <PanelLeftOpen size={18} strokeWidth={1.7} aria-hidden="true" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      data-testid="restore-bots-sidebar"
+                      aria-label={t`Show bots`}
+                      onClick={() => setBotsSidebarCollapsedPref(false)}
+                      className={cn(headerButtonClass, "hidden md:inline-flex")}
+                    />
+                  }
+                >
+                  <PanelLeftOpen aria-hidden="true" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t`Show bots`}</TooltipContent>
+              </Tooltip>
             ) : null}
             <button
               type="button"
