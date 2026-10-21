@@ -6206,9 +6206,11 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
       const rect = range.getBoundingClientRect();
       const width = buttonRef.current?.offsetWidth ?? 0;
       const height = buttonRef.current?.offsetHeight ?? 0;
-      const above = rect.top >= height + 6;
+      // 6 clear of the highlighted line box, which extends ~2.5 past the text rect.
+      const gap = 8.5;
+      const above = rect.top >= height + gap;
       setPlacement({
-        top: above ? rect.top - 6 : rect.bottom + 6,
+        top: above ? rect.top - gap : rect.bottom + gap,
         left: Math.min(
           Math.max(rect.left + rect.width / 2, width / 2 + 8),
           window.innerWidth - width / 2 - 8,
@@ -6245,7 +6247,7 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
       )}
     >
       {t`Add to chat`}
-      <Kbd className="h-[19px] rounded-[6px] bg-control px-[5px] text-[12px] font-normal text-placeholder">
+      <Kbd className="h-[19px] rounded-[6px] bg-control px-[5px] text-[11px] font-normal text-muted-foreground">
         {isApplePlatform() ? "⌘L" : "Ctrl+L"}
       </Kbd>
     </button>,
@@ -6373,6 +6375,8 @@ export const Composer = memo(function Composer({
       editRevision.current += 1;
       retryNonce.current = null;
       previousReply.current = { id: replyId, quote };
+      // A new quote from the same message keeps its target, so focus follows the quote too.
+      if (quote) textareaRef.current?.focus();
     }
   }, [replyId, quote]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -6906,7 +6910,7 @@ export const Composer = memo(function Composer({
                 replyTarget && !quote
                   ? "pt-2"
                   : quote && !pendingAttachments.length
-                    ? "pt-[7px]"
+                    ? "pt-[7.5px]"
                     : "pt-3"
               }`
             : "py-[7.5px]"
@@ -7032,7 +7036,7 @@ export const Composer = memo(function Composer({
         <div
           ref={composerFieldRef}
           className={`flex min-w-0 flex-wrap items-end gap-1.5 ${
-            expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
+            expanded ? "col-span-3 row-start-1 px-1" : "col-start-2"
           }`}
         >
           {replyTarget && !quote ? (

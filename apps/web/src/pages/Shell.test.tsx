@@ -773,6 +773,14 @@ describe("composer replies and quotes", () => {
       "Reply cancelled",
     );
   });
+
+  it("moves focus to the field when a new quote comes from the same message", () => {
+    const textarea = renderComposer(async () => true, { replyTarget: target, replyQuote: "the" });
+    textarea.blur();
+    expect(document.activeElement).not.toBe(textarea);
+    rerenderComposer({ replyQuote: "the repo" });
+    expect(document.activeElement).toBe(textarea);
+  });
 });
 
 describe("ComputerControlPill", () => {

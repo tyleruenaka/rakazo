@@ -31,7 +31,7 @@ export function ComposerAttachments<T extends ComposerAttachment>({
   return (
     <div
       data-testid="composer-attachments"
-      className="no-scrollbar -mx-3.5 -mt-2 -mb-[9px] flex basis-full flex-nowrap gap-2 overflow-x-auto px-3 py-1.5"
+      className="no-scrollbar -mx-3 -mt-2 -mb-[9px] flex basis-[calc(100%+24px)] flex-nowrap gap-2 overflow-x-auto px-3 py-1.5"
     >
       {attachments.map((attachment) => {
         const { name } = attachment.file;

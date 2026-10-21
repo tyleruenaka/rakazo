@@ -107,7 +107,7 @@ test("selecting a text span quotes it into a reply", async ({ page }, testInfo) 
   await expect(page.getByTestId("composer-announcement")).toHaveText(/Replying to/);
   // The chip shows a short cut of the excerpt; its title holds the whole one.
   await expect(replyChip).toContainText(/forty two percent/);
-  await expect(replyChip.locator("[title]")).toHaveAttribute("title", "**forty two percent**");
+  await expect(replyChip).toHaveAttribute("title", "**forty two percent**");
   await expect(composer).toHaveAttribute("placeholder", "");
   await captureScreenshot(page, testInfo, "message-quote-composer");
 
@@ -258,7 +258,7 @@ test("selecting text inside a table cell quotes the rendered cell", async ({ pag
   await expect(replyChip).toBeVisible();
   // Exact match: an excerpt that picked up an adjacent cell or chrome would
   // still satisfy a substring check.
-  await expect(replyChip.locator("[title]")).toHaveAttribute("title", cellText);
+  await expect(replyChip).toHaveAttribute("title", cellText);
   await expect(composer).toBeFocused();
 
   // The sent reply persists the server-derived excerpt from the same cell.
@@ -300,7 +300,7 @@ test("an armed reply survives the parent paging out of the transcript", async ({
   await page.getByTestId("quote-selection").click();
   const replyChip = page.getByTestId("quote-chip");
   await expect(replyChip).toBeVisible();
-  await expect(replyChip.locator("[title]")).toHaveAttribute("title", `evict-parent-${stamp}`);
+  await expect(replyChip).toHaveAttribute("title", `evict-parent-${stamp}`);
 
   // Newer durable messages push the parent out of the latest page (window is
   // 100). While the flood's runs are alive, refreshes race the event stream and

@@ -74,7 +74,7 @@ const replyPillClass =
   "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-start text-[12px] leading-4 text-reply-foreground outline-none ring-1 ring-inset ring-reply-ring transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
 /** 20px ghost circle that cancels a reply or quote. */
 const replyCancelClass =
-  "grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-foreground/90";
+  "grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-control-icon";
 
 /** Cuts text to `max` characters, the last one an ellipsis. */
 export function ellipsize(text: string, max: number): string {
@@ -137,14 +137,17 @@ export function ComposerReplyPreview({
   });
   const excerpt = label.slice(0, 120);
   return (
-    <div data-testid="reply-chip" className="relative -mx-1.5 mb-1 basis-full">
+    <div
+      data-testid="reply-chip"
+      className="relative -mx-1 mb-[3.5px] min-w-0 basis-[calc(100%+8px)]"
+    >
       <button
         type="button"
         aria-label={t`Jump to replied message: ${excerpt}`}
         // Keep the caret in the field.
         onMouseDown={(event) => event.preventDefault()}
         onClick={onJump}
-        className={`${replyPillClass} w-full pe-7`}
+        className={`${replyPillClass} w-full ps-3 pe-7`}
         dir="auto"
       >
         <ReplyAttachmentIcon attachment={attachment} target={target} />
@@ -156,7 +159,7 @@ export function ComposerReplyPreview({
         onClick={onDismiss}
         className={`absolute end-1 top-1 ${replyCancelClass}`}
       >
-        <X size={16} strokeWidth={2.25} aria-hidden="true" />
+        <X size={16} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </div>
   );
@@ -167,25 +170,33 @@ export function ComposerQuoteChip({ quote, onDismiss }: { quote: string; onDismi
   const { t } = useLingui();
   useEscapeToDismiss(onDismiss);
   const text = collapseWhitespace(quote);
+  // The cancel button swaps in for the icon on hover or focus, so it takes no room of its own.
+  const swap = "transition-opacity duration-[120ms] ease-[ease]";
   return (
     <span
       data-testid="quote-chip"
-      className="group/quote inline-flex h-6 max-w-full shrink-0 items-center gap-1 text-[14px] leading-5 text-foreground"
+      title={text}
+      className="group/quote me-0.5 inline-flex h-6 min-w-0 max-w-[170px] shrink-0 items-center gap-[5px] text-[14px] leading-5 text-foreground"
     >
-      <span title={text} className="inline-flex min-w-0 max-w-[170px] items-center gap-1.5">
-        <MessageCircleMore size={14} strokeWidth={1.5} aria-hidden="true" className="shrink-0" />
-        <q className="block min-w-0 truncate" dir="auto">
-          {ellipsize(text, 20)}
-        </q>
+      <span className="relative ms-0.5 grid size-[13px] shrink-0 place-items-center">
+        <MessageCircleMore
+          size={13}
+          strokeWidth={1.6}
+          aria-hidden="true"
+          className={`${swap} group-focus-within/quote:opacity-0 group-hover/quote:opacity-0 [@media(hover:none)]:opacity-0`}
+        />
+        <button
+          type="button"
+          aria-label={t`Cancel reply`}
+          onClick={onDismiss}
+          className={`${swap} absolute -inset-1 grid place-items-center rounded-full text-muted-foreground opacity-0 outline-none hover:bg-reply-hover hover:text-control-icon focus-visible:bg-reply-hover focus-visible:opacity-100 group-hover/quote:opacity-100 [@media(hover:none)]:opacity-100`}
+        >
+          <X size={14} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </span>
-      <button
-        type="button"
-        aria-label={t`Cancel reply`}
-        onClick={onDismiss}
-        className={`${replyCancelClass} opacity-0 group-focus-within/quote:opacity-100 group-hover/quote:opacity-100 [@media(hover:none)]:opacity-100`}
-      >
-        <X size={16} strokeWidth={2.25} aria-hidden="true" />
-      </button>
+      <q className="block min-w-0 truncate" dir="auto">
+        {ellipsize(text, 20)}
+      </q>
     </span>
   );
 }
@@ -214,7 +225,7 @@ export function ReplyLine({
   const inBubble = placement === "in-bubble";
   const className = inBubble
     ? "mb-1 flex h-[22px] max-w-full items-center gap-1 text-start text-[13px] leading-[18px] text-reply-foreground outline-none transition-colors duration-[120ms] ease-[ease] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-    : `${replyPillClass} mb-1 max-w-[252px]`;
+    : `${replyPillClass} mb-1 w-fit max-w-[252px] ${placement === "sent" ? "ms-auto" : ""}`;
   const unavailable = message.replyPreview === null || !message.replyToMessageId;
   if (unavailable)
     return (
