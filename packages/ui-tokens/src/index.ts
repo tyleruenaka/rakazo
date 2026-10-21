@@ -113,6 +113,10 @@ export type ColorTokens = {
   sidebarHover: string;
   /** Secondary sidebar text; translucent so it lifts on hovered and selected rows. */
   sidebarMutedForeground: string;
+  /** Short line between groups in the collapsed bot rail. */
+  railDivider: string;
+  /** Line icons at the bottom of the collapsed bot rail. */
+  railIcon: string;
   /** Translucent tag fill (role chip) that follows the row bg. */
   chip: string;
   chipBorder: string;
@@ -202,6 +206,8 @@ export const darkTokens = {
   sidebarAccentForeground: "#F5F5F5",
   sidebarHover: "#1B1B1B",
   sidebarMutedForeground: "rgba(245, 245, 245, 0.662)",
+  railDivider: "#262626",
+  railIcon: "#A2A2A2",
   chip: "rgba(255, 255, 255, 0.02)",
   chipBorder: "rgba(255, 255, 255, 0.054)",
   link: "#3B82F6",
@@ -285,6 +291,8 @@ export const lightTokens = {
   sidebarAccentForeground: "#1C1C1C",
   sidebarHover: "#E9E9E9",
   sidebarMutedForeground: "rgba(28, 28, 28, 0.677)",
+  railDivider: "#DCDCDC",
+  railIcon: "#666666",
   chip: "rgba(0, 0, 0, 0.037)",
   chipBorder: "rgba(0, 0, 0, 0.08)",
   link: "#2563EB",

@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Button,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -61,9 +62,6 @@ export function SidebarFooter({
   signingOut,
   logOutError,
 }: Props) {
-  const { t } = useLingui();
-  const update = useSidebarUpdate();
-  const [failedImage, setFailedImage] = useState<string | null>(null);
   const [failedLogos, setFailedLogos] = useState<string[]>([]);
   const pillRef = useRef<HTMLButtonElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
@@ -93,106 +91,21 @@ export function SidebarFooter({
       data-testid="sidebar-footer"
       className="flex shrink-0 items-center gap-2 bg-transparent px-4 pb-4 pt-2"
     >
-      <DropdownMenu open={open} onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger
-          data-testid="user-menu-trigger"
-          aria-label={t`Account menu for ${name}`}
-          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
-        >
-          {image && failedImage !== image ? (
-            <img
-              src={image}
-              alt=""
-              className="size-full object-cover"
-              onError={() => setFailedImage(image)}
-            />
-          ) : initials ? (
-            initials
-          ) : (
-            <UserRound size={18} aria-hidden="true" />
-          )}
-        </DropdownMenuTrigger>
-        {open ? (
-          <DropdownMenuContent
-            side="top"
-            sideOffset={4}
-            align="start"
-            className="w-[228px] max-w-[calc(100vw-69px)] px-[7.5px] *:shrink-0 data-closed:animate-none"
-          >
-            <div data-testid="account-menu-header" className="min-w-0 px-[7px] py-1.5 text-sm">
-              <p className="truncate text-[13px]">{name}</p>
-              {email && email !== name ? (
-                <p className="truncate text-[13px] text-placeholder">{email}</p>
-              ) : null}
-            </div>
-            <DropdownMenuSeparator className="mx-1.5" />
-            <DropdownMenuItem className="px-[7px]" onClick={onUsage}>
-              <Gauge />
-              <Trans>Usage</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="px-[7px]"
-              render={
-                <a
-                  href={
-                    /Android/i.test(navigator.userAgent)
-                      ? "https://github.com/elie222/rakazo/releases/download/android/rakazo.apk"
-                      : "https://apps.apple.com/app/rakazo/id6801531099"
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              }
-            >
-              <Smartphone />
-              <Trans>Get the mobile app</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="px-[7px]"
-              render={
-                <a
-                  href="https://github.com/elie222/rakazo/blob/main/docs/self-host.md"
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              }
-            >
-              <BookOpen />
-              <Trans>Docs</Trans>
-            </DropdownMenuItem>
-            {onBoard ? (
-              <DropdownMenuItem className="px-[7px]" onClick={onBoard}>
-                <SquareKanban />
-                <Trans>Board</Trans>
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem className="px-[7px]" onClick={onArtifacts}>
-              <FolderOpen />
-              <Trans>Artifacts</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="px-[7px]" aria-label={t`Settings`} onClick={onSettings}>
-              <Settings />
-              <Trans>Settings</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="mx-1.5" />
-            {/* Stays open so a failed sign-out can say so below. */}
-            <DropdownMenuItem
-              className="px-[7px]"
-              closeOnClick={false}
-              disabled={signingOut}
-              onClick={onLogOut}
-            >
-              <LogOut />
-              <Trans>Log out</Trans>
-            </DropdownMenuItem>
-            {logOutError ? (
-              <p role="alert" className="px-[7px] pt-1 pb-2 text-[13px] text-destructive">
-                {logOutError}
-              </p>
-            ) : null}
-          </DropdownMenuContent>
-        ) : null}
-      </DropdownMenu>
+      <AccountMenu
+        name={name}
+        initials={initials}
+        image={image}
+        email={email}
+        open={open}
+        onOpenChange={onOpenChange}
+        onBoard={onBoard}
+        onArtifacts={onArtifacts}
+        onSettings={onSettings}
+        onUsage={onUsage}
+        onLogOut={onLogOut}
+        signingOut={signingOut}
+        logOutError={logOutError}
+      />
       <Button
         variant="outline"
         ref={pillRef}
@@ -222,18 +135,154 @@ export function SidebarFooter({
           ))}
         </span>
       </Button>
-      {update.available ? (
-        <Button
-          size="icon-lg"
-          className="rounded-full"
-          aria-label={t`Install update`}
-          title={t`Install update`}
-          disabled={update.busy}
-          onClick={update.install}
-        >
-          <Download aria-hidden="true" />
-        </Button>
-      ) : null}
+      <SidebarUpdateButton />
     </div>
+  );
+}
+
+/** Installs a downloaded desktop update; nothing until one is ready. */
+export function SidebarUpdateButton({ className }: { className?: string }) {
+  const { t } = useLingui();
+  const update = useSidebarUpdate();
+  if (!update.available) return null;
+  return (
+    <Button
+      size="icon-lg"
+      className={cn("rounded-full", className)}
+      aria-label={t`Install update`}
+      title={t`Install update`}
+      disabled={update.busy}
+      onClick={update.install}
+    >
+      <Download aria-hidden="true" />
+    </Button>
+  );
+}
+
+type AccountMenuProps = Omit<Props, "logos" | "onIntegrations"> & {
+  /** The collapsed rail has its own trigger while the hidden sidebar's stays mounted. */
+  triggerTestId?: string;
+};
+
+/** The account avatar and its menu, shared by the sidebar footer and the collapsed rail. */
+export function AccountMenu({
+  name,
+  initials,
+  image,
+  email,
+  open,
+  onOpenChange,
+  onBoard,
+  onArtifacts,
+  onSettings,
+  onUsage,
+  onLogOut,
+  signingOut,
+  logOutError,
+  triggerTestId = "user-menu-trigger",
+}: AccountMenuProps) {
+  const { t } = useLingui();
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  return (
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+      <DropdownMenuTrigger
+        data-testid={triggerTestId}
+        aria-label={t`Account menu for ${name}`}
+        className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring"
+      >
+        {image && failedImage !== image ? (
+          <img
+            src={image}
+            alt=""
+            className="size-full object-cover"
+            onError={() => setFailedImage(image)}
+          />
+        ) : initials ? (
+          initials
+        ) : (
+          <UserRound size={18} aria-hidden="true" />
+        )}
+      </DropdownMenuTrigger>
+      {open ? (
+        <DropdownMenuContent
+          side="top"
+          sideOffset={4}
+          align="start"
+          className="w-[228px] max-w-[calc(100vw-69px)] px-[7.5px] *:shrink-0 data-closed:animate-none"
+        >
+          <div data-testid="account-menu-header" className="min-w-0 px-[7px] py-1.5 text-sm">
+            <p className="truncate text-[13px]">{name}</p>
+            {email && email !== name ? (
+              <p className="truncate text-[13px] text-placeholder">{email}</p>
+            ) : null}
+          </div>
+          <DropdownMenuSeparator className="mx-1.5" />
+          <DropdownMenuItem className="px-[7px]" onClick={onUsage}>
+            <Gauge />
+            <Trans>Usage</Trans>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="px-[7px]"
+            render={
+              <a
+                href={
+                  /Android/i.test(navigator.userAgent)
+                    ? "https://github.com/elie222/rakazo/releases/download/android/rakazo.apk"
+                    : "https://apps.apple.com/app/rakazo/id6801531099"
+                }
+                target="_blank"
+                rel="noreferrer"
+              />
+            }
+          >
+            <Smartphone />
+            <Trans>Get the mobile app</Trans>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="px-[7px]"
+            render={
+              <a
+                href="https://github.com/elie222/rakazo/blob/main/docs/self-host.md"
+                target="_blank"
+                rel="noreferrer"
+              />
+            }
+          >
+            <BookOpen />
+            <Trans>Docs</Trans>
+          </DropdownMenuItem>
+          {onBoard ? (
+            <DropdownMenuItem className="px-[7px]" onClick={onBoard}>
+              <SquareKanban />
+              <Trans>Board</Trans>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem className="px-[7px]" onClick={onArtifacts}>
+            <FolderOpen />
+            <Trans>Artifacts</Trans>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="px-[7px]" aria-label={t`Settings`} onClick={onSettings}>
+            <Settings />
+            <Trans>Settings</Trans>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="mx-1.5" />
+          {/* Stays open so a failed sign-out can say so below. */}
+          <DropdownMenuItem
+            className="px-[7px]"
+            closeOnClick={false}
+            disabled={signingOut}
+            onClick={onLogOut}
+          >
+            <LogOut />
+            <Trans>Log out</Trans>
+          </DropdownMenuItem>
+          {logOutError ? (
+            <p role="alert" className="px-[7px] pt-1 pb-2 text-[13px] text-destructive">
+              {logOutError}
+            </p>
+          ) : null}
+        </DropdownMenuContent>
+      ) : null}
+    </DropdownMenu>
   );
 }

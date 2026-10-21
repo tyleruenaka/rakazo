@@ -117,7 +117,6 @@ import {
   Monitor,
   MoreHorizontal,
   PanelLeftClose,
-  PanelLeftOpen,
   Paperclip,
   Pencil,
   Phone,
@@ -139,6 +138,7 @@ import type {
   CSSProperties,
   DragEvent,
   MutableRefObject,
+  MouseEvent as ReactMouseEvent,
   RefObject,
 } from "react";
 import {
@@ -177,7 +177,7 @@ import {
 } from "../components/composer/HoldToTalk";
 import { lazyOverlay } from "../components/ErrorBoundary";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
-import { SidebarFooter } from "../components/SidebarFooter";
+import { AccountMenu, SidebarFooter, SidebarUpdateButton } from "../components/SidebarFooter";
 import {
   LIVE_TOOL_STEP_WINDOW,
   StandaloneToolActivity,
@@ -331,6 +331,7 @@ import { BotLibrary } from "./shell/bot-library";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotPanelHeader } from "./shell/bot-panel-header";
 import { BotCreatePicker } from "./shell/bot-picker";
+import { BotRail, RailItem, railGroups } from "./shell/bot-rail";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
@@ -716,9 +717,6 @@ function SpaceShell() {
   const [rosterDropKey, setRosterDropKey] = useState<string | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [botsSidebarCollapsed, setBotsSidebarCollapsed] = useState(false);
-  const restoreBotsButtonRef = useRef<HTMLButtonElement>(null);
-  // Distance from the chat's leading edge to past "Show bots", while it floats over the chat.
-  const [chatSideInset, setChatSideInset] = useState<number | null>(null);
   const focusPromptAbortRef = useRef<AbortController | null>(null);
   const focusPromptBotIdRef = useRef<string | null>(null);
   const botsSidebarEdgeDragRef = useRef<{ startX: number; mode: "expand" | "collapse" } | null>(
@@ -737,29 +735,6 @@ function SpaceShell() {
     desktop.addEventListener("change", closeMobileSidebar);
     return () => desktop.removeEventListener("change", closeMobileSidebar);
   }, []);
-
-  useLayoutEffect(() => {
-    const button = restoreBotsButtonRef.current;
-    const main = button?.closest("main");
-    if (!button || !main) {
-      setChatSideInset(null);
-      return;
-    }
-    const measure = () => {
-      const buttonBox = button.getBoundingClientRect();
-      const mainBox = main.getBoundingClientRect();
-      const end =
-        getComputedStyle(main).direction === "rtl"
-          ? mainBox.right - buttonBox.left
-          : buttonBox.right - mainBox.left;
-      // Hidden below md, where the column keeps its usual 16px sides.
-      setChatSideInset(buttonBox.width ? Math.ceil(end) + 16 : null);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(button);
-    return () => observer.disconnect();
-  }, [botsSidebarCollapsed]);
   const [activityMode, setActivityMode] = useState(readActivityMode);
   const [activityFilters, setActivityFilters] = useState<ActivityListFilters>(emptyActivityFilters);
   const [activityFiltersExpanded, setActivityFiltersExpanded] = useState(false);
@@ -1742,8 +1717,8 @@ function SpaceShell() {
     };
   }, [activeGroup?.id, groupId, notifyBrowserForEvent]);
 
-  const sidebarGroups = useMemo(() => {
-    const sidebarSpaces =
+  const sidebarSpaces = useMemo(
+    () =>
       spaces.length > 0
         ? spaces.map((space) =>
             space.id === bootstrapMe?.spaceId ? { ...space, bots, groups, botSections } : space,
@@ -1762,9 +1737,18 @@ function SpaceShell() {
                 botSections,
               },
             ]
-          : [];
-    return sidebarGroupsForSpaces(sidebarSpaces, query);
-  }, [bootstrapMe, botSections, bots, groups, spaces, query]);
+          : [],
+    [bootstrapMe, botSections, bots, groups, spaces],
+  );
+  const sidebarGroups = useMemo(
+    () => sidebarGroupsForSpaces(sidebarSpaces, query),
+    [sidebarSpaces, query],
+  );
+  // The rail has no search field, so it lists every chat.
+  const railChats = useMemo(
+    () => railGroups(sidebarGroupsForSpaces(sidebarSpaces, "")),
+    [sidebarSpaces],
+  );
 
   const spaceSwitchRequest = useRef(0);
   useEffect(
@@ -3155,6 +3139,99 @@ function SpaceShell() {
       ? resolvePersonaColorDef(active.id, parseBotAvatar(active.color, active.id).color).hex
       : undefined;
 
+  type RosterChat = (typeof sidebarGroups)[number]["bots"][number];
+  const rosterChatSelected = (item: RosterChat) =>
+    (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
+    (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
+  const openRosterChat = (item: RosterChat) =>
+    openSpaceChat(
+      item.chat.spaceId,
+      item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
+    );
+  const openRosterMenu = (item: RosterChat, event: ReactMouseEvent<HTMLElement>) => {
+    if (item.chat.spaceId !== bootstrapMe?.spaceId) return;
+    event.preventDefault();
+    botMenuAnchor.current = event.currentTarget;
+    setBotMenu({
+      kind: item.kind,
+      id: item.chat.id,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  };
+  // The full sidebar shows when expanded, or as the phone drawer; otherwise the rail does.
+  const sidebarActive = !botsSidebarCollapsed || mobileSidebarOpen;
+  const accountMenuProps = {
+    name: userName,
+    initials,
+    image: session.data?.user.image,
+    email: session.data?.user.email,
+    onOpenChange: (open: boolean) => {
+      setMenuOpen(open);
+      if (!open) setLogOutError(null);
+    },
+    onBoard: bootstrapMe?.ticketBoardEnabled
+      ? () => {
+          setMenuOpen(false);
+          setMobileSidebarOpen(false);
+          navigate("/app/board");
+        }
+      : undefined,
+    onArtifacts: () => {
+      setMenuOpen(false);
+      setMobileSidebarOpen(false);
+      navigate("/app/artifacts");
+    },
+    onSettings: () => {
+      setMenuOpen(false);
+      openSettings("general");
+    },
+    onUsage: () => {
+      setMenuOpen(false);
+      openSettings("usage");
+    },
+    onLogOut: () => {
+      setLogOutError(null);
+      void logOut();
+    },
+    signingOut,
+    logOutError,
+  };
+  const createPicker = (
+    <BotCreatePicker
+      bots={bots}
+      onCreateBot={() => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        setPanel("create");
+      }}
+      onOpenBot={(id) => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        navigate(`/app/${id}`);
+      }}
+      onCreateGroup={() => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        setPanel("create-group");
+      }}
+      onCreateSpace={() => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        setNewSpaceOpen(true);
+      }}
+      onShowGroupInfo={() => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        setPickerInfoTopic("group");
+      }}
+      onShowSpaceInfo={() => {
+        setCreateMenuOpen(false);
+        setMobileSidebarOpen(false);
+        setPickerInfoTopic("space");
+      }}
+    />
+  );
+
   const shell = (
     <div
       data-testid="shell-root"
@@ -3289,7 +3366,7 @@ function SpaceShell() {
               </TooltipTrigger>
               <TooltipContent side="bottom">{t`Search`}</TooltipContent>
             </Tooltip>
-            <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
+            <Popover open={createMenuOpen && sidebarActive} onOpenChange={setCreateMenuOpen}>
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -3305,44 +3382,12 @@ function SpaceShell() {
                 <TooltipContent side="bottom">{t`Create`}</TooltipContent>
               </Tooltip>
               {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
-              {createMenuOpen ? (
+              {createMenuOpen && sidebarActive ? (
                 <PopoverContent
                   align="end"
                   className="app-no-drag w-auto gap-0 overflow-hidden p-0 data-closed:animate-none"
                 >
-                  <BotCreatePicker
-                    bots={bots}
-                    onCreateBot={() => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      setPanel("create");
-                    }}
-                    onOpenBot={(id) => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      navigate(`/app/${id}`);
-                    }}
-                    onCreateGroup={() => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      setPanel("create-group");
-                    }}
-                    onCreateSpace={() => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      setNewSpaceOpen(true);
-                    }}
-                    onShowGroupInfo={() => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      setPickerInfoTopic("group");
-                    }}
-                    onShowSpaceInfo={() => {
-                      setCreateMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      setPickerInfoTopic("space");
-                    }}
-                  />
+                  {createPicker}
                 </PopoverContent>
               ) : null}
             </Popover>
@@ -3461,9 +3506,7 @@ function SpaceShell() {
                   tile = false,
                 ) => {
                   const parentCollapsed = hasChildren && collapsedRosterParents.has(item.chat.id);
-                  const selected =
-                    (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
-                    (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
+                  const selected = rosterChatSelected(item);
                   const compact = botsSidebarDensity === "compact";
                   const workStatusLabel =
                     item.kind === "bot" ? rosterWorkStatusLabel(item.chat.status) : null;
@@ -3554,22 +3597,8 @@ function SpaceShell() {
                       event.preventDefault();
                       reorderRosterBot(item.chat.id, target, groupBotIds);
                     },
-                    onClick: () => {
-                      openSpaceChat(
-                        item.chat.spaceId,
-                        item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
-                      );
-                    },
-                    onContextMenu: (event) => {
-                      if (item.chat.spaceId !== bootstrapMe?.spaceId) return;
-                      event.preventDefault();
-                      botMenuAnchor.current = event.currentTarget;
-                      setBotMenu({
-                        kind: item.kind,
-                        id: item.chat.id,
-                        position: { x: event.clientX, y: event.clientY },
-                      });
-                    },
+                    onClick: () => openRosterChat(item),
+                    onContextMenu: (event) => openRosterMenu(item, event),
                   } satisfies ComponentProps<"button"> &
                     Record<`data-${string}`, string | number | undefined>;
                   if (tile) {
@@ -4020,46 +4049,69 @@ function SpaceShell() {
         </div>
         <SidebarFooter
           logos={footerLogos}
-          name={userName}
-          initials={initials}
-          image={session.data?.user.image}
-          email={session.data?.user.email}
-          open={menuOpen}
-          onOpenChange={(open) => {
-            setMenuOpen(open);
-            if (!open) setLogOutError(null);
-          }}
+          {...accountMenuProps}
+          open={menuOpen && sidebarActive}
           onIntegrations={() => setPluginsOpen(true)}
-          onBoard={
-            bootstrapMe?.ticketBoardEnabled
-              ? () => {
-                  setMenuOpen(false);
-                  setMobileSidebarOpen(false);
-                  navigate("/app/board");
-                }
-              : undefined
-          }
-          onArtifacts={() => {
-            setMenuOpen(false);
-            setMobileSidebarOpen(false);
-            navigate("/app/artifacts");
-          }}
-          onSettings={() => {
-            setMenuOpen(false);
-            openSettings("general");
-          }}
-          onUsage={() => {
-            setMenuOpen(false);
-            openSettings("usage");
-          }}
-          onLogOut={() => {
-            setLogOutError(null);
-            void logOut();
-          }}
-          signingOut={signingOut}
-          logOutError={logOutError}
         />
       </aside>
+      {botsSidebarCollapsed ? (
+        <BotRail
+          groups={railChats}
+          renderItem={(item) => (
+            <RailItem
+              key={`${item.kind}:${item.chat.id}`}
+              data-rail-chat-id={item.chat.id}
+              name={item.chat.name}
+              unread={Boolean(item.chat.unread)}
+              selected={rosterChatSelected(item)}
+              avatar={
+                item.kind === "bot" ? (
+                  <BotAvatar
+                    color={item.chat.color}
+                    identity={item.chat.id}
+                    size={40}
+                    status={item.chat.status}
+                  />
+                ) : (
+                  <GroupAvatar
+                    members={
+                      item.chat.id === activeSnapshot?.groupId
+                        ? (activeSnapshot.members ?? item.chat.members)
+                        : item.chat.members
+                    }
+                    size={40}
+                  />
+                )
+              }
+              onClick={() => openRosterChat(item)}
+              onContextMenu={(event) => openRosterMenu(item, event)}
+            />
+          )}
+          chrome={<WindowChrome />}
+          onExpand={() => setBotsSidebarCollapsedPref(false)}
+          onSearch={() => {
+            setBotsSidebarCollapsedPref(false);
+            setSearchOpen(true);
+          }}
+          activityMode={activityMode}
+          onActivity={() => {
+            setBotsSidebarCollapsedPref(false);
+            if (!activityMode) toggleActivityMode();
+          }}
+          createOpen={createMenuOpen && !sidebarActive}
+          onCreateOpenChange={setCreateMenuOpen}
+          createMenu={createPicker}
+          onConnectApps={() => setPluginsOpen(true)}
+          update={<SidebarUpdateButton className="mt-2.5" />}
+          account={
+            <AccountMenu
+              {...accountMenuProps}
+              open={menuOpen && !sidebarActive}
+              triggerTestId="rail-user-menu-trigger"
+            />
+          }
+        />
+      ) : null}
 
       {/* The full-screen computer covers the sidebar, so its edge must not catch clicks there. */}
       {computerOpen || booting ? null : (
@@ -4069,7 +4121,7 @@ function SpaceShell() {
           aria-label={botsSidebarCollapsed ? t`Show bots` : t`Hide bots`}
           aria-pressed={!botsSidebarCollapsed}
           className={`absolute inset-y-0 z-50 hidden w-2 cursor-ew-resize touch-none border-0 bg-transparent p-0 md:block ${
-            botsSidebarCollapsed ? "start-0" : "start-[287px]"
+            botsSidebarCollapsed ? "start-[80px]" : "start-[287px]"
           }`}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -4132,8 +4184,6 @@ function SpaceShell() {
           className="app-drag absolute inset-x-0 top-0 z-20 flex h-[60px] items-start justify-between px-4 pt-3"
         >
           <div className="flex min-w-0 items-center gap-2">
-            {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
-            {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
             <button
               type="button"
               aria-label={t`Open navigation`}
@@ -4142,25 +4192,6 @@ function SpaceShell() {
             >
               <Menu size={18} strokeWidth={1.7} />
             </button>
-            {botsSidebarCollapsed ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      ref={restoreBotsButtonRef}
-                      data-testid="restore-bots-sidebar"
-                      aria-label={t`Show bots`}
-                      onClick={() => setBotsSidebarCollapsedPref(false)}
-                      className={cn(headerButtonClass, "hidden md:inline-flex")}
-                    />
-                  }
-                >
-                  <PanelLeftOpen aria-hidden="true" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t`Show bots`}</TooltipContent>
-              </Tooltip>
-            ) : null}
             <button
               type="button"
               data-testid="bot-settings-trigger"
@@ -4301,7 +4332,6 @@ function SpaceShell() {
             speakingMessageId={speakingMessageId}
             onSpeak={speakMessage}
             onOpenComputer={onOpenComputer}
-            sideInset={chatSideInset}
           />
         )}
         {recordingSkill ? (
@@ -4314,7 +4344,6 @@ function SpaceShell() {
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             draftKey={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             enterToSend={enterToSend}
-            sideInset={chatSideInset}
             activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
             running={composerRunning}
             disabled={Boolean(recordingSkill)}
@@ -5543,7 +5572,6 @@ const Transcript = memo(function Transcript({
   speakingMessageId,
   onSpeak,
   onOpenComputer,
-  sideInset,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollRequest: { messageId: string; nonce: number } | null;
@@ -5575,8 +5603,6 @@ const Transcript = memo(function Transcript({
   speakingMessageId: string | null;
   onSpeak: (message: ThreadMessage) => void;
   onOpenComputer: (botId?: string) => void;
-  /** Both side paddings, wider than 16 while "Show bots" floats over the chat. */
-  sideInset: number | null;
 }) {
   const { t } = useLingui();
   const [atEnd, setAtEnd] = useState(true);
@@ -5864,9 +5890,6 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        style={
-          sideInset ? { paddingInlineStart: sideInset, paddingInlineEnd: sideInset - 8 } : undefined
-        }
         // The scrollbar gutter (8) plus pe-2 lines the column up with the composer's right edge.
         className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pb-[54px] pt-[60px] [scrollbar-gutter:stable]"
       >
@@ -6166,7 +6189,6 @@ export const Composer = memo(function Composer({
   onSlashAction,
   draftKey,
   enterToSend,
-  sideInset,
 }: {
   activeName?: string;
   running: boolean;
@@ -6199,8 +6221,6 @@ export const Composer = memo(function Composer({
   onSlashAction?: (action: SlashActionId) => void;
   draftKey: string;
   enterToSend: boolean;
-  /** Both side paddings, wider than 16 while "Show bots" floats over the chat. */
-  sideInset?: number | null;
 }) {
   const { t } = useLingui();
   const [draft, setDraft] = useState(() => readComposerDraft(draftKey));
@@ -6692,7 +6712,6 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      style={sideInset ? { paddingInline: sideInset, maxWidth: 960 + 2 * sideInset } : undefined}
       className={`relative z-30 m-0 mx-auto w-full min-w-0 max-w-[992px] border-0 px-4 pb-4 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
