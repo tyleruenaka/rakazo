@@ -17,7 +17,13 @@ vi.mock("@lingui/react/macro", () => {
 });
 
 import { dictation } from "../lib/dictation";
-import { Composer, ComposerDock, ComputerControlPill, computerFrameStyle } from "./Shell";
+import {
+  Composer,
+  ComposerDock,
+  ComputerControlPill,
+  computerFrameStyle,
+  MessageView,
+} from "./Shell";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -925,5 +931,75 @@ describe("ComposerDock", () => {
     const { setHeight } = renderDock(scroller);
     setHeight(104);
     expect(scroller.scrollTop).toBe(100);
+  });
+});
+
+describe("MessageView alignment", () => {
+  const view = (role: ThreadMessage["role"], blocks: ThreadMessage["blocks"]) => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    window.matchMedia ??= () =>
+      ({
+        matches: true,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const noop = () => undefined;
+    const done = async () => undefined;
+    act(() =>
+      root?.render(
+        <MessageView
+          artifactTarget={{ botId: "bot-1" }}
+          canAnswer={false}
+          message={{
+            id: "m1",
+            threadId: "t1",
+            seq: 1,
+            role,
+            blocks,
+            createdAt: "2026-10-21T12:00:00.000Z",
+          }}
+          onAnswer={done}
+          onOpenBot={noop}
+          onOpenPeerMessages={noop}
+          onTogglePeerReplies={noop}
+          peerBot={() => undefined}
+          onRefresh={done}
+          onBotChanged={done}
+          onAddRoutine={noop}
+          voiceReady={false}
+          speaking={false}
+          onSpeak={noop}
+          onOpenComputer={noop}
+          showToolActivity={false}
+          onReply={noop}
+          onReact={done}
+          reacted={false}
+        />,
+      ),
+    );
+    return container.firstElementChild as HTMLElement;
+  };
+
+  it("keeps a group-chat message row centered when it arrives as a user message", () => {
+    const column = view("user", [
+      {
+        kind: "channel_message",
+        provider: "whatsapp",
+        channelId: "c1",
+        fromAddress: "+10000000000",
+        fromLabel: "Sam",
+        text: "hello there",
+        hop: 0,
+      },
+    ]);
+    // An end-aligned column shrinks the centered row to its text and pushes it to the right.
+    expect(column.classList.contains("items-end")).toBe(false);
+  });
+
+  it("still ends a user's bubbles at the right", () => {
+    expect(view("user", [{ kind: "text", text: "hi" }]).classList.contains("items-end")).toBe(true);
   });
 });

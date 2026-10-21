@@ -1,6 +1,18 @@
-import { Trans } from "@lingui/react/macro";
-import { BotAvatar, Button, GroupAvatar, type GroupAvatarMember } from "@rakazo/ui-web";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import type { PeerMarkerGroup, PeerMarkerPeer } from "@rakazo/core";
+import {
+  BotAvatar,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  GroupAvatar,
+  type GroupAvatarMember,
+} from "@rakazo/ui-web";
 import { ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
+import { Fragment } from "react";
 import { LoadingState } from "./primitives";
 
 /** The bot-to-bot exchange chip: a pill that fills on hover and keyboard focus, like Grok. */
@@ -30,19 +42,13 @@ export function CollaborationMarker({
   replies?: { expanded: boolean; label: string; onToggle: () => void };
 }) {
   const chip = (
-    <button
-      type="button"
-      data-testid="peer-receipt-chip"
-      aria-label={ariaLabel}
-      title={peer}
+    <PeerChip
+      ariaLabel={ariaLabel}
+      color={color}
+      identity={identity}
+      peer={peer}
       onClick={onClick}
-      className={peerChipClass}
-    >
-      <BotAvatar color={color} identity={identity} size={16} />
-      <span dir="auto" className="truncate">
-        {peer}
-      </span>
-    </button>
+    />
   );
   return (
     <div
@@ -74,6 +80,136 @@ export function CollaborationMarker({
           />
         </Button>
       ) : null}
+    </div>
+  );
+}
+
+function PeerChip({
+  ariaLabel,
+  color,
+  identity,
+  peer,
+  onClick,
+}: {
+  ariaLabel?: string;
+  color: string;
+  identity: string;
+  peer: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid="peer-receipt-chip"
+      aria-label={ariaLabel}
+      title={peer}
+      onClick={onClick}
+      className={peerChipClass}
+    >
+      <BotAvatar color={color} identity={identity} size={16} />
+      <span dir="auto" className="truncate">
+        {peer}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Consecutive markers as one row, like Grok: "Messaged" or "N messages with", then one chip,
+ * two chips joined by "and", or for three or more bots a stacked-avatar chip whose menu
+ * opens any of the exchanges.
+ */
+export function CollaborationMarkerGroup({
+  summary,
+  peerColor,
+  onOpen,
+}: {
+  summary: PeerMarkerGroup["summary"];
+  peerColor: (botId: string) => string;
+  onOpen: (peer: PeerMarkerPeer) => void;
+}) {
+  const { t } = useLingui();
+  const { peers } = summary;
+  const label =
+    summary.kind === "fanout" ? (
+      <Trans>Messaged</Trans>
+    ) : (
+      <Plural value={summary.messageCount} one="# message with" other="# messages with" />
+    );
+  const chip = (peer: PeerMarkerPeer) => (
+    <PeerChip
+      key={peer.id}
+      color={peerColor(peer.id)}
+      identity={peer.id}
+      peer={peer.name}
+      onClick={() => onOpen(peer)}
+    />
+  );
+  let chips: ReactNode;
+  if (peers.length <= 2) {
+    chips = peers.map((peer, index) => (
+      <Fragment key={peer.id}>
+        {index > 0 ? (
+          <span className="text-placeholder">
+            <Trans>and</Trans>
+          </span>
+        ) : null}
+        {chip(peer)}
+      </Fragment>
+    ));
+  } else {
+    const count = peers.length;
+    chips = (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          data-testid="peer-group-chip"
+          aria-label={t`${count} Bots, show list`}
+          className={peerChipClass}
+        >
+          {/* Grok's stack: 16px discs 6px apart, each cut where the next one overlaps it. */}
+          <span dir="ltr" className="flex shrink-0 items-center">
+            {peers.slice(0, 3).map((peer, index) => (
+              <BotAvatar
+                key={peer.id}
+                color={peerColor(peer.id)}
+                identity={peer.id}
+                size={16}
+                className={
+                  index < 2
+                    ? "-mr-1.5 [mask-image:radial-gradient(circle_at_18px_8px,transparent_10px,black_10.5px)]"
+                    : undefined
+                }
+              />
+            ))}
+          </span>
+          <span className="truncate">
+            <Trans>{count} Bots</Trans>
+          </span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="center"
+          aria-label={t`Bots in this exchange`}
+          className="w-auto max-w-[320px]"
+        >
+          {peers.map((peer) => (
+            <DropdownMenuItem key={peer.id} onClick={() => onOpen(peer)}>
+              <BotAvatar color={peerColor(peer.id)} identity={peer.id} size={18} />
+              <span dir="auto" className="min-w-0 truncate">
+                {peer.name}
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+  return (
+    <div
+      data-testid="peer-marker-group"
+      className="flex min-h-6 w-full items-center justify-center gap-0.5 text-[12px] whitespace-nowrap text-muted-foreground"
+    >
+      <span>{label}</span>
+      {chips}
     </div>
   );
 }
