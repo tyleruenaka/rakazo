@@ -1,17 +1,20 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { PeerMarkerGroup, PeerMarkerPeer } from "@rakazo/core";
 import {
+  type AvatarStyle,
   BotAvatar,
   Button,
+  botAvatarOutline,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   GroupAvatar,
   type GroupAvatarMember,
+  useAvatarStyle,
 } from "@rakazo/ui-web";
 import { ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Fragment } from "react";
 import { LoadingState } from "./primitives";
 
@@ -115,6 +118,26 @@ function PeerChip({
 }
 
 /**
+ * Grok's stack cut: the next disc's silhouette, grown by a 2px gap, punched out of a 16px disc.
+ * The next disc starts 10px in; round discs (photos, robots) cut a circle.
+ */
+function stackCut(color: string, identity: string, avatarStyle: AvatarStyle): CSSProperties {
+  const outline = botAvatarOutline(color, identity, avatarStyle);
+  // A 4px stroke (in the outline's own units) grows the silhouette by 2px on every side.
+  const stroke = outline ? (Number(outline.viewBox.split(" ")[2]) * 4) / 16 : 0;
+  const hole = outline
+    ? `<svg x="10" width="16" height="16" viewBox="${outline.viewBox}" overflow="visible">${outline.paths
+        .map(
+          (d) => `<path d="${d}" stroke="#000" stroke-width="${stroke}" stroke-linejoin="round"/>`,
+        )
+        .join("")}</svg>`
+    : `<circle cx="18" cy="8" r="10"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><mask id="c"><rect width="16" height="16" fill="#fff"/>${hole}</mask><rect width="16" height="16" mask="url(#c)"/></svg>`;
+  const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}") no-repeat`;
+  return { mask, WebkitMask: mask };
+}
+
+/**
  * Consecutive markers as one row, like Grok: "Messaged" or "N messages with", then one chip,
  * two chips joined by "and", or for three or more bots a stacked-avatar chip whose menu
  * opens any of the exchanges.
@@ -129,6 +152,7 @@ export function CollaborationMarkerGroup({
   onOpen: (peer: PeerMarkerPeer) => void;
 }) {
   const { t } = useLingui();
+  const avatarStyle = useAvatarStyle();
   const { peers } = summary;
   const label =
     summary.kind === "fanout" ? (
@@ -159,6 +183,7 @@ export function CollaborationMarkerGroup({
     ));
   } else {
     const count = peers.length;
+    const stack = peers.slice(0, 3);
     chips = (
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -168,19 +193,18 @@ export function CollaborationMarkerGroup({
         >
           {/* Grok's stack: 16px discs 6px apart, each cut where the next one overlaps it. */}
           <span dir="ltr" className="flex shrink-0 items-center">
-            {peers.slice(0, 3).map((peer, index) => (
-              <BotAvatar
-                key={peer.id}
-                color={peerColor(peer.id)}
-                identity={peer.id}
-                size={16}
-                className={
-                  index < 2
-                    ? "-mr-1.5 [mask-image:radial-gradient(circle_at_18px_8px,transparent_10px,black_10.5px)]"
-                    : undefined
-                }
-              />
-            ))}
+            {stack.map((peer, index) => {
+              const next = stack[index + 1];
+              return (
+                <span
+                  key={peer.id}
+                  className={next ? "-mr-1.5 flex" : "flex"}
+                  style={next ? stackCut(peerColor(next.id), next.id, avatarStyle) : undefined}
+                >
+                  <BotAvatar color={peerColor(peer.id)} identity={peer.id} size={16} />
+                </span>
+              );
+            })}
           </span>
           <span className="truncate">
             <Trans>{count} Bots</Trans>

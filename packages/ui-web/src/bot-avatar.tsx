@@ -380,6 +380,28 @@ export const BotAvatar = memo(function BotAvatar({
 });
 
 /**
+ * The silhouette BotAvatar draws, in its own viewBox: a picked shape or the organic blob (both
+ * ends of its idle morph). Undefined when the avatar is a round disc (a photo or a robot).
+ */
+export function botAvatarOutline(
+  color: string,
+  identity: string,
+  variant: AvatarStyle,
+): { viewBox: string; paths: string[] } | undefined {
+  const parsed = parseBotAvatar(color, identity);
+  if (parsed.isImage) return undefined;
+  if (parsed.shapeIndex !== undefined) {
+    return { viewBox: VIEWBOX, paths: [shippedBotAvatarShapePath(parsed.shapeIndex)] };
+  }
+  if (variant !== "organic") return undefined;
+  const seed = avatarIdentitySeed(identity || parsed.color || "agent");
+  return {
+    viewBox: "-60 -60 120 120",
+    paths: [organicAvatarPath(seed), organicAvatarPath(seed, 0.42)],
+  };
+}
+
+/**
  * The bot's shape as a flat glyph in the current text color, for placeholders such as a
  * sleeping computer. Eyes take `eyeClassName` so they read as cut out of the surface.
  */

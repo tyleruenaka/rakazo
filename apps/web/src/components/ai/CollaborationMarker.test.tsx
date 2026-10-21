@@ -217,9 +217,16 @@ describe("grouped collaboration markers", () => {
     expect(chip?.textContent).toBe("4 Bots");
     expect(chip?.getAttribute("aria-label")).toBe("4 Bots, show list");
     // At most three discs; each but the last is cut where the next one overlaps it.
-    const discs = [...(chip?.querySelectorAll(".rakazo-organic-avatar") ?? [])];
+    const discs = [...(chip?.querySelectorAll(".rakazo-organic-avatar") ?? [])].map(
+      (disc) => disc.parentElement as HTMLElement,
+    );
     expect(discs).toHaveLength(3);
     expect(discs.map((disc) => disc.classList.contains("-mr-1.5"))).toEqual([true, true, false]);
+    // The cut follows the next disc's own silhouette (Otto's), grown by a 2px gap.
+    const mask = decodeURIComponent(discs[0]?.style.mask ?? "");
+    expect(mask).toContain('<svg x="10" width="16" height="16" viewBox="-60 -60 120 120"');
+    expect(mask).toContain('stroke-width="30"');
+    expect(discs[2]?.style.mask).toBe("");
   });
 
   it("opens a menu of every bot and opens the chosen exchange", async () => {
