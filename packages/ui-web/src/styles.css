@@ -41,6 +41,9 @@
   --color-preview-glyph-asleep: var(--preview-glyph-asleep);
   --color-preview-waking: var(--preview-waking);
   --color-caption: var(--caption);
+  --color-computer-backdrop: var(--computer-backdrop);
+  --color-computer-icon: var(--computer-icon);
+  --color-computer-icon-hover: var(--computer-icon-hover);
   --color-card-ring: var(--card-ring);
   --color-code: var(--code);
   --color-code-foreground: var(--code-foreground);

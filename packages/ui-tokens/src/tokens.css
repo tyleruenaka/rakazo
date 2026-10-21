@@ -42,6 +42,9 @@
   --preview-glyph-asleep: #828282;
   --preview-waking: #747474;
   --caption: #8d8d8d;
+  --computer-backdrop: #141414;
+  --computer-icon: #dcdcdc;
+  --computer-icon-hover: #ffffff;
   --card-ring: #1b1b1b;
   --code: #202020;
   --code-foreground: #adadad;
@@ -122,6 +125,9 @@
   --preview-glyph-asleep: #878787;
   --preview-waking: #9c9c9c;
   --caption: #7f7f7f;
+  --computer-backdrop: #141414;
+  --computer-icon: #dcdcdc;
+  --computer-icon-hover: #ffffff;
   --card-ring: #ededed;
   --code: #e7e7e7;
   --code-foreground: #5d5d5d;

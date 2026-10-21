@@ -1,12 +1,22 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ComputerStatus } from "@rakazo/contracts";
-import { Button, Label, Popover, PopoverContent, PopoverTrigger, Textarea } from "@rakazo/ui-web";
+import {
+  Button,
+  Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Textarea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@rakazo/ui-web";
 import { useEffect, useRef, useState } from "react";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
 /**
- * Compact Teach a task control for the computer chrome bar above the screen
+ * Teach a task round button for the bar under the full computer screen
  * (not painted on the framebuffer, and not in the agent sidepanel).
  *
  * Mount with key={botId} from Shell so a bot switch remounts clean state.
@@ -194,19 +204,23 @@ export function TeachComputerOverlayControl({
         setGoalOpen(true);
       }}
     >
-      <PopoverTrigger
-        data-testid="teach-start-button"
-        aria-label={t`Teach a task`}
-        disabled={busy || syncingRecording}
-        render={<Button variant="outline" size="sm" />}
-      >
-        <span
-          aria-hidden
-          className="inline-block h-2 w-2 shrink-0 rounded-full border border-foreground"
-        />
-        <Trans>Teach a task</Trans>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              data-testid="teach-start-button"
+              aria-label={t`Teach a task`}
+              disabled={busy || syncingRecording}
+              render={<Button variant="outline" size="icon-lg" className="text-control-icon" />}
+            />
+          }
+        >
+          <span aria-hidden className="size-3 rounded-full border-[1.5px] border-current" />
+        </TooltipTrigger>
+        <TooltipContent side="top">{t`Teach a task`}</TooltipContent>
+      </Tooltip>
       <PopoverContent
+        side="top"
         align="end"
         sideOffset={8}
         data-testid={goalOpen ? "teach-chrome-popover" : "teach-refresh-recovery"}

@@ -75,6 +75,11 @@ export type ColorTokens = {
   previewWaking: string;
   /** Captions and empty-state text in the bot panel. */
   caption: string;
+  /** Behind the full-window computer screen. Dark in both themes. */
+  computerBackdrop: string;
+  /** Close button on the computer backdrop, and its hover. */
+  computerIcon: string;
+  computerIconHover: string;
   /** Ring just outside a card in the transcript. */
   cardRing: string;
   /** Inline code chip and code block fill in a chat message. */
@@ -166,6 +171,9 @@ export const darkTokens = {
   previewGlyphAsleep: "#828282",
   previewWaking: "#747474",
   caption: "#8D8D8D",
+  computerBackdrop: "#141414",
+  computerIcon: "#DCDCDC",
+  computerIconHover: "#FFFFFF",
   cardRing: "#1B1B1B",
   code: "#202020",
   codeForeground: "#ADADAD",
@@ -244,6 +252,9 @@ export const lightTokens = {
   previewGlyphAsleep: "#878787",
   previewWaking: "#9C9C9C",
   caption: "#7F7F7F",
+  computerBackdrop: "#141414",
+  computerIcon: "#DCDCDC",
+  computerIconHover: "#FFFFFF",
   cardRing: "#EDEDED",
   code: "#E7E7E7",
   codeForeground: "#5D5D5D",

@@ -109,9 +109,11 @@ import {
   CircleAlert,
   Clock,
   Copy,
+  Eye,
   Lock,
   Maximize2,
   Menu,
+  Minimize2,
   Monitor,
   MoreHorizontal,
   PanelLeftClose,
@@ -395,6 +397,8 @@ const headerButtonClass = cn(
   buttonVariants({ variant: "outline", size: "icon-lg" }),
   "app-no-drag text-control-icon",
 );
+/** A segment inside the full computer view's pill. */
+const computerSegmentClass = "h-[26px] px-2 text-[13px]";
 const THREAD_SNAPSHOT_TIMEOUT_MS = 2_000;
 /** Bound Settings leave so a hung voice status refresh cannot block dismissal. */
 const VOICE_STATUS_REFRESH_TIMEOUT_MS = 10_000;
@@ -3007,6 +3011,16 @@ function SpaceShell() {
     setSendError(null);
   }, [active?.id, clearReply, groupId, inGroup]);
 
+  // The bot-to-bot view sits in the chat area, so opening another chat closes it. A view
+  // restored after a reload survives the bots loading in.
+  const peerViewBotId = useRef(active?.id);
+  useEffect(() => {
+    if (peerViewBotId.current !== undefined && peerViewBotId.current !== active?.id) {
+      setPeerConversation(null);
+    }
+    peerViewBotId.current = active?.id;
+  }, [active?.id, setPeerConversation]);
+
   useEffect(() => {
     if (!computerOpen) return;
     function onKey(event: KeyboardEvent) {
@@ -4099,6 +4113,7 @@ function SpaceShell() {
         aria-hidden={mobileSidebarOpen || undefined}
         inert={mobileSidebarOpen}
         data-bot-accent={botAccent ? "" : undefined}
+        data-peer-open={peerConversation && active ? "" : undefined}
         style={botAccent ? ({ "--bot-accent": botAccent } as CSSProperties) : undefined}
         className="relative isolate flex min-w-0 flex-1 flex-col bg-background"
       >
@@ -4112,6 +4127,7 @@ function SpaceShell() {
         ) : null}
         {/* The window drag strip floats over the transcript; the wheel still scrolls it. */}
         <div
+          data-chat-header=""
           onWheel={(event) => messageScroll.current?.scrollBy(event.deltaX, event.deltaY)}
           className="app-drag absolute inset-x-0 top-0 z-20 flex h-[60px] items-start justify-between px-4 pt-3"
         >
@@ -4148,6 +4164,7 @@ function SpaceShell() {
             <button
               type="button"
               data-testid="bot-settings-trigger"
+              data-name-pill=""
               aria-expanded={Boolean(panel)}
               onClick={() =>
                 setPanel(panel ? null : inGroup ? "group-settings" : lastPanelTab.current)
@@ -4339,6 +4356,22 @@ function SpaceShell() {
               }
             }}
           />
+        ) : null}
+        {/* A bot-to-bot exchange takes the chat area; the transcript and composer stay mounted. */}
+        {peerConversation && active ? (
+          <Suspense fallback={null}>
+            <PeerMessagesOverlay
+              botId={active.id}
+              botName={active.name}
+              botColor={active.color}
+              peerBotId={peerConversation.peerBotId}
+              peerBotName={peerConversation.peerBotName}
+              peerBotColor={
+                resolveTranscriptBot(peerConversation.peerBotId)?.color ?? FALLBACK_BOT_COLOR
+              }
+              onClose={() => setPeerConversation(null)}
+            />
+          </Suspense>
         ) : null}
       </main>
 
@@ -5303,19 +5336,6 @@ function SpaceShell() {
             }}
           />
         ) : null}
-        {peerConversation && active ? (
-          <PeerMessagesOverlay
-            botId={active.id}
-            botName={active.name}
-            botColor={active.color}
-            peerBotId={peerConversation.peerBotId}
-            peerBotName={peerConversation.peerBotName}
-            peerBotColor={
-              resolveTranscriptBot(peerConversation.peerBotId)?.color ?? FALLBACK_BOT_COLOR
-            }
-            onClose={() => setPeerConversation(null)}
-          />
-        ) : null}
       </Suspense>
 
       {booting ? (
@@ -5328,154 +5348,154 @@ function SpaceShell() {
           </div>
         </div>
       ) : computerOpen && computerBot ? (
-        <div className="fixed inset-0 z-30 bg-background">
+        <div className="fixed inset-0 z-30 bg-computer-backdrop">
           <div
             data-testid="computer-viewport"
-            className="fixed inset-x-0 top-0 flex flex-col bg-background"
+            className="fixed inset-x-0 top-0 flex flex-col"
             style={{
               height: computerViewport ? `${computerViewport.height}px` : "100dvh",
               top: computerViewport ? `${computerViewport.offsetTop}px` : undefined,
             }}
           >
-            <div
-              data-testid="computer-chrome"
-              className="flex items-center justify-between gap-4 border-b border-sidebar-border px-[18px] py-3.5"
-            >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <BotAvatar
-                  color={computerBot.color}
-                  identity={computerBot.id}
-                  size={28}
-                  status={computerBot.status}
-                />
+            <div data-testid="computer-chrome" className="flex min-h-0 flex-1 flex-col">
+              {/* Grok's top strip holds only the window buttons and the collapse button. The
+                  backdrop is dark in both themes, so what sits on it uses the dark palette. */}
+              <div
+                data-theme="dark"
+                className="app-drag relative flex min-h-[52px] shrink-0 items-start gap-3 ps-4 pe-12 pt-3 text-foreground"
+              >
+                {desktopBridge() ? <WindowChrome /> : null}
                 {recordingSkill ? (
-                  <TeachRecordingChrome
-                    recording={recordingSkill}
-                    botId={computerBot.id}
-                    busy={teachBusy}
-                    onStop={stopTeaching}
-                    variant="overlay"
-                  />
-                ) : (
-                  <span className="truncate text-[15.5px] font-medium text-foreground" dir="auto">
-                    {computerLabel(computer?.mode, computerBot.name)}
-                  </span>
-                )}
-                {!recordingSkill && hasControl ? (
-                  computer?.takeoverRequested ? (
-                    <span className="rounded-full bg-warning/15 px-[11px] py-1 text-[13px] text-warning">
-                      <Trans>Needs you</Trans>
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-success/15 px-[11px] py-1 text-[13px] text-success">
-                      <Trans>You have control</Trans>
-                    </span>
-                  )
-                ) : null}
-              </div>
-              <div className="flex items-center gap-3">
-                {composerRunning ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-label={t`Stop`}
-                    data-testid="computer-overlay-stop"
-                    onClick={() => void stopRun()}
-                    disabled={sending}
-                  >
-                    <Trans>Stop</Trans>
-                  </Button>
-                ) : null}
-                {recordingSkill ? (
-                  <TeachStopButton busy={teachBusy} onStop={stopTeaching} />
-                ) : hasControl ? (
-                  <ComputerReleaseActions
-                    takeoverRequested={Boolean(computer?.takeoverRequested)}
-                    onRelease={releaseComputer}
-                  />
-                ) : computer?.state === "running" &&
-                  !computerTakeoverBlocked(computer, snapshot?.run?.status) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={booting}
-                    onClick={() => void openComputer(computerBot.id, true)}
-                  >
-                    <Trans>Take control</Trans>
-                  </Button>
-                ) : null}
-                {computerBot && !recordingSkill ? (
-                  <TeachComputerOverlayControl
-                    key={computerBot.id}
-                    botId={computerBot.id}
-                    computer={computer}
-                    busy={teachBusy}
-                    onRefresh={refreshActiveTeaching}
-                  />
-                ) : null}
-                {computerBot && !recordingSkill ? (
-                  <ComputerMaintenanceActions
-                    botId={computerBot.id}
-                    computer={computer}
-                    onChanged={async () => {
-                      await refreshComputerFor(computerBot.id);
-                    }}
-                  />
+                  <div className="app-no-drag flex min-w-0 flex-1">
+                    <TeachRecordingChrome
+                      recording={recordingSkill}
+                      botId={computerBot.id}
+                      busy={teachBusy}
+                      onStop={stopTeaching}
+                      variant="overlay"
+                    />
+                  </div>
                 ) : null}
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-muted-foreground"
                   aria-label={t`Close computer`}
                   onClick={() => setComputerOpen(false)}
+                  className="app-no-drag absolute end-1.5 top-2 rounded-full text-computer-icon hover:bg-transparent hover:text-computer-icon-hover"
                 >
-                  <X size={16} strokeWidth={1.8} />
+                  <Minimize2 size={16} strokeWidth={1.5} aria-hidden="true" />
                 </Button>
               </div>
-            </div>
-            {sendError ? (
-              <div
-                role="alert"
-                className="border-b border-destructive/40 bg-destructive/10 px-[18px] py-2 text-[13px] text-destructive"
-              >
-                {sendError}
-              </div>
-            ) : null}
-            <div className="relative min-h-0 flex-1 bg-background">
-              {computer?.kind === "desktop" ? (
-                <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80" />
-              ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
-                <>
-                  <iframe
-                    title={t`Bot screen`}
-                    src={embeddedScreenUrl}
-                    sandbox={screenIframeSandbox(embeddedScreenUrl)}
-                    className="h-full w-full border-0 bg-black"
-                    allow="clipboard-read; clipboard-write; fullscreen"
-                    style={{
-                      pointerEvents: recordingSkill || !hasControl ? "none" : "auto",
-                    }}
-                  />
-                  {computerBot ? (
-                    <TeachCaptureOverlay
-                      botId={computerBot.id}
-                      skill={recordingSkill}
-                      enabled={Boolean(recordingSkill)}
-                      screenWidth={computer?.screenWidth}
-                      screenHeight={computer?.screenHeight}
-                    />
-                  ) : null}
-                </>
-              ) : (
-                <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
-                  {computerScreenError ??
-                    (computer?.state === "suspended"
-                      ? t`Computer is asleep`
-                      : computerLabel(computer?.mode, computerBot.name))}
+              {sendError ? (
+                <div
+                  data-theme="dark"
+                  role="alert"
+                  className="shrink-0 px-4 pb-2 text-center text-[13px] text-destructive"
+                >
+                  {sendError}
                 </div>
-              )}
+              ) : null}
+              <div
+                data-theme="dark"
+                className="flex min-h-0 flex-1 items-center justify-center px-4 [container-type:size]"
+              >
+                {/* The largest box of the screen's shape that fits, like Grok's 16:10 frame. */}
+                <div
+                  className="relative overflow-hidden rounded-[4px]"
+                  style={computerFrameStyle(computer?.screenWidth, computer?.screenHeight)}
+                >
+                  {computer?.kind === "desktop" ? (
+                    <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80" />
+                  ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
+                    <>
+                      <iframe
+                        title={t`Bot screen`}
+                        src={embeddedScreenUrl}
+                        sandbox={screenIframeSandbox(embeddedScreenUrl)}
+                        className="h-full w-full border-0 bg-black"
+                        allow="clipboard-read; clipboard-write; fullscreen"
+                        style={{
+                          pointerEvents: recordingSkill || !hasControl ? "none" : "auto",
+                        }}
+                      />
+                      <TeachCaptureOverlay
+                        botId={computerBot.id}
+                        skill={recordingSkill}
+                        enabled={Boolean(recordingSkill)}
+                        screenWidth={computer?.screenWidth}
+                        screenHeight={computer?.screenHeight}
+                      />
+                    </>
+                  ) : (
+                    <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80">
+                      {computerScreenError ??
+                        (computer?.state === "suspended"
+                          ? t`Computer is asleep`
+                          : computerLabel(computer?.mode, computerBot.name))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex h-[60px] shrink-0 justify-center pt-2">
+                <div className="relative">
+                  <ComputerControlPill
+                    recording={Boolean(recordingSkill)}
+                    hasControl={hasControl}
+                    takeoverRequested={Boolean(computer?.takeoverRequested)}
+                    canTakeControl={
+                      computer?.state === "running" &&
+                      !computerTakeoverBlocked(computer, snapshot?.run?.status)
+                    }
+                    busy={booting}
+                    teachBusy={teachBusy}
+                    onStopTeaching={stopTeaching}
+                    onRelease={releaseComputer}
+                    onTakeControl={() => void openComputer(computerBot.id, true)}
+                  />
+                  <div className="absolute start-full top-0 ms-2 flex items-center gap-2">
+                    {composerRunning ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-lg"
+                              className="text-control-icon"
+                              aria-label={t`Stop`}
+                              data-testid="computer-overlay-stop"
+                              onClick={() => void stopRun()}
+                              disabled={sending}
+                            />
+                          }
+                        >
+                          <Square size={14} strokeWidth={1.8} aria-hidden="true" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{t`Stop`}</TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                    {recordingSkill ? null : (
+                      <TeachComputerOverlayControl
+                        key={computerBot.id}
+                        botId={computerBot.id}
+                        computer={computer}
+                        busy={teachBusy}
+                        onRefresh={refreshActiveTeaching}
+                      />
+                    )}
+                    {recordingSkill ? null : (
+                      <ComputerMaintenanceActions
+                        round
+                        botId={computerBot.id}
+                        computer={computer}
+                        onChanged={async () => {
+                          await refreshComputerFor(computerBot.id);
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -7340,28 +7360,95 @@ function applyThreadEvent(
   }
 }
 
-function ComputerReleaseActions({
+/** Grok's "Watching | Take control" pill under the full computer screen; the filled segment is the next action. */
+export function ComputerControlPill({
+  recording,
+  hasControl,
   takeoverRequested,
+  canTakeControl,
+  busy,
+  teachBusy,
+  onStopTeaching,
   onRelease,
+  onTakeControl,
 }: {
+  recording: boolean;
+  hasControl: boolean;
   takeoverRequested: boolean;
+  canTakeControl: boolean;
+  busy: boolean;
+  teachBusy: boolean;
+  onStopTeaching: () => void | Promise<void>;
   onRelease: (reason?: ComputerReleaseReason) => Promise<void>;
+  onTakeControl: () => void;
 }) {
-  if (!takeoverRequested) {
-    return (
-      <Button type="button" variant="outline" size="sm" onClick={() => void onRelease()}>
-        <Trans>Release control</Trans>
-      </Button>
-    );
-  }
   return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={() => void onRelease("skipped")}>
-        <Trans>Skip</Trans>
-      </Button>
-      <Button type="button" size="sm" onClick={() => void onRelease("done")}>
-        <Trans>I’m done</Trans>
-      </Button>
+    <div className="flex h-9 items-center gap-1 rounded-full border-[0.5px] border-card-border bg-card p-1">
+      {recording ? null : (
+        <span
+          className={cn(
+            "flex items-center gap-1.5 ps-[9px] pe-2.5 text-[13px]",
+            !hasControl
+              ? "text-muted-foreground"
+              : takeoverRequested
+                ? "text-warning"
+                : "text-success",
+          )}
+        >
+          {hasControl ? (
+            takeoverRequested ? (
+              <Trans>Needs you</Trans>
+            ) : (
+              <Trans>You have control</Trans>
+            )
+          ) : (
+            <>
+              <Eye size={14} strokeWidth={1.6} aria-hidden="true" />
+              <Trans>Watching</Trans>
+            </>
+          )}
+        </span>
+      )}
+      {recording ? (
+        <TeachStopButton
+          busy={teachBusy}
+          onStop={onStopTeaching}
+          className={computerSegmentClass}
+        />
+      ) : !hasControl ? (
+        canTakeControl ? (
+          <Button
+            type="button"
+            className={computerSegmentClass}
+            disabled={busy}
+            onClick={onTakeControl}
+          >
+            <Trans>Take control</Trans>
+          </Button>
+        ) : null
+      ) : takeoverRequested ? (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            className={cn(computerSegmentClass, "rounded-full")}
+            onClick={() => void onRelease("skipped")}
+          >
+            <Trans>Skip</Trans>
+          </Button>
+          <Button
+            type="button"
+            className={computerSegmentClass}
+            onClick={() => void onRelease("done")}
+          >
+            <Trans>I’m done</Trans>
+          </Button>
+        </>
+      ) : (
+        <Button type="button" className={computerSegmentClass} onClick={() => void onRelease()}>
+          <Trans>Release control</Trans>
+        </Button>
+      )}
     </div>
   );
 }
@@ -8005,6 +8092,15 @@ function SleepingZs() {
 
 function computerLabel(mode: ComputerStatus["mode"] | undefined, botName: string) {
   return mode === "dedicated" ? t`${botName}’s computer` : t`Team Computer`;
+}
+
+/** Fits the screen's aspect ratio inside its size container (16:10 until the size is known). */
+export function computerFrameStyle(
+  width: number | undefined,
+  height: number | undefined,
+): CSSProperties {
+  const ratio = width && height ? width / height : 16 / 10;
+  return { aspectRatio: String(ratio), width: `min(100cqw, ${ratio * 100}cqh)` };
 }
 
 function newClientNonce(): string {

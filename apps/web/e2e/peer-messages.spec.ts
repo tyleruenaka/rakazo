@@ -86,8 +86,10 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
   const view = page.getByTestId("peer-conversation-view");
   await expect(view).toBeVisible();
   await expect(view.getByRole("heading", { name: /Chief · Researcher/ })).toBeVisible();
-  await expect(view.getByText("This chat is view-only")).toBeVisible();
-  await expect(view.getByRole("button", { name: "Close" })).toHaveCount(1);
+  const footer = view.getByRole("group", { name: "This chat is view-only" });
+  await expect(footer.getByRole("button", { name: "Close Chat" })).toBeVisible();
+  // Like Grok, the exchange takes the chat area in place of the transcript and composer.
+  await expect(composer).toBeHidden();
   await expect(view.getByText("peer-exchange-alpha").first()).toBeVisible({
     timeout: 30_000,
   });
@@ -105,6 +107,9 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     )
     .toBe(true);
   await captureScreenshot(page, testInfo, "peer-view-only");
+  await page.keyboard.press("Escape");
+  await expect(view).toHaveCount(0);
+  await expect(composer).toBeVisible();
 });
 
 const foldedReplyText = "on it. i will work this in the background";

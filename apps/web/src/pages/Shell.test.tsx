@@ -17,7 +17,7 @@ vi.mock("@lingui/react/macro", () => {
 });
 
 import { dictation } from "../lib/dictation";
-import { Composer } from "./Shell";
+import { Composer, ComputerControlPill, computerFrameStyle } from "./Shell";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -602,4 +602,82 @@ it.each([false, true])(
 it("hides call dictation until the server enables it", () => {
   renderComposer(vi.fn().mockResolvedValue(true));
   expect(container?.querySelector('button[aria-label="Hold to talk"]')).toBeNull();
+});
+
+describe("ComputerControlPill", () => {
+  function renderPill(overrides: Partial<ComponentProps<typeof ComputerControlPill>> = {}) {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const props: ComponentProps<typeof ComputerControlPill> = {
+      recording: false,
+      hasControl: false,
+      takeoverRequested: false,
+      canTakeControl: true,
+      busy: false,
+      teachBusy: false,
+      onStopTeaching: vi.fn(),
+      onRelease: vi.fn(async () => {}),
+      onTakeControl: vi.fn(),
+      ...overrides,
+    };
+    act(() => root?.render(<ComputerControlPill {...props} />));
+    const buttons = () => [...(container?.querySelectorAll("button") ?? [])];
+    return { props, text: () => container?.textContent ?? "", buttons };
+  }
+
+  it("reads Watching with Take control as the filled segment", () => {
+    const { props, text, buttons } = renderPill();
+    expect(text()).toContain("Watching");
+    expect(buttons().map((button) => button.textContent)).toEqual(["Take control"]);
+    act(() => buttons()[0]?.click());
+    expect(props.onTakeControl).toHaveBeenCalledOnce();
+  });
+
+  it("shows only Watching when control cannot be taken", () => {
+    const { text, buttons } = renderPill({ canTakeControl: false });
+    expect(text()).toBe("Watching");
+    expect(buttons()).toHaveLength(0);
+  });
+
+  it("offers Release control while the user has control", () => {
+    const { props, text, buttons } = renderPill({ hasControl: true });
+    expect(text()).toContain("You have control");
+    expect(text()).not.toContain("Watching");
+    expect(buttons().map((button) => button.textContent)).toEqual(["Release control"]);
+    act(() => buttons()[0]?.click());
+    expect(props.onRelease).toHaveBeenCalledWith();
+  });
+
+  it("offers Skip and I’m done when the bot needs the user", () => {
+    const { props, text, buttons } = renderPill({ hasControl: true, takeoverRequested: true });
+    expect(text()).toContain("Needs you");
+    expect(buttons().map((button) => button.textContent)).toEqual(["Skip", "I’m done"]);
+    act(() => buttons()[0]?.click());
+    act(() => buttons()[1]?.click());
+    expect(props.onRelease).toHaveBeenNthCalledWith(1, "skipped");
+    expect(props.onRelease).toHaveBeenNthCalledWith(2, "done");
+  });
+
+  it("holds only Stop teaching while recording", () => {
+    const { props, text, buttons } = renderPill({ recording: true, hasControl: true });
+    expect(text()).toBe("Stop teaching");
+    expect(buttons()[0]?.dataset.testid).toBe("teach-stop-overlay");
+    act(() => buttons()[0]?.click());
+    expect(props.onStopTeaching).toHaveBeenCalledOnce();
+  });
+});
+
+describe("computerFrameStyle", () => {
+  it("fits the screen's shape and falls back to 16:10", () => {
+    expect(computerFrameStyle(1920, 1080)).toEqual({
+      aspectRatio: String(1920 / 1080),
+      width: `min(100cqw, ${(1920 / 1080) * 100}cqh)`,
+    });
+    expect(computerFrameStyle(undefined, undefined)).toEqual({
+      aspectRatio: "1.6",
+      width: "min(100cqw, 160cqh)",
+    });
+  });
 });
