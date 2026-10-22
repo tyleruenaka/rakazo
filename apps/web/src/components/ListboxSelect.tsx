@@ -9,6 +9,10 @@ export type ListboxOption<T extends string> = {
   /** Muted text at the right of the row. */
   detail?: string;
   icon?: ReactNode;
+  /** A small muted mark after the label, on its row and on the trigger while selected. */
+  mark?: ReactNode;
+  /** What the mark means, read by screen readers as the row's and trigger's description. */
+  markDescription?: string;
   testId?: string;
 };
 
@@ -44,6 +48,15 @@ export function ListboxSelect<T extends string>({
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const listboxId = useId();
+  const markHintId = useId();
+  // One hidden description per distinct mark, shared by the trigger and the rows in the portal.
+  const markDescriptions = [
+    ...new Set(
+      options.flatMap((option) => (option.markDescription ? [option.markDescription] : [])),
+    ),
+  ];
+  const markHint = (description: string | undefined) =>
+    description ? `${markHintId}-${markDescriptions.indexOf(description)}` : undefined;
   const selectedIndex = Math.max(
     0,
     options.findIndex((option) => option.value === value),
@@ -125,6 +138,8 @@ export function ListboxSelect<T extends string>({
     }
   }
 
+  const selected = options[selectedIndex];
+
   return (
     <Popover
       open={open}
@@ -136,6 +151,11 @@ export function ListboxSelect<T extends string>({
         if (!next) setMounted(false);
       }}
     >
+      {markDescriptions.map((description, index) => (
+        <span key={description} id={`${markHintId}-${index}`} hidden>
+          {description}
+        </span>
+      ))}
       <PopoverTrigger
         ref={triggerRef}
         role="combobox"
@@ -143,11 +163,13 @@ export function ListboxSelect<T extends string>({
         aria-label={label}
         aria-controls={open ? listboxId : undefined}
         aria-haspopup="listbox"
+        aria-describedby={markHint(selected?.markDescription)}
         disabled={disabled}
         className={`flex h-7 w-fit max-w-full shrink-0 items-center justify-between gap-[5.5px] rounded-[8px] border border-control bg-transparent ps-2 pe-1.5 text-start text-[12.5px] text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-expanded:border-control-open-border aria-expanded:bg-control ${className}`}
         onKeyDown={onTriggerKeyDown}
       >
-        <span className="min-w-0 truncate">{options[selectedIndex]?.label}</span>
+        <span className="min-w-0 truncate">{selected?.label}</span>
+        {selected?.mark ? <span className="shrink-0 text-placeholder">{selected.mark}</span> : null}
         <span className="shrink-0" aria-hidden="true">
           <ChevronDown size={12} strokeWidth={1.5} />
         </span>
@@ -230,6 +252,7 @@ export function ListboxSelect<T extends string>({
                   role="option"
                   data-testid={option.testId}
                   aria-selected={option.value === value}
+                  aria-describedby={markHint(option.markDescription)}
                   tabIndex={search ? -1 : index === highlightedIndex ? 0 : -1}
                   data-highlighted={index === highlightedIndex ? "" : undefined}
                   className={`flex w-full shrink-0 items-center gap-2 rounded-[6px] ps-2 text-start outline-none focus:bg-control data-highlighted:bg-control ${
@@ -241,6 +264,9 @@ export function ListboxSelect<T extends string>({
                 >
                   {option.icon}
                   <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  {option.mark ? (
+                    <span className="shrink-0 text-placeholder">{option.mark}</span>
+                  ) : null}
                   {detail ? (
                     <span className="shrink-0 text-placeholder" dir="auto">
                       {detail}

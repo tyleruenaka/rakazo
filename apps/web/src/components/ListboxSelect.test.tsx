@@ -104,3 +104,28 @@ it("computes row details only while the list is open", async () => {
   await act(async () => trigger.click());
   expect(options()[0]?.textContent).toBe("Englishen time");
 });
+
+it("shows an option's mark on its row and on the trigger, described for screen readers", async () => {
+  const marked = [
+    { value: "en", label: "English" },
+    { value: "de", label: "Deutsch", mark: <i data-mark />, markDescription: "Beta" },
+  ];
+  const description = (element: Element | null | undefined) =>
+    document.getElementById(element?.getAttribute("aria-describedby") ?? "")?.textContent;
+  const { trigger } = await render({ options: marked, value: "de" });
+
+  expect(trigger.querySelector("[data-mark]")).not.toBeNull();
+  expect(description(trigger)).toBe("Beta");
+  expect(trigger.textContent).toBe("Deutsch");
+
+  await act(async () => trigger.click());
+  expect(options()[0]?.hasAttribute("aria-describedby")).toBe(false);
+  expect(options()[0]?.querySelector("[data-mark]")).toBeNull();
+  expect(options()[1]?.querySelector("[data-mark]")).not.toBeNull();
+  expect(description(options()[1])).toBe("Beta");
+
+  await cleanup?.();
+  const english = await render({ options: marked, value: "en" });
+  expect(english.trigger.hasAttribute("aria-describedby")).toBe(false);
+  expect(english.trigger.querySelector("[data-mark]")).toBeNull();
+});

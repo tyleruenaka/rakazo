@@ -21,6 +21,7 @@ import { native, useThemedStyles } from "../lib/native";
 import { NativeSymbol } from "./native-symbol";
 import { Checkmark } from "./row-accessories";
 import { SettingsLabel, SettingsRow } from "./settings-group";
+import { TextOnlyMark } from "./text-only-mark";
 
 /** Searchable grouped model cells shared by chat and connection settings. */
 export function ModelPickerList({
@@ -250,11 +251,19 @@ export function ModelPickerList({
             <SettingsRow
               accessibilityRole="button"
               accessibilityLabel={item.label}
+              accessibilityHint={item.images === false ? t("Can't read images") : undefined}
               accessibilityState={{ selected }}
               onPress={() => onSelect(item)}
               title={item.title ?? item.label}
               detail={item.detail}
-              trailing={selected ? <Checkmark /> : null}
+              trailing={
+                item.images === false || selected ? (
+                  <View style={styles.trailing}>
+                    {item.images === false ? <TextOnlyMark /> : null}
+                    {selected ? <Checkmark /> : null}
+                  </View>
+                ) : null
+              }
             />
           </View>
         );
@@ -271,6 +280,7 @@ function createStyles() {
     content: { paddingHorizontal: 16 },
     sectionHeading: { paddingBottom: 7 },
     sectionGap: { height: 20 },
+    trailing: { flexDirection: "row", alignItems: "center", gap: 10 },
     cell: {
       backgroundColor: tokens.sheetCell,
       borderColor: tokens.sheetBorder,
