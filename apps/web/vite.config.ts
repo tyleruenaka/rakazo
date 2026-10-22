@@ -398,8 +398,10 @@ export default defineConfig(({ mode }) => {
       {
         target: api,
         changeOrigin: true,
-        // A remote API rejects sign-in with INVALID_ORIGIN unless the origin matches it.
-        headers: { origin: new URL(api).origin },
+        // A remote https API (local dev against a hosted server) rejects sign-in with INVALID_ORIGIN
+        // unless the origin matches it. Inside Compose (http://api:3100) the browser's own origin
+        // must reach the API unchanged.
+        ...(new URL(api).protocol === "https:" ? { headers: { origin: new URL(api).origin } } : {}),
         // Append the hop this proxy saw, so the API never mistakes a caller's own header for its
         // address. The API reads past this hop only when it is listed in TRUSTED_PROXIES.
         configure: (proxy) => {
