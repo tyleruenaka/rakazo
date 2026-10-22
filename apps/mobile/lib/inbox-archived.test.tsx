@@ -60,7 +60,7 @@ describe("archived chats row", () => {
     "native",
     "createHomeStyles",
     compile(
-      `${dimensions}\n${slice("function ArchivedChatsRow(", "/** Points right while a section")}\nreturn ArchivedChatsRow;`,
+      `${dimensions}\n${slice("function ArchivedChatsRow(", "/** Points down while a section")}\nreturn ArchivedChatsRow;`,
     ),
   )(
     React,
@@ -139,7 +139,7 @@ describe("archived chats row", () => {
       const { container, root } = render(3);
       const button = container.querySelector("button")!;
       const row = value ? { ...styles.row, ...styles.compactRow } : styles.row;
-      expect(button.style.paddingInlineStart).toBe(`${row.paddingHorizontal + 62 + row.gap}px`);
+      expect(button.style.paddingInlineStart).toBe(`${row.paddingStart + 44 + row.gap}px`);
       expect(button.style.minHeight).toBe("44px");
       expect(button.style.width).toBe("100%");
       const label = button.querySelector("span")!;

@@ -45,6 +45,7 @@ describe("thread foreground subscription", () => {
         rpc: vi.fn(async () => snapshot),
         refresh: vi.fn(async () => snapshot),
         setError: vi.fn(),
+        setBotActivity: vi.fn(),
         errorText: String,
         subscribeThread: vi.fn(
           async (

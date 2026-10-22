@@ -2,13 +2,21 @@ import { native } from "../lib/native";
 import { NativeSymbol } from "./native-symbol";
 
 /** Trailing disclosure chevron for list rows; points down while a section is expanded. */
-export function Chevron({ expanded }: { expanded?: boolean }) {
+export function Chevron({
+  expanded,
+  color,
+  size = 14,
+}: {
+  expanded?: boolean;
+  color?: string;
+  size?: number;
+}) {
   return (
     <NativeSymbol
       android={expanded ? "chevron-down" : "chevron-forward"}
-      color={native.tertiaryLabel}
+      color={color ?? native.tertiaryLabel}
       ios={expanded ? "chevron.down" : "chevron.right"}
-      size={14}
+      size={size}
     />
   );
 }

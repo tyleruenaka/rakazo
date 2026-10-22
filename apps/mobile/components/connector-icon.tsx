@@ -1,6 +1,8 @@
+import { tokensForAppearance } from "@rakazo/ui-tokens";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { SvgUri } from "react-native-svg";
+import { mobileTokens } from "../lib/appearance";
 import { native, useThemedStyles } from "../lib/native";
 
 /** Use the catalog artwork, matching web, with a local fallback for missing logos. */
@@ -26,7 +28,8 @@ export function ConnectorIcon({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.frame, { width: size, height: size }]}
+      // Logos sit on a white plate; the initial fallback sits on a dark tile.
+      style={[styles.frame, uri ? styles.plate : styles.tile, { width: size, height: size }]}
     >
       {uri ? (
         svg ? (
@@ -36,7 +39,11 @@ export function ConnectorIcon({
             height={art}
             onError={() => setFailure({ logo: uri, svgFailed: true })}
             // SvgUri does not report XML parse errors, only renders this fallback.
-            fallback={initial}
+            fallback={
+              <Text style={[styles.letter, styles.plateLetter]}>
+                {(name.trim()[0] || "?").toUpperCase()}
+              </Text>
+            }
           />
         ) : (
           <Image
@@ -57,10 +64,18 @@ function createStyles() {
   return StyleSheet.create({
     frame: {
       borderRadius: 10,
-      backgroundColor: native.fillPressed,
+      borderCurve: "continuous",
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
+    },
+    plate: { backgroundColor: mobileTokens().faviconPlate },
+    // The plate is white in both themes, so its letter uses the light theme's ink.
+    plateLetter: { color: tokensForAppearance("light").foreground },
+    tile: {
+      borderWidth: 1,
+      borderColor: mobileTokens().sheetBorder,
+      backgroundColor: mobileTokens().sheetCell,
     },
     letter: { color: native.label, fontSize: 16, fontWeight: "600" },
   });

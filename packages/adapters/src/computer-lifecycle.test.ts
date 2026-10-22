@@ -71,6 +71,7 @@ describe("computer provisioning", () => {
           return result;
         }),
       },
+      user: { findUnique: vi.fn(async () => ({ timezone: "Pacific/Auckland" })) },
     } as unknown as PrismaClient;
     const sandbox = {
       provision: vi.fn().mockResolvedValue({
@@ -99,6 +100,10 @@ describe("computer provisioning", () => {
           context,
         ),
       ).rejects.toThrow("Computer is busy");
+      expect(sandbox.provision).toHaveBeenCalledWith(
+        expect.objectContaining({ timeZone: "Pacific/Auckland" }),
+        context,
+      );
       expect(releaseScreen).toHaveBeenCalledOnce();
       expect(stop).toHaveBeenCalledOnce();
       expect(prisma.computer.updateMany).toHaveBeenNthCalledWith(

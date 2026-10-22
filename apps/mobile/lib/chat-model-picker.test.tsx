@@ -53,7 +53,11 @@ vi.mock("./device-voice", () => ({ loadDeviceVoiceEnabled: async () => false }))
 vi.mock("./voice", () => ({ stopVoicePlayback: () => undefined }));
 vi.mock("expo-speech", () => ({ stop: async () => undefined, speak: () => undefined }));
 vi.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
+  // The header's Done button renders in place so tests can press it.
+  Stack: {
+    Screen: ({ options }: { options?: { headerRight?: () => ReactNode } }) =>
+      options?.headerRight?.() ?? null,
+  },
   useRouter: () => ({
     back: mocks.back,
     push: mocks.push,
@@ -89,6 +93,7 @@ vi.mock("react-native", () => {
     AccessibilityInfo: { announceForAccessibility: mocks.announce },
     ActivityIndicator: () => null,
     Platform: { OS: "ios" },
+    PlatformColor: (name: string) => name,
     StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
     ScrollView: view,
     View: view,
@@ -172,6 +177,9 @@ vi.mock("./native", () => ({
   useResolvedAppearance: () => "light",
   useThemedStyles: (createStyles: () => unknown) => createStyles(),
 }));
+vi.mock("./appearance", () => ({
+  mobileTokens: () => new Proxy({}, { get: (_, key) => String(key) }),
+}));
 vi.mock("./i18n", () => {
   const t = (text: string) => text;
   return { t, useI18n: () => ({ t }) };
@@ -207,6 +215,7 @@ vi.mock("./bot-avatar-edit", () => ({
   isAvatarPhoto: () => false,
   withAvatarColor: (_value: string, color: string) => color,
   withAvatarShape: (value: string) => value,
+  botSwitchTint: (value: string) => value,
 }));
 vi.mock("../components/computer-mode-picker", () => ({ ComputerModePicker: () => null }));
 vi.mock("../components/native-action-button", () => ({
@@ -256,7 +265,7 @@ describe("chat settings model row", () => {
     });
   });
 
-  it("stages the model the list hands back until Save", async () => {
+  it("stages the model the list hands back until Done", async () => {
     mocks.params = { botId: "bot-fixture" };
     await render();
     mocks.params = { botId: "bot-fixture", model: "openrouter::vendor/model-3" };
@@ -266,7 +275,7 @@ describe("chat settings model row", () => {
     expect(row?.getAttribute("aria-valuetext")).toBe("OpenRouter · Model 3");
     expect(mocks.update).not.toHaveBeenCalled();
     const save = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Save",
+      (button) => button.textContent === "Done",
     );
     await act(async () => save!.click());
     expect(mocks.update).toHaveBeenCalledWith(

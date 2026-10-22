@@ -20,7 +20,7 @@ vi.mock("@rakazo/ui-web", () => ({
     <button {...props}>{children}</button>
   ),
 }));
-vi.mock("../../lib/call-session", () => ({ startCall: vi.fn(), useCallSession: () => null }));
+vi.mock("../../lib/call-session", () => ({ startCall: vi.fn(), useCallBotId: () => null }));
 vi.mock("../../lib/rpc", () => ({
   rpc: { threads: { answerCall: vi.fn(), declineCall: vi.fn() } },
 }));

@@ -1,0 +1,35 @@
+# Top bar: the Aiome mark at the left, date and time at the right.
+# Its strut keeps maximized windows below it.
+
+# 1: translucent bar
+rounded = 0
+border_width = 0
+background_color = #0b0d14 32
+border_color = #000000 0
+
+panel_items = PFC
+panel_size = 100% 24
+panel_margin = 0 0
+panel_padding = 12 0 12
+panel_background_id = 1
+panel_position = top center horizontal
+panel_layer = top
+panel_dock = 0
+autohide = 0
+strut_policy = follow_size
+panel_window_name = rakazo-menubar
+wm_menu = 0
+mouse_effects = 0
+font_shadow = 0
+
+button = new
+button_icon = /usr/share/rakazo/desktop/aiome-mark.svg
+button_max_icon_size = 16
+button_padding = 0 0 0
+button_background_id = 0
+
+time1_format = %a %b %-d   %-I:%M %p
+time1_font = Liberation Sans 10
+clock_font_color = #ffffff 100
+clock_padding = 12 0
+clock_background_id = 0

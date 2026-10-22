@@ -69,7 +69,11 @@ vi.mock("./api", () => ({
   },
 }));
 vi.mock("expo-router", () => ({
-  Stack: { Screen: () => null },
+  // The header's Done button renders in place so tests can press it.
+  Stack: {
+    Screen: ({ options }: { options?: { headerRight?: () => ReactNode } }) =>
+      options?.headerRight?.() ?? null,
+  },
   useRouter: () => ({ back: mocks.back }),
   useLocalSearchParams: () => ({ botId: "bot-fixture" }),
   useFocusEffect: (effect: () => (() => void) | undefined) => useEffect(effect, [effect]),
@@ -106,6 +110,7 @@ vi.mock("react-native", () => {
   return {
     Alert: { alert: mocks.alert },
     Platform: { OS: "ios" },
+    PlatformColor: (name: string) => name,
     StyleSheet: { create: (styles: unknown) => styles },
     ScrollView: view,
     View: view,
@@ -165,6 +170,9 @@ vi.mock("./native", () => ({
   useResolvedAppearance: () => "light",
   useThemedStyles: (createStyles: () => unknown) => createStyles(),
 }));
+vi.mock("./appearance", () => ({
+  mobileTokens: () => new Proxy({}, { get: (_, key) => String(key) }),
+}));
 vi.mock("./i18n", () => {
   const t = (text: string, values?: Record<string, string | number>) =>
     text.replace(/\{(\w+)\}/g, (_, key) => String(values?.[key] ?? ""));
@@ -177,6 +185,7 @@ vi.mock("./bot-avatar-edit", () => ({
   isAvatarPhoto: () => false,
   withAvatarColor: (_value: string, color: string) => color,
   withAvatarShape: (value: string) => value,
+  botSwitchTint: (value: string) => value,
 }));
 vi.mock("../components/native-segmented-control", () => ({
   NativeSegmentedControl: ({
@@ -290,7 +299,7 @@ describe("bot settings device voice menu", () => {
   };
   const menu = () => container.querySelector('[data-menu="Device voice"]');
 
-  it("matches Instructions to the rounded Description field", async () => {
+  it("matches Instructions to the Description field", async () => {
     await render();
     const description = container.querySelector<HTMLElement>(
       '[placeholder="What this bot is for"]',
@@ -299,46 +308,28 @@ describe("bot settings device voice menu", () => {
     const resolvedStyle = (input: HTMLElement) =>
       Object.assign({}, ...JSON.parse(input.dataset.style!).flat(Infinity));
     const descriptionStyle = resolvedStyle(description);
-    expect(descriptionStyle).toMatchObject({ borderRadius: 11, padding: 16 });
+    expect(descriptionStyle).toMatchObject({ paddingHorizontal: 18, minHeight: 120 });
     expect(resolvedStyle(instructions)).toMatchObject({
-      borderRadius: descriptionStyle.borderRadius,
-      padding: descriptionStyle.padding,
+      paddingHorizontal: descriptionStyle.paddingHorizontal,
       minHeight: 120,
       textAlignVertical: "top",
     });
     expect(instructions.getAttribute("aria-multiline")).toBe("true");
   });
 
-  it("refreshes input backgrounds when appearance changes", async () => {
-    await render();
-    const backgrounds = () =>
-      [...container.querySelectorAll<HTMLElement>("textarea")].map(
-        (input) =>
-          Object.assign({}, ...JSON.parse(input.dataset.style!).flat(Infinity)).backgroundColor,
-      );
-    expect(backgrounds()).toEqual(Array(4).fill("light-fill"));
-    mocks.fill = "dark-fill";
+  it("shows voice first and hides advanced controls until expanded, in the shared order", async () => {
     await act(async () => root.render(<BotSettingsScreen />));
-    expect(backgrounds()).toEqual(Array(4).fill("dark-fill"));
-  });
-
-  it("hides advanced controls until expanded and follows the shared order", async () => {
-    await act(async () => root.render(<BotSettingsScreen />));
-    for (const label of [
-      "Computer",
-      "Read replies aloud",
-      "Device voice",
-      "Manage the bots it creates",
-    ]) {
+    for (const label of ["Computer", "Manage the bots it creates"]) {
       expect(container.textContent).not.toContain(label);
     }
+    const text = () => container.textContent ?? "";
+    expect(text().indexOf("Device voice")).toBeLessThan(text().indexOf("Read replies aloud"));
+    expect(text().indexOf("Read replies aloud")).toBeLessThan(text().indexOf("Advanced"));
     await expand();
     const labels = {
       instructions: "Instructions",
       computer: "Computer",
       model: "Model",
-      readAloud: "Read replies aloud",
-      voice: "Device voice",
       fleetManagement: "Manage the bots it creates",
     };
     const actual = [...container.querySelectorAll("span")].flatMap((span) =>
@@ -347,15 +338,7 @@ describe("bot settings device voice menu", () => {
         .map(([key]) => key),
     );
     expect(actual).toEqual(BOT_SETTINGS_ADVANCED_ORDER.filter((key) => key in labels));
-    expect(actual).toEqual([
-      "instructions",
-      "computer",
-      "model",
-      "readAloud",
-      "voice",
-      "fleetManagement",
-    ]);
-    for (const label of Object.values(labels)) {
+    for (const label of [labels.computer, labels.model, labels.fleetManagement]) {
       const span = [...container.querySelectorAll("span")].find(
         (span) => span.textContent === label,
       )!;
@@ -365,7 +348,7 @@ describe("bot settings device voice menu", () => {
     }
 
     await expand();
-    expect(container.textContent).not.toContain("Read replies aloud");
+    expect(container.textContent).not.toContain("Manage the bots it creates");
   });
 
   it("saves read aloud and computer mode after expanding Advanced", async () => {
@@ -381,7 +364,7 @@ describe("bot settings device voice menu", () => {
     );
     await act(async () =>
       [...container.querySelectorAll("button")]
-        .find((button) => button.textContent === "Save")!
+        .find((button) => button.textContent === "Done")!
         .click(),
     );
     expect(mocks.rpc).toHaveBeenCalledWith("bots/setComputer", {
@@ -424,9 +407,9 @@ describe("bot settings device voice menu", () => {
     });
     mocks.rpc.mockClear();
     const save = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Save",
+      (button) => button.textContent === "Done",
     );
-    if (!save) throw new Error("Missing Save");
+    if (!save) throw new Error("Missing Done");
     await act(async () => {
       save.click();
     });
@@ -443,7 +426,7 @@ describe("bot settings device voice menu", () => {
       '[aria-label="Manage the bots it creates"]',
     )!;
     const save = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Save",
+      (button) => button.textContent === "Done",
     )!;
     await act(async () => toggle.click());
     expect(toggle.getAttribute("aria-checked")).toBe("true");
@@ -477,7 +460,7 @@ describe("bot settings device voice menu", () => {
         '[aria-label="Manage the bots it creates"]',
       )!;
       const save = [...container.querySelectorAll("button")].find(
-        (button) => button.textContent === "Save",
+        (button) => button.textContent === "Done",
       )!;
       await act(async () => toggle.click());
       await act(async () => save.click());
@@ -512,7 +495,7 @@ describe("bot settings device voice menu", () => {
     );
     await act(async () =>
       [...container.querySelectorAll("button")]
-        .find((button) => button.textContent === "Save")!
+        .find((button) => button.textContent === "Done")!
         .click(),
     );
     expect(mocks.back).not.toHaveBeenCalled();
@@ -534,7 +517,7 @@ describe("bot settings device voice menu", () => {
       '[aria-label="Manage the bots it creates"]',
     )!;
     const save = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Save",
+      (button) => button.textContent === "Done",
     )!;
     await act(async () => toggle.click());
     await act(async () =>

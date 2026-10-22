@@ -351,10 +351,10 @@ function LayoutContent() {
                           // One stack of settings pages in a sheet over the screen that opened it.
                           // Android keeps pushed pages: it has no nested stack inside a formSheet.
                           presentation: Platform.OS === "ios" ? "formSheet" : "card",
-                          sheetAllowedDetents: [0.95],
+                          sheetAllowedDetents: [1],
                           sheetGrabberVisible: false,
                           sheetExpandsWhenScrolledToEdge: false,
-                          contentStyle: { backgroundColor: native.groupedPage },
+                          contentStyle: { backgroundColor: mobileTokens().sheetPage },
                         }}
                       />
                       <Stack.Screen
@@ -369,10 +369,13 @@ function LayoutContent() {
                       <Stack.Screen
                         name="new"
                         options={{
-                          title: t("New bot"),
-                          presentation: "modal",
+                          title: t("Create New Bot"),
+                          headerShown: false,
+                          presentation: "formSheet",
+                          sheetAllowedDetents: [0.945],
+                          sheetGrabberVisible: false,
+                          sheetExpandsWhenScrolledToEdge: false,
                           gestureEnabled: true,
-                          headerBackVisible: false,
                         }}
                       />
                       <Stack.Screen
@@ -392,7 +395,7 @@ function LayoutContent() {
                           headerBackVisible: false,
                         }}
                       />
-                      <Stack.Screen name="artifacts" options={glassHeaderOptions(t("Artifacts"))} />
+                      <Stack.Screen name="artifacts" options={glassHeaderOptions(t("Library"))} />
                       <Stack.Screen name="artifact" options={{ title: t("Artifact") }} />
                       <Stack.Screen
                         name="group-thread"
@@ -412,6 +415,7 @@ function LayoutContent() {
                         name="thread"
                         options={{ title: t("Thread"), animation: chatAnimation }}
                       />
+                      <Stack.Screen name="peer-thread" options={{ animation: chatAnimation }} />
                       <Stack.Screen name="routine" options={glassHeaderOptions(t("Routine"))} />
                       <Stack.Screen name="computer" options={{ title: t("Computer") }} />
                       <Stack.Screen

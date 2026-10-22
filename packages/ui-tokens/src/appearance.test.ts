@@ -54,6 +54,7 @@ describe("appearance preference", () => {
       "faviconPlate",
       "avatarPencil",
       "computerBackdrop",
+      "computerPage",
       "computerIcon",
       "computerIconHover",
       "fileSheet",

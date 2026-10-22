@@ -1,18 +1,9 @@
-import type { ComputerMode, ComputerReleaseReason } from "@rakazo/contracts";
+import type { ComputerReleaseReason } from "@rakazo/contracts";
 import { displayName } from "@rakazo/core";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import type { RefObject } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, AppState, Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   initialWindowMetrics,
@@ -20,11 +11,12 @@ import {
   SafeAreaView,
 } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
+import { BotAvatar } from "../components/bot-avatar";
 import { ComputerKeyboardBar } from "../components/computer-keyboard-bar";
 import { ComputerMaintenanceActions } from "../components/computer-maintenance-actions";
-import { ComputerModePicker } from "../components/computer-mode-picker";
 import { GlassIconButton } from "../components/glass-icon-button";
 import { NativeActionButton } from "../components/native-action-button";
+import type { MobileBot } from "../lib/api";
 import { currentApiBase, rpc } from "../lib/api";
 import type { ComputerStatus } from "../lib/computer";
 import {
@@ -52,14 +44,12 @@ import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
 import { iosAtLeast } from "../lib/native-controls";
 import { holdFreeRotation } from "../lib/orientation";
-import { stacksAtTextScale } from "../lib/text-scale";
 import { computerBootErrorDetail, errorText } from "../lib/user-error";
 
 export default function Computer() {
   const { t } = useI18n();
   const tokens = useMobileTokens();
-  const navigation = useNavigation();
-  const stacked = stacksAtTextScale(useWindowDimensions().fontScale);
+  const router = useRouter();
   const { botId, name: nameParam } = useLocalSearchParams<{ botId?: string; name?: string }>();
   const name = displayName(nameParam, t("Bot"));
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
@@ -68,10 +58,8 @@ export default function Computer() {
   const [error, setError] = useState<string | null>(null);
   const [readyBotId, setReadyBotId] = useState<string | null>(null);
   const [bootingCount, setBootingCount] = useState(0);
-  const [switchingCount, setSwitchingCount] = useState(0);
   const booting = bootingCount > 0;
   const [bootFailed, setBootFailed] = useState(false);
-  const switching = switchingCount > 0;
   const [computerOpen, setComputerOpen] = useState(false);
   const autoBooted = useRef<string | null>(null);
   const screenWebViewRef = useRef<WebView>(null);
@@ -126,9 +114,13 @@ export default function Computer() {
 
   const label = computerLabel(computer?.mode, name);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({ title: label });
-  }, [label, navigation]);
+  const [bot, setBot] = useState<MobileBot | null>(null);
+  useEffect(() => {
+    setBot(null);
+    void rpc<MobileBot[]>("bots/list")
+      .then((bots) => setBot(bots.find((item) => item.id === botId) ?? null))
+      .catch(() => undefined);
+  }, [botId]);
 
   const refreshController = useMemo(
     () =>
@@ -162,7 +154,6 @@ export default function Computer() {
     setReadyBotId(null);
     setBootingCount(0);
     setBootFailed(false);
-    setSwitchingCount(0);
     setComputerOpen(false);
     autoBooted.current = null;
     if (botId) refreshController.start();
@@ -230,7 +221,7 @@ export default function Computer() {
   }
 
   useEffect(() => {
-    if (!botId || readyBotId !== botId || switching) return;
+    if (!botId || readyBotId !== botId) return;
     if (computer?.state === "booting" || computer?.state === "suspended") return;
     if (autoBooted.current === botId) return;
     autoBooted.current = botId;
@@ -239,7 +230,7 @@ export default function Computer() {
       showProgress: computer?.state !== "running",
       force: true,
     }).catch(() => undefined);
-  }, [readyBotId, botId, computer?.state, switching]);
+  }, [readyBotId, botId, computer?.state]);
 
   const reloadScreen = useCallback(async () => {
     await refresh().catch(() => undefined);
@@ -304,34 +295,6 @@ export default function Computer() {
     }
   }
 
-  async function setComputerMode(mode: ComputerMode) {
-    if (!botId || !refreshController.isActive() || mode === computer?.mode) return;
-    const action = refreshController.beginAction();
-    setSwitchingCount((count) => count + 1);
-    setError(null);
-    try {
-      if (hasControl) {
-        await rpc("computer/release", {
-          botId,
-          reason: computer?.takeoverRequested ? "skipped" : undefined,
-        });
-      }
-      if (!action.isActive()) return;
-      await rpc("bots/setComputer", { botId, mode }, { timeoutMs: COMPUTER_LIFECYCLE_TIMEOUT_MS });
-      if (!action.isActive()) return;
-      setComputer(null);
-      setScreenUrl(null);
-      autoBooted.current = null;
-      await action.refresh();
-    } catch (err) {
-      if (!action.isActive()) return;
-      setError(errorText(err, t("Could not switch computer")));
-    } finally {
-      if (action.isActive()) setSwitchingCount((count) => count - 1);
-      action.finish();
-    }
-  }
-
   const placeholder =
     screenError ?? previewPlaceholder(computer?.state, booting, name, computer?.mode);
   // Booting shows in the preview; the header and Back stay, and leaving lets the boot finish.
@@ -339,138 +302,166 @@ export default function Computer() {
   const canRetry = !bootPending && (bootFailed || computer?.state === "error");
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: tokens.background }}
-      contentContainerStyle={{ padding: 24 }}
-      contentInsetAdjustmentBehavior="automatic"
-    >
-      {canRetry && computer?.state !== "running" ? (
-        <View style={{ gap: 8, marginBottom: 16 }}>
-          <Text style={{ color: tokens.destructive, fontSize: 17, fontWeight: "600" }}>
-            {t("Couldn't start the computer")}
-          </Text>
-          <Text style={{ color: tokens.mutedForeground }}>
-            {t("Something went wrong while it was starting. Try again in a moment.")}
-          </Text>
-          {error ? (
-            <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>{error}</Text>
-          ) : null}
-        </View>
-      ) : error || canRetry ? (
-        <Text style={{ color: tokens.mutedForeground, marginBottom: 12 }}>
-          {error ?? t("Something went wrong while it was starting. Try again in a moment.")}
-        </Text>
-      ) : null}
-      {canRetry ? (
-        <NativeActionButton
-          label={t("Try again")}
-          prominence="primary"
-          size="default"
-          style={{ marginBottom: 16 }}
-          onPress={() =>
-            void bootComputer({ takeControl: false, showProgress: true, force: true }).catch(
-              () => undefined,
-            )
-          }
-        />
-      ) : null}
+    <View style={{ flex: 1, backgroundColor: tokens.computerPage }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* Centered on the whole screen, under the header, as Grok does. */}
       <View
+        pointerEvents="box-none"
         style={{
-          height: 360,
-          minHeight: 220,
-          borderRadius: 14,
-          overflow: "hidden",
-          backgroundColor: tokens.card,
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          justifyContent: "center",
         }}
       >
-        {computerOpen ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: tokens.mutedForeground }}>{t("Open in full window")}</Text>
-          </View>
-        ) : computer?.state === "running" && embeddedScreenUrl && !screenError ? (
-          <ScreenWebView
-            key={screenReload}
-            url={embeddedScreenUrl}
-            interactive={false}
-            onRendererLost={() => void reloadScreen()}
-            onError={() => {
-              refreshController.invalidateScreen();
-              setScreenError(
-                t("Could not load the desktop. This device cannot reach the screen URL."),
-              );
-            }}
+        {/* The desktop is 16:10 and spans the full width, as in a video player. */}
+        <View style={{ width: "100%", aspectRatio: 16 / 10 }}>
+          {computerOpen ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: tokens.computerIcon }}>{t("Open in full window")}</Text>
+            </View>
+          ) : computer?.state === "running" && embeddedScreenUrl && !screenError ? (
+            <ScreenWebView
+              key={screenReload}
+              url={embeddedScreenUrl}
+              interactive={false}
+              onRendererLost={() => void reloadScreen()}
+              onError={() => {
+                refreshController.invalidateScreen();
+                setScreenError(
+                  t("Could not load the desktop. This device cannot reach the screen URL."),
+                );
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                padding: 16,
+              }}
+            >
+              {bootPending ? <ActivityIndicator size="large" color={tokens.computerIcon} /> : null}
+              <Text style={{ color: tokens.computerIcon, textAlign: "center" }}>{placeholder}</Text>
+            </View>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={bootPending ? placeholder : t("Open computer")}
+            accessibilityState={{ disabled: bootPending, busy: bootPending }}
+            disabled={bootPending}
+            onPress={() => void openComputer({ takeControl: false })}
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
           />
-        ) : (
-          <View
+        </View>
+        {computer?.busyBotName ? (
+          <Text style={{ marginTop: 12, color: tokens.computerIcon, textAlign: "center" }}>
+            {controlLabel(computer, name, botId)}
+          </Text>
+        ) : null}
+      </View>
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 14,
+          paddingHorizontal: 18,
+          paddingTop: 6,
+        }}
+      >
+        <GlassIconButton
+          accessibilityLabel={t("Back")}
+          onPress={() => router.back()}
+          ios="chevron.left"
+          android="chevron-back"
+          size={44}
+          iconSize={19}
+          color={tokens.computerIconHover}
+          fallbackStyle={{ backgroundColor: tokens.computerBackdrop }}
+        />
+        <View
+          accessibilityRole="header"
+          accessible
+          style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 9 }}
+        >
+          {bot ? <BotAvatar color={bot.color} identity={bot.id} size={32} /> : null}
+          <Text
+            numberOfLines={1}
             style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              padding: 16,
+              flexShrink: 1,
+              color: tokens.computerIconHover,
+              fontSize: 18,
+              fontWeight: "500",
             }}
           >
-            {bootPending ? <ActivityIndicator size="large" color={tokens.mutedForeground} /> : null}
-            <Text style={{ color: tokens.mutedForeground, textAlign: "center" }}>
-              {placeholder}
-            </Text>
-          </View>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={bootPending ? placeholder : t("Open computer")}
-          accessibilityState={{ disabled: bootPending, busy: bootPending }}
-          disabled={bootPending}
-          onPress={() => void openComputer({ takeControl: false })}
-          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
+            {name}
+          </Text>
+        </View>
+        <ComputerMaintenanceActions
+          botId={botId ?? ""}
+          computer={computer}
+          onChanged={refreshAfterMaintenance}
         />
-      </View>
-      <View
-        style={{
-          marginTop: 16,
-          flexDirection: stacked ? "column" : "row",
-          alignItems: stacked ? "flex-start" : "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
-        <Text
-          style={{
-            color: tokens.mutedForeground,
-            ...(stacked ? { alignSelf: "stretch" } : { flex: 1 }),
-          }}
-        >
-          {controlLabel(computer, name, botId)}
-        </Text>
+      </SafeAreaView>
+      {canRetry || error ? (
+        <View style={{ gap: 8, paddingHorizontal: 24, paddingTop: 24 }}>
+          {canRetry && computer?.state !== "running" ? (
+            <Text style={{ color: tokens.destructive, fontSize: 17, fontWeight: "600" }}>
+              {t("Couldn't start the computer")}
+            </Text>
+          ) : null}
+          <Text style={{ color: tokens.computerIcon }}>
+            {error ?? t("Something went wrong while it was starting. Try again in a moment.")}
+          </Text>
+          {canRetry ? (
+            <NativeActionButton
+              label={t("Try again")}
+              prominence="primary"
+              size="default"
+              style={{ marginTop: 8 }}
+              onPress={() =>
+                void bootComputer({ takeControl: false, showProgress: true, force: true }).catch(
+                  () => undefined,
+                )
+              }
+            />
+          ) : null}
+        </View>
+      ) : null}
+      <View style={{ position: "absolute", right: 30, bottom: 30 }}>
         {hasControl ? (
           <ComputerReleaseActions
             takeoverRequested={computer?.takeoverRequested ?? false}
             onRelease={releaseComputer}
           />
         ) : (
-          <NativeActionButton
-            label={t("Take control")}
-            prominence="secondary"
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: bootPending }}
             disabled={bootPending}
-            style={{ alignSelf: "center" }}
             onPress={() => void openComputer({ takeControl: true })}
-          />
+            style={({ pressed }) => ({
+              height: 38,
+              justifyContent: "center",
+              paddingHorizontal: 8,
+              borderRadius: 19,
+              borderWidth: 1,
+              borderColor: tokens.glassStroke,
+              backgroundColor: tokens.computerBackdrop,
+              opacity: bootPending ? 0.5 : pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ color: tokens.computerIconHover, fontSize: 17 }}>
+              {t("Take control")}
+            </Text>
+          </Pressable>
         )}
       </View>
-      {computer ? (
-        <ComputerMaintenanceActions
-          botId={botId ?? ""}
-          computer={computer}
-          onChanged={refreshAfterMaintenance}
-        />
-      ) : null}
-      <ComputerModePicker
-        // Restacking the row above leaves the native picker at its old measured height; remount it.
-        key={stacked ? "stacked" : "row"}
-        value={computer?.mode}
-        disabled={switching || bootPending}
-        onChange={(mode) => void setComputerMode(mode)}
-      />
 
       <Modal
         visible={computerOpen}
@@ -603,7 +594,7 @@ export default function Computer() {
           </KeyboardAvoidingView>
         </SafeAreaProvider>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 

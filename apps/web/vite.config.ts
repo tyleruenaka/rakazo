@@ -36,6 +36,7 @@ import {
   shouldInjectNovncStorageShim,
 } from "./src/novnc-html.js";
 import {
+  hostedScreenProxy,
   resolveNovncTarget,
   safeProxyHeaders,
   watchScreenAuthorization,
@@ -412,6 +413,8 @@ export default defineConfig(({ mode }) => {
       } satisfies ProxyOptions,
     ]),
   );
+  const hostedScreens = hostedScreenProxy(api);
+  const proxy = hostedScreens ? { ...apiProxy, "/novnc": hostedScreens } : apiProxy;
   const previewHost = process.env.RAKAZO_HOST ?? rootEnv.RAKAZO_HOST ?? "localhost";
   const allowedHosts = [
     previewHost,
@@ -496,8 +499,12 @@ export default defineConfig(({ mode }) => {
       },
       {
         name: "rakazo-novnc-proxy",
-        configureServer: (server) => attachNovncProxy(server, screenProxySecret(), api),
-        configurePreviewServer: (server) => attachNovncProxy(server, screenProxySecret(), api),
+        configureServer: (server) => {
+          if (!hostedScreens) attachNovncProxy(server, screenProxySecret(), api);
+        },
+        configurePreviewServer: (server) => {
+          if (!hostedScreens) attachNovncProxy(server, screenProxySecret(), api);
+        },
       },
     ],
     server: {
@@ -505,13 +512,13 @@ export default defineConfig(({ mode }) => {
       port: webPort,
       strictPort: true,
       allowedHosts,
-      proxy: apiProxy,
+      proxy,
     },
     preview: {
       host: "0.0.0.0",
       port: Number(process.env.WEB_PORT ?? 5173),
       allowedHosts,
-      proxy: apiProxy,
+      proxy,
     },
   };
 });

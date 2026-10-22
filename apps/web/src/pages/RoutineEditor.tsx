@@ -264,7 +264,7 @@ export function RoutineListHeader({ onCreate }: { onCreate: () => void }) {
   const { t } = useLingui();
   return (
     <div className="mt-[21px] mb-3 flex h-[15px] items-center justify-between gap-3 ps-3 pe-1">
-      <div className="text-[12.5px] text-muted-foreground">
+      <div className="text-[13px] text-muted-foreground">
         <Trans>Routines</Trans>
       </div>
       <Button
@@ -300,7 +300,7 @@ export function RoutineListRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex h-full min-w-0 flex-1 flex-col justify-center ps-2 text-start text-[12.5px] leading-[18px] outline-none"
+        className="flex h-full min-w-0 flex-1 flex-col justify-center ps-2 text-start text-[13px] leading-[18px] outline-none"
       >
         <span className="block truncate text-foreground" dir="auto">
           {routine.name}

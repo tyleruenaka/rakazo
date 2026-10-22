@@ -547,7 +547,10 @@ function renderEnsureScreenCommand(
           `  xdpyinfo -display ${layout.display} >/dev/null 2>&1 || exit 1`,
           `  if [ -f /etc/rakazo/fluxbox/init ]; then cp /etc/rakazo/fluxbox/init ${fluxHome}/.fluxbox/init; else printf "session.screen0.toolbar.visible: false\\n" >${fluxHome}/.fluxbox/init; fi`,
           `  cp /etc/rakazo/fluxbox/apps ${fluxHome}/.fluxbox/apps 2>/dev/null || true`,
-          `  printf '\\nsession.menuFile: %s\\n' ${fluxHome}/.fluxbox/menu >>${fluxHome}/.fluxbox/init`,
+          // Fluxbox reads apps from $HOME/.fluxbox unless told otherwise, and replaces the
+          // -rc file with its defaults when that directory is missing.
+          `  printf '\\nsession.menuFile: %s\\nsession.appsFile: %s\\n' ${fluxHome}/.fluxbox/menu ${fluxHome}/.fluxbox/apps >>${fluxHome}/.fluxbox/init`,
+          `  mkdir -p ${shellQuote(env.homeDir)}/.fluxbox`,
           `  HOME=${shellQuote(env.homeDir)} CHROME_USER_DATA_DIR=${shellQuote(profile)} BROWSER=${browserLauncherPath(layout.displayNumber)} DISPLAY=${layout.display} nohup fluxbox -rc ${fluxHome}/.fluxbox/init 8>&- 9>&- </dev/null >${log}-fluxbox.log 2>&1 &`,
           "fi",
         ];

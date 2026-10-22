@@ -982,10 +982,6 @@ msgstr "עיון בשרתי MCP"
 msgid "Built-in"
 msgstr "מובנה"
 
-#: src/pages/Shell.tsx
-msgid "Call"
-msgstr ""
-
 #: src/components/call/VoiceChatCard.tsx
 msgid "Call back"
 msgstr ""
@@ -1146,6 +1142,10 @@ msgstr "בודק…"
 msgid "Checkout has local changes. Clean it before updating."
 msgstr "יש שינויים מקומיים בעותק. יש לנקות אותו לפני העדכון."
 
+#: src/lib/bot-activity.ts
+msgid "Chewing on it"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Choose a bot…"
 msgstr "בחירת בוט…"
@@ -1191,6 +1191,7 @@ msgid "Client secret"
 msgstr "Client secret"
 
 #: src/components/ArtifactPreviewPane.tsx
+#: src/components/call/VoiceChatCard.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -2207,10 +2208,6 @@ msgstr "MCP ישיר"
 msgid "Disabled tools"
 msgstr "כלים מושבתים"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Discard recording"
-msgstr ""
-
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/ModelSettingsOverlay.tsx
@@ -2319,9 +2316,17 @@ msgstr "מוריד…"
 msgid "Draft skill"
 msgstr "טיוטת מיומנות"
 
+#: src/lib/bot-activity.ts
+msgid "Drafting"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Drag, drop, or paste an image"
 msgstr "אפשר לגרור, לשחרר או להדביק תמונה"
+
+#: src/lib/bot-activity.ts
+msgid "Drawing it up"
+msgstr ""
 
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
@@ -2638,6 +2643,10 @@ msgstr "הורדת האפליקציה לנייד"
 msgid "Getting ready"
 msgstr "מתכונן"
 
+#: src/lib/bot-activity.ts
+msgid "Getting there"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr "אירוע Git"
@@ -2671,6 +2680,10 @@ msgstr "יש לנתק קודם את השיחה ואז להזין את הקוד �
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "יש לנתק את השיחה ואז להזין את הקוד שעל המסך."
+
+#: src/lib/bot-activity.ts
+msgid "Hanging tight"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -2706,10 +2719,6 @@ msgstr "הסתרת הבוטים"
 msgid "Hide password"
 msgstr "הסתרת הסיסמה"
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Hide transcript"
-msgstr "הסתרת התמליל"
-
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2720,14 +2729,6 @@ msgstr "גבוהה"
 #: src/lib/model-catalog.ts
 msgid "High"
 msgstr "גבוה"
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk"
-msgstr ""
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk, release to send"
-msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
 msgid "hour"
@@ -2873,6 +2874,10 @@ msgstr "הבוטים והקבוצות שבו יישמרו ויוצאו מהמק�
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "השיחה, הקבצים והרוטינות שלו יימחקו לצמיתות. בוטים שהוא יצר יישארו ברשימה."
 
+#: src/lib/bot-activity.ts
+msgid "Jogging its memory"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
 msgstr "מעבר לאחרונות"
@@ -2948,12 +2953,11 @@ msgstr "תצוגת רשימה"
 msgid "Listen"
 msgstr "האזנה"
 
-#: src/components/call/CallCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listening"
 msgstr "מאזין"
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/pages/Shell.tsx
 msgid "Listening…"
 msgstr ""
 
@@ -3041,6 +3045,14 @@ msgstr "הגדרות השרת המקומי"
 msgid "Log out"
 msgstr "התנתקות"
 
+#: src/lib/bot-activity.ts
+msgid "Looking it up"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Looping in a teammate"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3059,6 +3071,10 @@ msgstr "אותיות לטיניות קטנות, ספרות, מקפים וקוו�
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "יש לוודא ששום דבר לא פועל עדיין במחשב הזה."
+
+#: src/lib/bot-activity.ts
+msgid "Making headway"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
@@ -3250,10 +3266,6 @@ msgstr "מזעור"
 msgid "Minimize bots"
 msgstr "מזעור הבוטים"
 
-#: src/components/call/CallCard.tsx
-msgid "Minimize call"
-msgstr ""
-
 #: src/pages/RoutineSchedule.tsx
 msgid "minute"
 msgstr "דקה"
@@ -3349,10 +3361,6 @@ msgstr "העברה אל"
 #: src/components/call/CallCard.tsx
 msgid "Mute"
 msgstr "השתקה"
-
-#: src/components/call/CallCard.tsx
-msgid "Muted"
-msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/Auth.tsx
@@ -3536,6 +3544,10 @@ msgstr "עדיין אין הרצות"
 msgid "No skills yet"
 msgstr "עדיין אין מיומנויות"
 
+#: src/components/call/CallCard.tsx
+msgid "No speech transcribed yet"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No team conversations yet."
 msgstr "עדיין אין שיחות צוות."
@@ -3629,6 +3641,10 @@ msgstr "תוקף OAuth פג"
 msgid "On a schedule"
 msgstr "לפי תזמון"
 
+#: src/lib/bot-activity.ts
+msgid "On it"
+msgstr ""
+
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
 msgid "on the 1st at {0}"
@@ -3664,10 +3680,6 @@ msgstr "יש לפתוח את <0>{0}</0> ולהזין את הקוד הזה:"
 #: src/pages/Onboarding.tsx
 msgid "Open <0>{0}</0> to finish signing in."
 msgstr "יש לפתוח את <0>{0}</0> כדי להשלים את ההתחברות."
-
-#: src/pages/Shell.tsx
-msgid "Open call"
-msgstr ""
 
 #. placeholder {0}: call.botName
 #: src/components/call/CallCard.tsx
@@ -3825,10 +3837,6 @@ msgstr "יש להדביק את מפתח ה-API ולבדוק שוב."
 msgid "Paused"
 msgstr "מושהה"
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Phone call"
-msgstr ""
-
 #: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Photo"
@@ -3866,9 +3874,17 @@ msgstr "הפעלת {name}"
 msgid "Playing…"
 msgstr "מתנגן…"
 
+#: src/lib/bot-activity.ts
+msgid "Plugging away"
+msgstr ""
+
 #: src/pages/KnowledgeSection.tsx
 msgid "Plugin"
 msgstr "תוסף"
+
+#: src/lib/bot-activity.ts
+msgid "Poking around"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
@@ -3940,6 +3956,10 @@ msgstr "אמוג׳י"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "הקראת תשובות בקול"
+
+#: src/lib/bot-activity.ts
+msgid "Reading up"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4277,11 +4297,6 @@ msgstr "לנסות שוב עכשיו"
 msgid "Retry screen"
 msgstr "טעינת המסך מחדש"
 
-#. placeholder {0}: call.botName
-#: src/components/call/CallCard.tsx
-msgid "Return to call with {0}"
-msgstr ""
-
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Rakazo"
 msgstr "חזרה ל-Rakazo"
@@ -4353,6 +4368,10 @@ msgstr "פועל"
 #: src/pages/RoutineEditor.tsx
 msgid "Running · Stop"
 msgstr "פועל · עצירה"
+
+#: src/lib/bot-activity.ts
+msgid "Running some code"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Running…"
@@ -4528,10 +4547,6 @@ msgstr "שליחת קוד מחיקה"
 msgid "Send it"
 msgstr "שליחה"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Send recording"
-msgstr ""
-
 #: src/pages/Auth.tsx
 msgid "Send reset link"
 msgstr "שליחת קישור לאיפוס"
@@ -4642,10 +4657,6 @@ msgstr "הצגת הגדרות"
 msgid "Show tool activity"
 msgstr "הצגת פעילות כלים"
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Show transcript"
-msgstr "הצגת תמליל"
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
 msgstr "צפיפות סרגל הצד"
@@ -4717,10 +4728,6 @@ msgstr "הודעת Slack"
 msgid "Slack not enabled"
 msgstr "Slack לא מופעל"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Slide up to lock"
-msgstr ""
-
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Software update"
 msgstr "עדכון תוכנה"
@@ -4751,10 +4758,6 @@ msgstr "ברירת המחדל של המרחב"
 msgid "Spaces"
 msgstr "מרחבים"
 
-#: src/pages/Shell.tsx
-msgid "Speak"
-msgstr "הקראה"
-
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speak + transcribe"
 msgstr "הקראה + תמלול"
@@ -4766,10 +4769,6 @@ msgstr "הקראה בלבד"
 #: src/pages/Shell.tsx
 msgid "Speak this reply"
 msgstr "הקראת התשובה"
-
-#: src/components/call/CallCard.tsx
-msgid "Speaking"
-msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speech model"
@@ -4786,6 +4785,10 @@ msgstr "התחלת תקופת ניסיון חינם של {trialDays} ימים"
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "התחלת הקלטה"
+
+#: src/components/composer/Dictation.tsx
+msgid "Start voice input"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -4810,6 +4813,10 @@ msgstr "שלבים"
 #: src/pages/Shell.tsx
 msgid "Stop"
 msgstr "עצירה"
+
+#: src/components/composer/Dictation.tsx
+msgid "Stop dictation"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Stop speaking"
@@ -4954,7 +4961,7 @@ msgstr "ערכת נושא"
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr "לא ניתן לקרוא את ההגדרות השמורות. יש להסיר ולהוסיף מחדש."
 
-#: src/components/call/CallCard.tsx
+#: src/lib/bot-activity.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
@@ -5112,7 +5119,8 @@ msgstr "מקורות כלים"
 msgid "Tools"
 msgstr "כלים"
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/components/composer/Dictation.tsx
+#: src/pages/Shell.tsx
 msgid "Transcribing…"
 msgstr ""
 
@@ -5148,6 +5156,10 @@ msgstr "לנסות שוב"
 #: src/lib/model-connection-preflight.ts
 msgid "Try the test again."
 msgstr "אפשר לנסות את הבדיקה שוב."
+
+#: src/lib/bot-activity.ts
+msgid "Turning it over"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -5345,6 +5357,10 @@ msgstr "שם משתמש"
 msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
 msgstr "משתמש בפרטי הגישה של {hostCredentialSource} של השרת עצמו כדי לגשת ל-{selectedProviderName}."
 
+#: src/lib/bot-activity.ts
+msgid "Using its computer"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
@@ -5370,11 +5386,17 @@ msgstr "גרסה"
 msgid "View chat"
 msgstr "צפייה בצ׳אט"
 
+#: src/components/call/CallCard.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Voice"
 msgstr "קול"
+
+#: src/components/call/VoiceChatCard.tsx
+msgid "Voice chat"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
@@ -5469,6 +5491,10 @@ msgstr "איפה הבוטים ירוצו?"
 msgid "Won't do"
 msgstr "לא יבוצע"
 
+#: src/lib/bot-activity.ts
+msgid "Working it out"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -5476,6 +5502,10 @@ msgstr "עובד…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Writing back…"
 msgstr ""
 
 #: src/lib/billing.ts

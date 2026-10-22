@@ -45,4 +45,58 @@ describe("peer conversations", () => {
   it("finds nothing in a thread with no peer traffic", () => {
     expect(peerConversations([plainText])).toEqual([]);
   });
+
+  it("carries the files and images a bot attached while answering a peer", () => {
+    const image = {
+      kind: "image" as const,
+      artifactId: "a_1",
+      mimeType: "image/png",
+      name: "chart.png",
+    };
+    const file = {
+      kind: "file" as const,
+      artifactId: "a_2",
+      mimeType: "application/pdf",
+      name: "q3.pdf",
+      size: 2048,
+    };
+    const woken = {
+      ...message("m_4", "2026-08-25T11:00:00.000Z", [
+        { kind: "bot_message_received", fromBotId: "b_2", fromBotName: "Analyst", text: "send it" },
+      ]),
+      role: "user" as const,
+      runId: "r_1",
+    };
+    const reply = {
+      ...message("m_5", "2026-08-25T11:01:00.000Z", [
+        { kind: "text", text: "Here it is" },
+        image,
+        file,
+      ]),
+      runId: "r_1",
+    };
+    const answer = {
+      ...message("m_6", "2026-08-25T11:02:00.000Z", [
+        { kind: "bot_message_sent", toBotId: "b_2", toBotName: "Analyst", text: "Here it is" },
+      ]),
+      runId: "r_1",
+    };
+    // A file from a run the person started is not part of any exchange.
+    const ownFile = {
+      ...message("m_7", "2026-08-25T11:03:00.000Z", [{ ...file, artifactId: "a_3" }]),
+      runId: "r_2",
+    };
+    const conversation = peerConversations([woken, reply, answer, ownFile])[0];
+    expect(
+      conversation?.messages.map(({ direction, text, attachments }) => ({
+        direction,
+        text,
+        attachments,
+      })),
+    ).toEqual([
+      { direction: "received", text: "send it", attachments: [] },
+      { direction: "sent", text: "", attachments: [image, file] },
+      { direction: "sent", text: "Here it is", attachments: [] },
+    ]);
+  });
 });

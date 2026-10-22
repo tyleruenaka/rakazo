@@ -10,7 +10,7 @@ import {
   humanizeToolName,
   isCatalogItemConnected,
 } from "@rakazo/core";
-import { useFocusEffect } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConnectorIcon } from "../../components/connector-icon";
 import { NativeActionButton } from "../../components/native-action-button";
+import { NativeSymbol } from "../../components/native-symbol";
 import { Chevron } from "../../components/row-accessories";
 import { rpc } from "../../lib/api";
 import { mobileTokens } from "../../lib/appearance";
@@ -40,16 +41,20 @@ import {
 } from "../../lib/integrations-cache";
 import { loadLastBotId } from "../../lib/last-bot";
 import { native, useThemedStyles } from "../../lib/native";
+import { iosAtLeast } from "../../lib/native-controls";
 import { errorText } from "../../lib/user-error";
 
 type SourceKind = "treg" | "executor" | "mcp" | "api" | "graphql";
 type ConnectionTool = { name: string; description: string };
 
-const LOGO_SIZE = 32;
+const LOGO_SIZE = 40;
 
 export default function Integrations() {
   const styles = useThemedStyles(createIntegrationsStyles);
   const { t } = useI18n();
+  const router = useRouter();
+  // "Your plugins" is this screen pushed again, listing only installed apps.
+  const installedView = useLocalSearchParams<{ view?: string }>().view === "installed";
   const { width } = useWindowDimensions();
   const catalogColumns = width >= 480 ? 2 : 1;
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
@@ -150,6 +155,25 @@ export default function Integrations() {
   const showFeatured = !query.trim();
   const catalogApps = useMemo(() => filterConnectionCatalogItems(catalog, query), [catalog, query]);
   const renderedApps = catalogApps.slice(0, visibleCount);
+  const installedApps = useMemo(
+    () =>
+      // An empty query would drop the featured apps, which belong in this list too.
+      (query.trim() ? filterConnectionCatalogItems(catalog, query) : catalog).filter(
+        (item) =>
+          isCatalogItemConnected(connections, item) ||
+          connections.some(
+            (row) =>
+              row.connectorId === item.connectorId &&
+              row.provider === item.slug &&
+              row.status !== "revoked",
+          ),
+      ),
+    [catalog, connections, query],
+  );
+  const connectedCount = useMemo(
+    () => catalog.filter((item) => isCatalogItemConnected(connections, item)).length,
+    [catalog, connections],
+  );
 
   const detailItem = useMemo(() => {
     if (!detailKey) return null;
@@ -531,31 +555,116 @@ export default function Integrations() {
     }
   }
 
+  function renderPill(
+    label: string,
+    onPress: () => void,
+    {
+      accessibilityLabel,
+      tone,
+      disabled,
+    }: {
+      accessibilityLabel?: string;
+      tone?: "connected" | "authorize";
+      disabled?: boolean;
+    } = {},
+  ) {
+    return (
+      <Pressable
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        hitSlop={6}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.pill,
+          tone === "authorize" && styles.pillAuthorize,
+          (pressed || disabled) && styles.pillPressed,
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.pillLabel,
+            tone === "connected" && styles.pillLabelConnected,
+            tone === "authorize" && styles.pillLabelAuthorize,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
+
   function renderCatalogActions(item: ConnectionCatalogItem, label: string) {
     const key = catalogItemKey(item);
     const connected = itemConnected(item);
     const connecting = pending === key;
     if (connected) {
-      return (
-        <NativeActionButton
-          accessibilityLabel={t("Added")}
-          disabled={connecting}
-          fill={false}
-          label={connecting ? t("Working…") : t("Added")}
-          onPress={() => openDetail(item)}
-          prominence="secondary"
-        />
-      );
+      return renderPill(connecting ? t("Working…") : t("Connected"), () => openDetail(item), {
+        tone: "connected",
+        disabled: connecting,
+      });
     }
+    return renderPill(connecting ? t("Working…") : t("Connect"), () => void connect(item), {
+      accessibilityLabel: t("Connect {name}", { name: label }),
+      disabled: connecting,
+    });
+  }
+
+  function renderInstalledTile(item: ConnectionCatalogItem) {
+    const key = catalogItemKey(item);
+    const connecting = pending === key;
+    const accounts = accountsFor(item);
+    const signIn = accounts.filter((row) => row.status === "pending").length;
+    const connected = itemConnected(item);
+    const failed =
+      !connected &&
+      connections.some(
+        (row) =>
+          row.connectorId === item.connectorId &&
+          row.provider === item.slug &&
+          row.status === "error",
+      );
+    const detail = [
+      accounts.length === 1
+        ? t("1 account")
+        : accounts.length > 1
+          ? t("{count} accounts", { count: accounts.length })
+          : null,
+      signIn > 0 ? t("{count} to sign in", { count: signIn }) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
     return (
-      <NativeActionButton
-        accessibilityLabel={t("Add {name}", { name: label })}
-        disabled={connecting}
-        fill={false}
-        label={connecting ? t("Working…") : t("Add")}
-        onPress={() => void connect(item)}
-        prominence="secondary"
-      />
+      <Pressable
+        key={key}
+        accessibilityRole="button"
+        onPress={() => openDetail(item)}
+        style={[styles.row, styles.installedRow]}
+      >
+        <ConnectorIcon logo={item.logo} name={item.name} size={LOGO_SIZE} />
+        <View style={styles.grow}>
+          <Text numberOfLines={1} style={styles.title}>
+            {item.name}
+            {failed ? <Text style={styles.errorBadge}>{`  ${t("Error")}`}</Text> : null}
+          </Text>
+          {detail ? (
+            <Text numberOfLines={2} style={styles.secondary}>
+              {detail}
+            </Text>
+          ) : null}
+        </View>
+        {failed
+          ? null
+          : signIn > 0 || !connected
+            ? renderPill(connecting ? t("Working…") : t("Authorize"), () => void connect(item), {
+                accessibilityLabel: t("Authorize {name}", { name: item.name }),
+                tone: "authorize",
+                disabled: connecting,
+              })
+            : renderPill(t("Connected"), () => openDetail(item), { tone: "connected" })}
+      </Pressable>
     );
   }
 
@@ -696,26 +805,54 @@ export default function Integrations() {
 
   return (
     <SafeAreaView edges={["bottom"]} style={styles.screen}>
+      <Stack.Screen
+        options={{
+          title: installedView ? t("Your plugins") : t("Connect apps"),
+          // Plain bar title, as in Grok, instead of the glass title capsule.
+          headerTitle: undefined,
+          headerTitleStyle: { fontSize: 17, fontWeight: "500" },
+          ...(!installedView && connectedCount > 0 && iosAtLeast(26)
+            ? {
+                unstable_headerRightItems: () => [
+                  {
+                    type: "button" as const,
+                    label: t("{count} connected", { count: connectedCount }),
+                    onPress: () =>
+                      router.push({ pathname: "/integrations", params: { view: "installed" } }),
+                  },
+                ],
+              }
+            : {}),
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
         {!detailItem ? (
-          <TextInput
-            value={query}
-            onChangeText={(value) => {
-              setQuery(value);
-              setVisibleCount(CONNECTION_CATALOG_PAGE_SIZE);
-            }}
-            accessibilityLabel={t("Search apps")}
-            placeholder={t("Search apps")}
-            placeholderTextColor={native.tertiaryLabel}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            style={styles.input}
-          />
+          <View style={styles.search}>
+            <NativeSymbol
+              android="search"
+              color={mobileTokens().sheetLabel}
+              ios="magnifyingglass"
+              size={18}
+            />
+            <TextInput
+              value={query}
+              onChangeText={(value) => {
+                setQuery(value);
+                setVisibleCount(CONNECTION_CATALOG_PAGE_SIZE);
+              }}
+              accessibilityLabel={installedView ? t("Search plugins") : t("Search apps")}
+              placeholder={installedView ? t("Search plugins") : t("Search apps")}
+              placeholderTextColor={mobileTokens().sheetLabel}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={styles.searchInput}
+            />
+          </View>
         ) : null}
 
         {catalogError ? (
@@ -732,6 +869,13 @@ export default function Integrations() {
 
         {detailItem ? (
           renderDetail(detailItem)
+        ) : installedView ? (
+          <View style={styles.catalogStack}>
+            <Text accessibilityRole="header" style={styles.installedLabel}>
+              {t("Installed")}
+            </Text>
+            {installedApps.map(renderInstalledTile)}
+          </View>
         ) : (
           <>
             {!catalogReady && !catalogError ? (
@@ -961,13 +1105,58 @@ export default function Integrations() {
 }
 
 function createIntegrationsStyles() {
-  const destructive = mobileTokens().destructive;
+  const tokens = mobileTokens();
+  const destructive = tokens.destructive;
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: native.page },
-    content: { padding: 20, gap: 14 },
+    screen: { flex: 1, backgroundColor: tokens.catalogPage },
+    content: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 20, gap: 14 },
+    search: {
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 1,
+      borderColor: tokens.sheetBorder,
+      backgroundColor: tokens.catalogField,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+    },
+    searchInput: { flex: 1, height: "100%", color: native.label, fontSize: 17 },
+    installedLabel: {
+      color: tokens.sheetLabel,
+      fontSize: 14,
+      lineHeight: 18,
+      paddingStart: 5,
+      paddingTop: 18,
+      paddingBottom: 7,
+    },
+    installedRow: { paddingVertical: 15.5 },
+    pill: {
+      height: 34,
+      minWidth: 64,
+      paddingHorizontal: 11,
+      borderRadius: 17,
+      backgroundColor: tokens.sheetCell,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pillAuthorize: { backgroundColor: tokens.switch },
+    pillPressed: { opacity: 0.6 },
+    pillLabel: { color: native.label, fontSize: 15, fontWeight: "500" },
+    pillLabelConnected: { color: tokens.sheetChevron },
+    pillLabelAuthorize: { color: "white" },
+    errorBadge: { color: destructive, fontSize: 15 },
     explanation: { color: native.secondaryLabel, fontSize: 14, lineHeight: 20 },
     section: { color: native.secondaryLabel, fontSize: 14, fontWeight: "600", marginTop: 2 },
-    card: { padding: 16, borderRadius: 16, backgroundColor: native.fill, gap: 12 },
+    card: {
+      padding: 16,
+      borderRadius: 16,
+      borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: tokens.sheetBorder,
+      backgroundColor: tokens.sheetCell,
+      gap: 12,
+    },
     input: {
       minHeight: 48,
       borderRadius: 12,
@@ -978,17 +1167,15 @@ function createIntegrationsStyles() {
     },
     authToggle: { minHeight: 42, justifyContent: "center" },
     catalogGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    catalogStack: { gap: 8 },
+    catalogStack: { gap: 2 },
     catalogCell: { flexGrow: 1, flexBasis: "47%", maxWidth: "49%" },
     row: {
-      minHeight: 56,
-      paddingHorizontal: 12,
+      minHeight: 64,
+      paddingHorizontal: 4,
       paddingVertical: 12,
-      borderRadius: 14,
-      backgroundColor: native.fill,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 14,
     },
     logoPlaceholder: {
       width: LOGO_SIZE,
@@ -1008,9 +1195,9 @@ function createIntegrationsStyles() {
       borderRadius: 15,
       backgroundColor: native.fillPressed,
     },
-    grow: { flex: 1, gap: 3, minWidth: 0 },
-    title: { color: native.label, fontSize: 15, fontWeight: "600" },
-    secondary: { color: native.secondaryLabel, fontSize: 13 },
+    grow: { flex: 1, gap: 2, minWidth: 0 },
+    title: { color: native.label, fontSize: 17, lineHeight: 22 },
+    secondary: { color: native.secondaryLabel, fontSize: 14, lineHeight: 18 },
     accountActions: {
       flexDirection: "row",
       flexWrap: "wrap",

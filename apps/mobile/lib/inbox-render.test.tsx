@@ -265,7 +265,13 @@ it.each(["midnight", "focus", "foreground"])(
     try {
       act(() => root.render(<List items={items} />));
       const weekday = formatThreadTime(sixDaysAgo);
-      expect(labels()).toEqual(["12:30", "12:30", weekday, weekday]);
+      expect(labels()).toEqual([
+        formatThreadTime(today),
+        formatThreadTime(today),
+        weekday,
+        weekday,
+      ]);
+      const clock = formatThreadTime(today);
       if (trigger === "focus") {
         focused = false;
         act(() => root.render(<List items={items} />));
@@ -291,7 +297,7 @@ it.each(["midnight", "focus", "foreground"])(
         formatThreadTime(sixDaysAgo),
         formatThreadTime(sixDaysAgo),
       ]);
-      expect(labels()[0]).not.toBe("12:30");
+      expect(labels()[0]).not.toBe(clock);
       expect(labels()[2]).not.toBe(weekday);
       expect(vi.getTimerCount()).toBe(1);
     } finally {
@@ -358,7 +364,7 @@ it("renders saved bot rows without a title or notification setting", () => {
       ),
     );
     expect(Array.from(container.querySelectorAll("span"), (span) => span.textContent)).toEqual([
-      "Research|Research|Alpha, Research, Research",
+      "Research||Alpha, Research",
       "|No messages yet|Beta, No messages yet",
       "|No messages yet|Gamma, notifications silenced, No messages yet muted",
     ]);
@@ -480,6 +486,7 @@ it("collapses a section from its heading and keeps the choice for the account", 
       </button>
     ),
     MenuView: ({ children }: { children: ReactNode }) => children,
+    SectionMenu: ({ children }: { children: ReactNode }) => children,
     NativeSymbol: () => null,
     SectionChevron: ({ collapsed }: { collapsed: boolean }) => {
       chevrons.push(collapsed);
@@ -683,7 +690,7 @@ it("waits for a saved or live inbox before publishing a remounted session's sear
   }
 });
 
-it("sets inbox rows and section headings in the shared type scale", () => {
+it("sets inbox rows and section headings in the inbox type sizes", () => {
   const stylesSource = source.slice(source.indexOf("function createHomeStyles()"));
   const rowDimensions = source.slice(
     source.indexOf("const INBOX_ROW ="),
@@ -704,18 +711,18 @@ it("sets inbox rows and section headings in the shared type scale", () => {
   };
   const styles = new Function(...Object.keys(scope), compiled)(...Object.values(scope))();
 
-  expect(styles.name).toMatchObject({ fontSize: 17, lineHeight: 22, fontWeight: "500" });
+  expect(styles.name).toMatchObject({ fontSize: 18, lineHeight: 24 });
   expect(styles.name).toMatchObject({ flexShrink: 0, maxWidth: "100%" });
   expect(styles.tag).toMatchObject({ flexShrink: 1, minWidth: 0, overflow: "hidden" });
-  expect(styles.rowTop.alignItems).toBe("flex-start");
+  expect(styles.rowTop.alignItems).toBe("center");
   expect(styles.titleRow.overflow).toBe("hidden");
-  expect(styles.preview).toMatchObject({ fontSize: 15, lineHeight: 19 });
-  expect(styles.time).toMatchObject({ fontSize: 14, lineHeight: 18 });
-  expect(styles.tagLabel).toMatchObject({ fontSize: 14, fontWeight: "500" });
+  expect(styles.preview).toMatchObject({ fontSize: 16, lineHeight: 24 });
+  expect(styles.time).toMatchObject({ fontSize: 14.5, lineHeight: 24 });
+  expect(styles.tagLabel).toMatchObject({ fontSize: 14.5 });
   // At the largest text sizes the tag moves under the name instead of squeezing it.
   expect(styles.titleRowWrapped).toEqual({ flexWrap: "wrap" });
+  expect(styles.sectionTitle).toMatchObject({ fontSize: 16, lineHeight: 20 });
   for (const heading of [styles.sectionTitle, styles.sectionHeading]) {
-    expect(heading).toMatchObject({ fontSize: 15, lineHeight: 19 });
     expect(heading.fontWeight).toBeUndefined();
   }
   expect(styles.sectionCount).toMatchObject({ fontSize: 14, lineHeight: 18 });

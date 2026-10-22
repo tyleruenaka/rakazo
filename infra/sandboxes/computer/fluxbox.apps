@@ -13,3 +13,5 @@
 [app] (class=XTerm)
   [Maximized] {no}
 [end]
+[startup] {tint2 -c /etc/rakazo/tint2/menubar.tint2rc}
+[startup] {tint2 -c /etc/rakazo/tint2/dock.tint2rc}

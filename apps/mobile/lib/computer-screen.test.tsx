@@ -10,15 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Computer from "../app/computer";
 
 const rpc = vi.hoisted(() => vi.fn());
-const textScale = vi.hoisted(() => ({ fontScale: 1 }));
 const appState = vi.hoisted(() => ({ listeners: new Set<(state: string) => void>() }));
 const screens = vi.hoisted(() => ({ mounts: 0 }));
-const picker = vi.hoisted(() => ({
-  mounts: 0,
-  props: undefined as
-    | { value?: string; disabled?: boolean; onChange: (mode: string) => void }
-    | undefined,
-}));
 
 vi.mock("react-native", () => {
   function MockView(props: {
@@ -74,10 +67,8 @@ vi.mock("react-native", () => {
     },
     Modal: MockModal,
     Pressable: MockPressable,
-    ScrollView: MockView,
     Text: MockView,
     View: MockView,
-    useWindowDimensions: () => ({ width: 393, height: 852, scale: 3, ...textScale }),
   };
 });
 
@@ -118,9 +109,12 @@ vi.mock("react-native-safe-area-context", () => {
 });
 
 vi.mock("expo-router", () => ({
+  Stack: { Screen: () => null },
   useLocalSearchParams: () => ({ botId: "bot-1", name: "Basil" }),
-  useNavigation: () => ({ setOptions: () => undefined }),
+  useRouter: () => ({ back: () => undefined }),
 }));
+
+vi.mock("../components/bot-avatar", () => ({ BotAvatar: () => null }));
 
 vi.mock("../lib/orientation", () => ({
   holdFreeRotation: () => () => undefined,
@@ -163,22 +157,6 @@ vi.mock("../components/glass-icon-button", () => {
 vi.mock("../components/computer-maintenance-actions", () => ({
   ComputerMaintenanceActions: () => null,
 }));
-
-vi.mock("../components/computer-mode-picker", () => {
-  return {
-    ComputerModePicker: (props: {
-      value?: string;
-      disabled?: boolean;
-      onChange: (mode: string) => void;
-    }) => {
-      picker.props = props;
-      useEffect(() => {
-        picker.mounts += 1;
-      }, []);
-      return null;
-    },
-  };
-});
 
 vi.mock("./api", () => ({ currentApiBase: () => "https://api.example.test", rpc }));
 
@@ -239,9 +217,6 @@ describe("computer screen", () => {
 
   beforeEach(() => {
     rpc.mockReset();
-    textScale.fontScale = 1;
-    picker.mounts = 0;
-    picker.props = undefined;
     appState.listeners.clear();
     screens.mounts = 0;
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -305,10 +280,9 @@ describe("computer screen", () => {
     expect(screens[0]?.getAttribute("data-important")).toBe("no-hide-descendants");
     const buttons = takeControlButtons(view);
     expect(buttons).toHaveLength(2);
-    for (const button of buttons) expect(button.dataset.prominence).toBe("secondary");
 
     const headerTakeControl = buttons.find((button) => fullWindow?.contains(button));
-    expect(headerTakeControl).toBeDefined();
+    expect(headerTakeControl?.dataset.prominence).toBe("secondary");
     respond({ ...botWorking, controlHolder: "user", controlBotId: "bot-1", busyBotName: null });
     await act(async () => headerTakeControl?.click());
     await settle();
@@ -350,56 +324,18 @@ describe("computer screen", () => {
     return label;
   }
 
-  it("keeps the status beside Take control at standard text sizes", async () => {
+  it("says who is using the computer under the screen", async () => {
     respond(botWorking);
     const view = await render();
 
-    expect(statusLabel(view).parentElement?.dataset.direction).toBe("row");
-    expect(statusLabel(view).dataset.flex).toBe("1");
-    expect(statusLabel(view).dataset.alignSelf).toBeUndefined();
+    expect(statusLabel(view)).toBeDefined();
   });
 
-  it("puts Take control under the status once text reaches its largest size", async () => {
-    // Text stops growing at xxxLarge but the native button doesn't: at AX5 it took the row and
-    // the label wrapped one letter per line.
-    textScale.fontScale = 1.353;
-    respond(botWorking);
+  it("shows no status while nobody else is using it", async () => {
+    respond({ ...botWorking, busyBotName: null });
     const view = await render();
 
-    const row = statusLabel(view).parentElement;
-    expect(row?.dataset.direction).toBe("column");
-    expect(statusLabel(view).dataset.flex).toBeUndefined();
-    expect(statusLabel(view).dataset.alignSelf).toBe("stretch");
-    expect(row?.lastElementChild?.textContent).toBe("Take control");
-  });
-
-  it("remounts the mode picker when the status row restacks, without side effects", async () => {
-    respond(botWorking);
-    const pendingSwitch = new Promise(() => undefined);
-    const status = rpc.getMockImplementation()!;
-    rpc.mockImplementation((method: string, ...rest: unknown[]) =>
-      method === "bots/setComputer" ? pendingSwitch : status(method, ...rest),
-    );
-    const view = await render();
-    expect(picker.mounts).toBe(1);
-
-    await act(async () => picker.props?.onChange("dedicated"));
-    await settle();
-    expect(picker.props).toMatchObject({ value: "team", disabled: true });
-    const callsBefore = rpc.mock.calls.length;
-
-    // The native picker keeps a stale height when the row above restacks.
-    textScale.fontScale = 1.353;
-    act(() => {
-      root?.render(<Computer />);
-    });
-    await settle();
-
-    expect(statusLabel(view).parentElement?.dataset.direction).toBe("column");
-    expect(picker.mounts).toBe(2);
-    expect(picker.props).toMatchObject({ value: "team", disabled: true });
-    expect(rpc.mock.calls.length).toBe(callsBefore);
-    expect(calls("bots/setComputer")).toHaveLength(1);
+    expect(() => statusLabel(view)).toThrow("missing status label");
   });
 
   it("names the preview as a button", async () => {
@@ -503,7 +439,6 @@ describe("computer screen", () => {
       expect(previewButton(view).getAttribute("aria-label")).toBe("Booting live desktop…");
       expect(previewButton(view).getAttribute("aria-busy")).toBe("true");
       expect(takeControlButtons(view)[0]?.disabled).toBe(true);
-      expect(picker.props?.disabled).toBe(true);
 
       await finishBoot(idle);
 
@@ -512,7 +447,6 @@ describe("computer screen", () => {
       expect(view.querySelector("iframe")).not.toBeNull();
       expect(preview(view).disabled).toBe(false);
       expect(takeControlButtons(view)[0]?.disabled).toBe(false);
-      expect(picker.props?.disabled).toBe(false);
     });
 
     it("opens the full window once a tapped boot finishes", async () => {

@@ -33,3 +33,11 @@ export function anySignal(signals: AbortSignal[]): AbortSignal {
   for (const signal of signals) signal.addEventListener("abort", onAbort);
   return controller.signal;
 }
+
+/** `AbortSignal.timeout`, which React Native's runtime may not ship. */
+export function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}

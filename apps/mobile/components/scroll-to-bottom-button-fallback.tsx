@@ -17,33 +17,29 @@ export function ScrollToBottomButtonFallback({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      android_ripple={{ color: native.fillPressed, borderless: true, radius: 22 }}
+      hitSlop={3}
+      android_ripple={{ color: native.fillPressed, borderless: true, radius: 19 }}
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: native.fill,
-          borderColor: native.fillPressed,
-          shadowColor: tokens.foreground,
+          backgroundColor: tokens.muted,
+          borderColor: tokens.popoverBorder,
           opacity: pressed ? 0.6 : 1,
         },
       ]}
     >
-      <NativeSymbol ios="chevron.down" android="chevron-down" size={20} />
+      <NativeSymbol ios="chevron.down" android="chevron-down" size={15} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
   },
 });

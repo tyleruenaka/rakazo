@@ -20,6 +20,8 @@ vi.mock("react-native", () => {
     View: Surface,
     ScrollView: Surface,
     Text: Surface,
+    Image: () => null,
+    StyleSheet: { create: <T,>(styles: T) => styles },
     Pressable: ({
       children,
       onPress,
@@ -76,7 +78,22 @@ vi.mock("../components/glass-surface", () => ({
 }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
 vi.mock("./native", () => ({ useMobileTokens: () => ({}), useResolvedAppearance: () => "light" }));
-vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
+vi.mock("./i18n", () => ({
+  getActiveUiLocale: () => "en-US",
+  useI18n: () => ({ t: (text: string) => text }),
+}));
+const speech = vi.hoisted(() => ({
+  heard: null as null | { onInterim?: (text: string) => void; onFinal: (text: string) => void },
+}));
+vi.mock("./dictation", () => ({
+  available: async () => true,
+  listen: async (handlers: NonNullable<typeof speech.heard>) => {
+    speech.heard = handlers;
+  },
+  stop: vi.fn(() => {
+    speech.heard = null;
+  }),
+}));
 
 const skill = {
   id: "skill-1",
@@ -91,12 +108,12 @@ const props: Omit<ComponentProps<typeof ThreadComposer>, "ref"> = {
   composerMentionTargets: [bot],
   composerPrompt: "Message…",
   replyQuote: null,
-  attachmentIds: [],
+  attachments: [],
+  removeAttachment: vi.fn(),
   botId: "bot-1",
   onCall: false,
   working: false,
   sending: false,
-  styles: { circleButton: {}, composerFill: {} },
   attachActions: [],
   attachFrom: vi.fn(),
   send: vi.fn(async () => {}),
@@ -159,7 +176,7 @@ describe("thread composer isolation", () => {
     render({
       replyTargetId: "reply-1",
       replyQuote: "Quote",
-      attachmentIds: ["attachment-1"],
+      attachments: [{ id: "attachment-1", name: "photo.jpg" }],
       sending: true,
     });
     expect(composer.current!.snapshot()).toMatchObject({
@@ -219,31 +236,31 @@ describe("thread composer isolation", () => {
     expect(props.startVoiceCall).toHaveBeenCalledOnce();
   });
 
-  it("insets the call and send pills equally from the capsule's bottom and trailing edges", () => {
-    const style = (element: Element) => JSON.parse((element as HTMLElement).dataset.style!);
+  it("insets the call and send pills equally from the field's bottom and trailing edges", () => {
+    const style = (element: Element) =>
+      Object.assign({}, ...[JSON.parse((element as HTMLElement).dataset.style!)].flat());
     for (const label of ["Call", "Send"]) {
       if (label === "Send") type("Hello");
-      const button = container.querySelector(`button[aria-label="${label}"]`)!;
-      const pill = style(button.querySelector("[data-glass]")!);
-      const capsule = style(button.closest('[data-glass="roundedRectangle"]')!);
-      const inset = (capsule.minHeight - pill.height) / 2;
-      expect(style(button).marginBottom).toBe(inset);
-      expect(capsule.paddingEnd).toBe(inset);
+      const pill = style(container.querySelector(`button[aria-label="${label}"]`)!);
+      // The field is 48 tall with a 1 pt border; the pill sits 8 pt from its bottom and end.
+      expect(pill.marginBottom + 1).toBe((48 - pill.height) / 2);
     }
   });
 
-  it("keeps right-to-left text clear of the call and send pills", () => {
-    const style = (element: Element) => JSON.parse((element as HTMLElement).dataset.style!);
-    // Right-to-left text runs up to the field's trailing edge, right next to the pill.
-    for (const [label, draft] of [
-      ["Call", ""],
-      ["Send", "אבג"],
-      ["Send", "مرحبا\nبالعالم"],
-    ] as const) {
-      type(draft);
-      const button = container.querySelector(`button[aria-label="${label}"]`)!;
-      const capsule = style(button.closest('[data-glass="roundedRectangle"]')!);
-      expect(capsule.gap).toBe(capsule.paddingEnd);
-    }
+  it("dictates into the draft until stopped, then sends it", async () => {
+    type("Note:");
+    press("Dictate");
+    await act(async () => {});
+    act(() => speech.heard!.onInterim!("buy"));
+    expect(container.querySelector("input")).toBeNull();
+    act(() => speech.heard!.onFinal("buy milk"));
+    act(() => speech.heard!.onInterim!("today"));
+    press("Stop dictation");
+    expect(container.querySelector("input")!.value).toBe("Note: buy milk today");
+    press("Dictate");
+    await act(async () => {});
+    press("Send");
+    expect(props.send).toHaveBeenCalledOnce();
+    expect(container.querySelector('button[aria-label="Stop dictation"]')).toBeNull();
   });
 });

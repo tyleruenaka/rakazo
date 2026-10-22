@@ -565,7 +565,7 @@ export function OnboardingPage() {
             <h1 className="text-[32px] font-medium text-foreground">
               <Trans>Connect a model</Trans>
             </h1>
-            <div className="mt-8 block text-sm font-medium text-foreground">
+            <div className="mt-8 block text-sm text-foreground">
               <span>
                 <Trans>Provider</Trans>
               </span>
@@ -592,7 +592,7 @@ export function OnboardingPage() {
             <div className="mt-6 block text-sm text-foreground">
               {isOpenAiCompatible ? (
                 <>
-                  <label htmlFor={`${fieldId}-base-url`} className="block font-medium">
+                  <label htmlFor={`${fieldId}-base-url`} className="block">
                     <Trans>Server URL</Trans>
                     <Input
                       id={`${fieldId}-base-url`}
@@ -617,7 +617,7 @@ export function OnboardingPage() {
                     ) : null}
                   </div>
                   <div className="mt-4 block">
-                    <span className="font-medium">
+                    <span>
                       <Trans>Model</Trans>
                     </span>
                     {probeModels.length && !manualModelId ? (
@@ -717,7 +717,7 @@ export function OnboardingPage() {
                 </>
               ) : (
                 <>
-                  <span className="font-medium">
+                  <span>
                     <Trans>Model</Trans>
                   </span>
                   <Select
@@ -745,7 +745,7 @@ export function OnboardingPage() {
                   </Select>
                   {catalogThinkingLevels.length ? (
                     <div className="mt-4 block">
-                      <span className="font-medium">
+                      <span>
                         <Trans>Thinking</Trans>
                       </span>
                       <Select
@@ -926,10 +926,7 @@ export function OnboardingPage() {
             ) : null}
             {isCloudflareGateway && acceptsKey ? (
               <div className="mt-4 grid gap-4">
-                <label
-                  htmlFor={`${fieldId}-account-id`}
-                  className="block text-sm font-medium text-foreground"
-                >
+                <label htmlFor={`${fieldId}-account-id`} className="block text-sm text-foreground">
                   <Trans>Account ID</Trans>
                   <Input
                     id={`${fieldId}-account-id`}
@@ -940,10 +937,7 @@ export function OnboardingPage() {
                     className="mt-2"
                   />
                 </label>
-                <label
-                  htmlFor={`${fieldId}-gateway-id`}
-                  className="block text-sm font-medium text-foreground"
-                >
+                <label htmlFor={`${fieldId}-gateway-id`} className="block text-sm text-foreground">
                   <Trans>Gateway ID</Trans>
                   <Input
                     id={`${fieldId}-gateway-id`}
@@ -975,7 +969,7 @@ export function OnboardingPage() {
               ) : (
                 <label
                   htmlFor={`${fieldId}-api-key`}
-                  className="mt-4 block text-sm font-medium text-foreground"
+                  className="mt-4 block text-sm text-foreground"
                 >
                   {subscriptionSignIn ? <Trans>Or paste an API key</Trans> : <Trans>API key</Trans>}
                   <Input

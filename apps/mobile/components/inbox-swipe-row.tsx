@@ -19,7 +19,16 @@ export type InboxSwipeRowProps = {
   children: ReactElement;
 };
 
+export type InboxPinnedMenuProps = Omit<InboxSwipeRowProps, "rowKey"> & {
+  size: { width: number; height: number };
+};
+
 /** Swipe actions and the context menu are iOS list behaviour; other platforms keep the sheet. */
 export function InboxSwipeRow({ children }: InboxSwipeRowProps) {
+  return children;
+}
+
+/** Other platforms organize pinned tiles with the long-press sheet. */
+export function InboxPinnedMenu({ children }: InboxPinnedMenuProps) {
   return children;
 }

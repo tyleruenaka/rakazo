@@ -17,12 +17,18 @@ vi.mock("react-native", async () => {
       );
 
   return {
+    Modal: element("dialog"),
     Pressable: element("button"),
-    StyleSheet: { create: <T,>(styles: T) => styles },
+    ScrollView: element("div"),
+    StyleSheet: { create: <T,>(styles: T) => styles, absoluteFill: {} },
     Text: element("span"),
     View: element("div"),
   };
 });
+
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
 
@@ -40,16 +46,15 @@ function styleOf(element: Element | null) {
 }
 
 describe("VoiceChatCard", () => {
-  it("keeps its header 40pt tall and lets it grow with the title at larger text sizes", () => {
+  it("is one centered tappable line with a zero-padded duration, at least 44pt tall", () => {
     const html = renderToStaticMarkup(
       <VoiceChatCard group={{ kind: "voiceChat", key: "call:1", callId: "1", messages: [] }} />,
     );
     const document = new DOMParser().parseFromString(html, "text/html");
-    const header = styleOf(document.querySelector("button"));
-    const title = styleOf(document.querySelector("button > span"));
+    const row = styleOf(document.querySelector("button"));
 
-    expect(header.height).toBeUndefined();
-    expect(header.minHeight).toBe(40);
-    expect(Number(header.paddingVertical) * 2 + Number(title.lineHeight)).toBe(40);
+    expect(row.alignSelf).toBe("center");
+    expect(row.minHeight).toBe(44);
+    expect(document.querySelector("button > span")?.textContent).toBe("Voice chat · 00:00");
   });
 });

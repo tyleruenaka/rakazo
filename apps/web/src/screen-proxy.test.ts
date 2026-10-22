@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveNovncTarget, safeProxyHeaders, watchScreenAuthorization } from "./screen-proxy.js";
+import {
+  hostedScreenProxy,
+  resolveNovncTarget,
+  safeProxyHeaders,
+  watchScreenAuthorization,
+} from "./screen-proxy.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -7,6 +12,15 @@ afterEach(() => {
 });
 
 describe("screen proxy", () => {
+  it("forwards screens to a hosted server and checks them locally otherwise", () => {
+    expect(hostedScreenProxy("https://rakazo.example.com/")).toEqual({
+      target: "https://rakazo.example.com",
+      changeOrigin: true,
+      ws: true,
+    });
+    expect(hostedScreenProxy("http://api:3100")).toBeUndefined();
+    expect(hostedScreenProxy("http://127.0.0.1:3100")).toBeUndefined();
+  });
   it("rejects legacy URLs without contacting the API", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);

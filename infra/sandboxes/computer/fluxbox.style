@@ -1,0 +1,50 @@
+! Mac-like windows: light title bar, traffic-light buttons at the left, centered title.
+window.title.height: 22
+window.bevelWidth: 0
+window.borderWidth: 1
+window.borderColor: #b8b8b8
+window.handleWidth: 0
+window.roundCorners: TopLeft TopRight
+window.justify: center
+window.font: Liberation Sans-10:bold
+window.title.focus: flat solid
+window.title.focus.color: #e8e8e8
+window.title.unfocus: flat solid
+window.title.unfocus.color: #f6f6f6
+window.label.focus: parentrelative
+window.label.unfocus: parentrelative
+window.label.focus.textColor: #4a4a4a
+window.label.unfocus.textColor: #a6a6a6
+window.button.focus: parentrelative
+window.button.unfocus: parentrelative
+window.button.pressed: parentrelative
+window.close.pixmap: close.png
+window.close.pressed.pixmap: close-pressed.png
+window.close.unfocus.pixmap: unfocused.png
+window.iconify.pixmap: minimize.png
+window.iconify.pressed.pixmap: minimize-pressed.png
+window.iconify.unfocus.pixmap: unfocused.png
+window.maximize.pixmap: maximize.png
+window.maximize.pressed.pixmap: maximize-pressed.png
+window.maximize.unfocus.pixmap: unfocused.png
+menu.frame: flat solid
+menu.frame.color: #f2f2f2
+menu.frame.textColor: #1d1d1f
+menu.frame.font: Liberation Sans-10
+menu.title: flat solid
+menu.title.color: #e8e8e8
+menu.title.textColor: #4a4a4a
+menu.title.font: Liberation Sans-10:bold
+menu.title.justify: center
+menu.hilite: flat solid
+menu.hilite.color: #d6d6d6
+menu.hilite.textColor: #1d1d1f
+menu.borderWidth: 1
+menu.borderColor: #c4c4c4
+menu.bevelWidth: 4
+menu.itemHeight: 22
+menu.titleHeight: 22
+menu.roundCorners: TopLeft TopRight BottomLeft BottomRight
+! fluxbox paints the root through fbsetbg, which the image points at the wallpaper.
+background: fullscreen
+background.pixmap: /usr/share/rakazo/desktop/wallpaper.jpg

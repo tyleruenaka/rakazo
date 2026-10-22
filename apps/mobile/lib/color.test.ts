@@ -1,6 +1,6 @@
 import { darkTokens, lightTokens } from "@rakazo/ui-tokens";
 import { describe, expect, it } from "vitest";
-import { transparentColor } from "./color.js";
+import { mixWithBlack, transparentColor } from "./color.js";
 
 describe("transparentColor", () => {
   it("keeps the hue of six-digit backgrounds", () => {
@@ -21,5 +21,12 @@ describe("transparentColor", () => {
 
   it("stays a valid color when the source format is unknown", () => {
     expect(transparentColor("oklch(0.2 0.02 260)")).toBe("transparent");
+  });
+});
+
+describe("mixWithBlack", () => {
+  it("shades a hex color toward black", () => {
+    expect(mixWithBlack("#8B5CF6", 0.83)).toBe("#734ccc");
+    expect(mixWithBlack("#fff", 0.5)).toBe("#808080");
   });
 });

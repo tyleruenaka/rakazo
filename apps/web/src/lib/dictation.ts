@@ -34,7 +34,7 @@ const IDLE: DictationSnapshot = { status: "idle", transcript: "" };
  */
 const ENDPOINT_SILENCE_MS = 1200;
 const ENDPOINT_TICK_MS = 80;
-const SILENCE_RMS = 0.035;
+export const SILENCE_RMS = 0.035;
 export const TRANSCRIPTION_RESPONSE_TIMEOUT_MS = 70_000;
 export const MAX_TRANSCRIPTION_RESPONSE_BYTES = 64 * 1024;
 const ENDPOINT_UNSUPPORTED =
@@ -203,6 +203,9 @@ export class Dictation {
   private audioContext: AudioContext | null = null;
   private vadTimer: ReturnType<typeof setInterval> | undefined;
   private onFinal: ((text: string) => void) | null = null;
+  /** The microphone the level meter reads; a meter-only capture when Web Speech holds the mic. */
+  private levelStream: MediaStream | null = null;
+  private levelStreamOwned = false;
 
   subscribe(fn: (s: DictationSnapshot) => void): () => void {
     this.watchers.add(fn);
@@ -214,6 +217,20 @@ export class Dictation {
 
   get state(): DictationSnapshot {
     return this.snapshot;
+  }
+
+  /** The live microphone while listening, for a level meter; null when unavailable. */
+  get stream(): MediaStream | null {
+    return this.levelStream;
+  }
+
+  private setLevelStream(stream: MediaStream | null, owned: boolean) {
+    if (this.levelStream && this.levelStreamOwned && this.levelStream !== stream) {
+      for (const track of this.levelStream.getTracks()) track.stop();
+    }
+    this.levelStream = stream;
+    this.levelStreamOwned = owned;
+    for (const watcher of [...this.watchers]) watcher(this.snapshot);
   }
 
   private set(next: DictationSnapshot) {
@@ -254,6 +271,7 @@ export class Dictation {
     }
     this.chunks = [];
     this.onFinal = null;
+    if (this.levelStream) this.setLevelStream(null, false);
     if (this.snapshot.status !== "idle" || this.snapshot.error) this.set(IDLE);
   }
 
@@ -261,6 +279,8 @@ export class Dictation {
     mode: DictationMode;
     transcribe?: boolean;
     endpointMs?: number;
+    /** Also expose the microphone through `stream` for a level meter. */
+    meter?: boolean;
     onFinal: (text: string) => void;
   }): Promise<void> {
     this.stop("replace");
@@ -283,6 +303,7 @@ export class Dictation {
         transcribe,
         spaceId,
       );
+      if (opts.meter) void this.openMeter(mine);
       return;
     }
     if (transcribe) {
@@ -441,6 +462,22 @@ export class Dictation {
     }
   }
 
+  /** Web Speech keeps its microphone to itself, so the meter opens its own capture. */
+  private async openMeter(mine: number) {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      return;
+    }
+    // A server fallback brings its own stream; never replace it with this one.
+    if (this.token !== mine || !this.recognition || this.levelStream) {
+      for (const track of stream.getTracks()) track.stop();
+      return;
+    }
+    this.setLevelStream(stream, true);
+  }
+
   private async listenRecorder(
     mine: number,
     mode: DictationMode,
@@ -460,6 +497,7 @@ export class Dictation {
       for (const track of stream.getTracks()) track.stop();
       return;
     }
+    this.setLevelStream(stream, false);
     const keptSpeech = this.snapshot.transcript.trim().length > 0;
     if (mode === "endpoint" && !this.armSilence(stream, mine, endpointMs, keptSpeech)) {
       for (const track of stream.getTracks()) track.stop();

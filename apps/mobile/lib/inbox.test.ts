@@ -4,8 +4,12 @@ import { botTag, filterBots, formatThreadTime } from "./inbox.js";
 const now = new Date(2026, 7, 13, 21, 53, 0);
 
 describe("formatThreadTime", () => {
-  it("shows a 24-hour clock for today", () => {
-    expect(formatThreadTime(local(now, 0, 14, 44), now)).toBe("14:44");
+  it("shows the locale's clock for today", () => {
+    expect(formatThreadTime(local(now, 0, 14, 44), now)).toMatch(/^2:44\sPM$/);
+  });
+
+  it("shows Yesterday for the day before", () => {
+    expect(formatThreadTime(local(now, 1, 10, 0), now)).toBe("Yesterday");
   });
 
   it("shows the weekday within the past week", () => {

@@ -32,6 +32,7 @@ vi.mock("react-native", () => ({
 }));
 vi.mock("./native", () => ({
   native: { page: "page", fill: "fill" },
+  useMobileTokens: () => ({ inboxBackground: "inboxBackground" }),
   useResolvedAppearance: () => "light",
 }));
 vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
@@ -320,7 +321,7 @@ describe("iOS swipe row", () => {
     act(() => root.unmount());
   });
 
-  it("offers read state, pin, notifications, move and archive last for a bot", () => {
+  it("offers read state, pin, move, hide, and notifications under More for a bot", () => {
     const { items, find, root } = render({
       unread: true,
       pinned: false,
@@ -328,11 +329,14 @@ describe("iOS swipe row", () => {
       sectionId: "s1",
     });
     expect(entries(items)).toEqual([
-      ["Mark as Read", "checkmark.message.fill", null],
+      ["Mark Read", "checkmark.message", null],
       ["Pin", "pin", null],
-      ["Silence notifications", "bell.slash", null],
       ["Move to", "folder", null],
-      ["Archive", "eye.slash", "destructive"],
+      ["Hide", "eye.slash", "destructive"],
+      ["More", "ellipsis", null],
+    ]);
+    expect(entries(find('[data-ui="Menu"][data-label="More"]')!)).toEqual([
+      ["Silence notifications", "bell.slash", null],
     ]);
     // Menu items keep their titles; only the swipe buttons are icon-only.
     for (const button of items.querySelectorAll<HTMLElement>("button")) {
@@ -350,13 +354,17 @@ describe("iOS swipe row", () => {
 
   it("offers a group's actions without notifications or renaming outside a section", () => {
     const { items, find, root } = render({ key: "group:1", unread: false, pinned: true });
+    // A pinned chat keeps Move to under More.
     expect(entries(items).map(([label]) => label)).toEqual([
-      "Mark as Unread",
+      "Mark Unread",
       "Unpin",
-      "Move to",
-      "Archive",
+      "Hide",
+      "More",
     ]);
-    expect(entries(find('[data-ui="Menu"]')!)).toEqual([
+    expect(entries(find('[data-ui="Menu"][data-label="More"]')!).map(([label]) => label)).toEqual([
+      "Move to",
+    ]);
+    expect(entries(find('[data-ui="Menu"][data-label="Move to"]')!)).toEqual([
       ["Work", "false", null],
       ["Home", "false", null],
       ["Unassigned", "true", null],
@@ -372,7 +380,7 @@ describe("iOS swipe row", () => {
       notifyOnFinish: false,
       sectionId: "s1",
     });
-    press("Mark as Unread");
+    press("Mark Unread");
     press("Pin");
     press("Resume notifications");
     press("Work");
@@ -380,7 +388,7 @@ describe("iOS swipe row", () => {
     press("Unassigned");
     press("New section");
     press("Rename section");
-    press("Archive");
+    press("Hide");
     expect(onAction.mock.calls).toEqual([["unread"], ["pin"], ["archive"]]);
     // Choosing the current section again changes nothing.
     expect(onOrganize.mock.calls).toEqual([

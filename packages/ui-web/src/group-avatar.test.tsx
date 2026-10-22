@@ -34,6 +34,7 @@ describe("GroupAvatar", () => {
           { name: "Sherlock", color: "#8B5CF6", status: "running" },
           { name: "Elon", color: "#06B6D4", status: "idle" },
         ]}
+        animated
       />,
     );
     expect(html).toContain('data-working="true"');

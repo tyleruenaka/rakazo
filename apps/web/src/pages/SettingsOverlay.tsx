@@ -299,7 +299,7 @@ export function SettingsOverlay({
               data-testid="settings-header"
               className="flex h-[62px] shrink-0 items-start gap-3 ps-6 pe-14 pt-[32.5px] sm:ps-[40.5px]"
             >
-              <DialogTitle className="shrink-0 text-[16px] leading-6 font-semibold text-foreground">
+              <DialogTitle className="shrink-0 text-[17px] leading-6 font-medium tracking-[-0.008em] text-foreground">
                 {sectionTitle}
               </DialogTitle>
               {!spaceScoped ? null : space && spaces.length > 1 && onSpaceChange ? (

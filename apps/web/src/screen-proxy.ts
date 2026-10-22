@@ -14,6 +14,16 @@ const SENSITIVE_FORWARD_HEADERS = new Set([
   "proxy-authorization",
 ]);
 
+/**
+ * A remote https API is a hosted server: only its own web service holds the secret that checks
+ * screen capabilities and can reach its computers, so forward screen paths there unchanged.
+ */
+export function hostedScreenProxy(api: string) {
+  const url = new URL(api);
+  if (url.protocol !== "https:") return undefined;
+  return { target: url.origin, changeOrigin: true, ws: true };
+}
+
 /** Fail closed when the authoritative lifecycle check is unavailable. */
 export async function resolveNovncTarget(
   url: string | undefined,

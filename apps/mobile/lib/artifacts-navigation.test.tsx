@@ -56,12 +56,17 @@ const Button = ({
 beforeEach(() => vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true));
 afterEach(() => vi.unstubAllGlobals());
 
-it("keeps only Activity, Search and Create in the transparent native home header", () => {
+it("keeps only Create in the transparent native home header, with Activity in its menu", () => {
   const setOptions = vi.fn();
   evaluate(slice(home, "  useLayoutEffect(() => {", "  const openBot ="), {
     useLayoutEffect: (effect: () => void) => effect(),
     nativeHeader: true,
     navigation: { setOptions },
+    styles: {},
+    React,
+    Pressable: View,
+    Text: View,
+    GlassSurface: View,
     ready: true,
     hasSession: true,
     initials: "A",
@@ -77,7 +82,13 @@ it("keeps only Activity, Search and Create in the transparent native home header
     options
       .unstable_headerRightItems()
       .map((item: { accessibilityLabel: string }) => item.accessibilityLabel),
-  ).toEqual(["Activity", "Search", "Create"]);
+  ).toEqual(["Create"]);
+  expect(
+    options.unstable_headerRightItems()[0].menu.items.map((item: { label: string }) => item.label),
+  ).toEqual(["New Bot", "New Group Chat", "New Space", "Activity"]);
+  expect(
+    options.unstable_headerLeftItems()[0].element.props.children.props.accessibilityLabel,
+  ).toBe("Account");
   expect(options.headerTransparent).toBe(true);
   expect(options.headerStyle).toEqual({ backgroundColor: "transparent" });
 });
@@ -124,7 +135,7 @@ it.each(["android", "ios"])("omits Artifacts from the %s fallback header", (plat
       Array.from(container.querySelectorAll("[aria-label]"), (node) =>
         node.getAttribute("aria-label"),
       ),
-    ).toEqual(["Account", "Activity", "Search", "Create"]);
+    ).toEqual(["Account", "Create"]);
   } finally {
     act(() => root.unmount());
   }
@@ -166,7 +177,6 @@ it.each([false, true])(
         "Artifacts",
         "Models",
         "Voice",
-        "Integrations",
         "AI data sharing",
         ...(isDeploymentOwner ? ["Server integrations"] : []),
       ]);

@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     x11vnc \
     fluxbox \
+    tint2 \
+    hsetroot \
+    thunar \
     xterm \
     xdotool \
     wmctrl \
@@ -60,8 +63,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && python3 -c 'import openpyxl; print(openpyxl.__version__)' \
   && groupadd --gid 1000 rakazo \
   && useradd --uid 1000 --gid rakazo --create-home --shell /bin/bash rakazo \
-  && mkdir -p /etc/rakazo/fluxbox \
-  && printf '%s\n' '#!/bin/sh' 'exec xsetroot -solid "#111113" "$@"' > /usr/bin/fbsetbg \
+  && mkdir -p /etc/rakazo/fluxbox /etc/rakazo/tint2 /usr/share/rakazo/desktop /usr/share/rakazo/fluxbox-style \
+  && printf '%s\n' '#!/bin/sh' 'exec hsetroot -fill /usr/share/rakazo/desktop/wallpaper.jpg' > /usr/bin/fbsetbg \
   && chmod +x /usr/bin/fbsetbg \
   && ln -sfn /bin/true /usr/bin/xmessage
 RUN ln -s "$(dpkg -L libnss-wrapper | grep '/libnss_wrapper.so$')" /usr/local/lib/libnss_wrapper.so
@@ -119,6 +122,13 @@ COPY --chmod=644 rakazo-browser.desktop /usr/share/applications/rakazo-browser.d
 COPY --chmod=644 fluxbox.init /etc/rakazo/fluxbox/init
 COPY --chmod=644 fluxbox.apps /etc/rakazo/fluxbox/apps
 COPY --chmod=644 fluxbox.menu /etc/rakazo/fluxbox/menu
+COPY --chmod=644 fluxbox.style /usr/share/rakazo/fluxbox-style/theme.cfg
+COPY --chmod=644 menubar.tint2rc dock.tint2rc /etc/rakazo/tint2/
+COPY --chmod=644 aiome-mark.svg terminal-icon.svg files-icon.svg /usr/share/rakazo/desktop/
+# Window buttons at the left, as on a Mac; Chromium's own frame follows this too.
+COPY --chmod=644 gtk-settings.ini /etc/gtk-3.0/settings.ini
+COPY --chmod=755 wallpaper.sh /usr/local/lib/rakazo-wallpaper.sh
+COPY --chmod=755 window-buttons.sh /usr/local/lib/rakazo-window-buttons.sh
 COPY --chmod=644 embed.html /usr/share/novnc/embed.html
 COPY --chmod=644 clipboard-bridge.js /usr/share/novnc/clipboard-bridge.js
 COPY --chmod=644 mobile-keyboard.js /usr/share/novnc/mobile-keyboard.js
@@ -129,7 +139,11 @@ COPY --chmod=644 rakazo-local-bin.sh /etc/profile.d/rakazo-local-bin.sh
 RUN ldconfig \
   && sed -i 's/\r$//' /usr/local/bin/rakazo-computer /usr/local/lib/rakazo-user-env.sh /usr/local/bin/rakazo-computer-control /usr/local/bin/rakazo-browser /usr/local/bin/rakazo-focus-or-launch /usr/local/bin/rakazo-page-browser \
     /etc/rakazo/fluxbox/init /etc/rakazo/fluxbox/apps /etc/rakazo/fluxbox/menu \
-    /etc/profile.d/rakazo-local-bin.sh
+    /etc/rakazo/tint2/menubar.tint2rc /etc/rakazo/tint2/dock.tint2rc /usr/local/lib/rakazo-wallpaper.sh \
+    /usr/share/rakazo/fluxbox-style/theme.cfg /usr/local/lib/rakazo-window-buttons.sh \
+    /etc/profile.d/rakazo-local-bin.sh \
+  && /usr/local/lib/rakazo-wallpaper.sh /usr/share/rakazo/desktop/wallpaper.jpg \
+  && /usr/local/lib/rakazo-window-buttons.sh /usr/share/rakazo/fluxbox-style/pixmaps
 # Agent-authored scripts often use the unversioned name. Keep it on the installed Python 3.
 RUN ln -s /usr/bin/python3 /usr/local/bin/python \
   && python -c 'import sys; assert sys.version_info.major == 3'

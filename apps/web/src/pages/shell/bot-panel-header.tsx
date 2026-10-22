@@ -44,7 +44,7 @@ export function BotPanelHeader({
         maxLength={BOT_NAME_MAX_LENGTH}
         required
         onSave={(name) => onSave({ name })}
-        className="mt-2 h-[29px] rounded-[8px] px-[11px] text-[16.5px] font-medium text-foreground"
+        className="mt-2 h-[29px] rounded-[8px] px-[11px] text-[17px] font-medium tracking-[-0.008em] text-foreground"
       />
       <InlineBotField
         label={t`Title`}

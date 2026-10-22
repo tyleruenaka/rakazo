@@ -21,6 +21,16 @@ export type ColorTokens = {
   settingsDivider: string;
   /** Selected or hovered Settings nav item. */
   settingsNav: string;
+  /** Mobile settings sheet: page, grouped cell, the cell's border and dividers, section label, disclosure chevron and switch track. */
+  sheetPage: string;
+  sheetCell: string;
+  sheetBorder: string;
+  sheetLabel: string;
+  sheetChevron: string;
+  sheetSwitch: string;
+  /** Mobile Connect apps sheet: page and search field. */
+  catalogPage: string;
+  catalogField: string;
   foreground: string;
   card: string;
   cardForeground: string;
@@ -40,6 +50,8 @@ export type ColorTokens = {
   control: string;
   /** Border of a control while its menu is open. */
   controlOpenBorder: string;
+  /** Round control fill on hover, or while its toggle is on (call bar settings, transcript, mute). */
+  controlActive: string;
   /** Icon in a round outlined header button, a step softer than text. */
   controlIcon: string;
   /** Fill and hairline where native Liquid Glass is unavailable (Android, iOS before 26). */
@@ -55,6 +67,14 @@ export type ColorTokens = {
   chatUser: string;
   /** White in both themes: the user bubble is a solid fill (light grey in dark, near-black in light). */
   chatUserForeground: string;
+  /** Bot message bubble on mobile. */
+  chatBot: string;
+  /** Your reaction chip under a message on mobile. */
+  chatReaction: string;
+  /** Centered time between messages on mobile. */
+  chatTimestamp: string;
+  /** Mobile bottom sheet behind grouped rows (message actions). */
+  sheet: string;
   /** Composer placeholder. */
   chatPlaceholder: string;
   /** Icon in the composer's round buttons (attach, mic). */
@@ -81,6 +101,12 @@ export type ColorTokens = {
   caption: string;
   /** Behind the full-window computer screen. Dark in both themes. */
   computerBackdrop: string;
+  /** Behind the live screen on the phone's computer page. Black in both themes. */
+  computerPage: string;
+  /** Mobile list pages built from inset cards (Library, Routines): page, card and row divider. */
+  groupedBackground: string;
+  groupedCard: string;
+  groupedDivider: string;
   /** Close button on the computer backdrop, and its hover. */
   computerIcon: string;
   computerIconHover: string;
@@ -117,6 +143,17 @@ export type ColorTokens = {
   /** Solid destructive fill (Hang up, a filled Delete); its text is `destructiveForeground`. */
   destructiveFill: string;
   destructiveForeground: string;
+  /** End-call button in the call bar, and its hover (lighter in dark, darker in light, as in Grok). */
+  callHangUp: string;
+  callHangUpHover: string;
+  /** Turns in the call transcript, which sits on the call bar's card. */
+  callTurnUser: string;
+  callTurnUserForeground: string;
+  callTurnBot: string;
+  /** A finished call in the chat: the card behind it when open, its rule, and the bot's turns. */
+  callRecord: string;
+  callRecordRule: string;
+  callRecordBotTurn: string;
   border: string;
   input: string;
   /** Hairline of an outlined control (round header button, footer pill) on hover. */
@@ -159,6 +196,8 @@ export type ColorTokens = {
   statusWorking: string;
   /** Unread dot in the bot list. */
   unread: string;
+  /** Mobile inbox (home) page behind the chat list. */
+  inboxBackground: string;
   /** Bot avatar in the white swatch: white in dark, black in light, as in Grok. */
   avatarWhite: string;
   /** Bot avatar in the grey swatch, a step lighter in light mode. */
@@ -178,6 +217,14 @@ export const darkTokens = {
   settingsBorder: "#292929",
   settingsDivider: "#1F1F1F",
   settingsNav: "#242424",
+  sheetPage: "#1E1E1E",
+  sheetCell: "#2C2C2E",
+  sheetBorder: "#363638",
+  sheetLabel: "#5C5C5F",
+  sheetChevron: "#828288",
+  sheetSwitch: "#B5B5BD",
+  catalogPage: "#141414",
+  catalogField: "#181818",
   foreground: "#F5F5F5",
   card: "#1F1F1F",
   cardForeground: "#F5F5F5",
@@ -192,6 +239,7 @@ export const darkTokens = {
   paletteHighlight: "#303030",
   control: "#282828",
   controlOpenBorder: "#303030",
+  controlActive: "#303030",
   controlIcon: "#E0E0E0",
   primary: "#F5F5F5",
   primaryForeground: "#121212",
@@ -201,6 +249,10 @@ export const darkTokens = {
   secondaryForeground: "#F5F5F5",
   chatUser: "#3B3B3B",
   chatUserForeground: "#F5F5F5",
+  chatBot: "#202020",
+  chatReaction: "#124070",
+  chatTimestamp: "#555558",
+  sheet: "#141414",
   chatPlaceholder: "#707070",
   composerIcon: "#979797",
   composerControlBorder: "#333333",
@@ -215,8 +267,12 @@ export const darkTokens = {
   previewWaking: "#747474",
   caption: "#8D8D8D",
   computerBackdrop: "#141414",
+  computerPage: "#000000",
   computerIcon: "#DCDCDC",
   computerIconHover: "#FFFFFF",
+  groupedBackground: "#1E1E1E",
+  groupedCard: "#2A2929",
+  groupedDivider: "#3A3939",
   cardRing: "#1B1B1B",
   attachment: "#252525",
   attachmentRing: "rgba(255, 255, 255, 0.12)",
@@ -239,6 +295,14 @@ export const darkTokens = {
   destructive: "#FF6464",
   destructiveFill: "#E5484D",
   destructiveForeground: "#FFFFFF",
+  callHangUp: "#CF2B35",
+  callHangUpHover: "#FE3640",
+  callTurnUser: "#454545",
+  callTurnUserForeground: "#F5F5F5",
+  callTurnBot: "#282828",
+  callRecord: "#171717",
+  callRecordRule: "#242424",
+  callRecordBotTurn: "#202020",
   border: "#2A2A2A",
   input: "#2C2C2C",
   inputHover: "#373737",
@@ -268,6 +332,7 @@ export const darkTokens = {
   warning: "#E9C46A",
   statusWorking: "#3D84F7",
   unread: "#4D9BFF",
+  inboxBackground: "#141414",
   avatarWhite: "#FFFFFF",
   avatarGrey: "#777777",
   avatarPencil: "#F5F5F5",
@@ -283,6 +348,14 @@ export const lightTokens = {
   settingsBorder: "#E1E1E1",
   settingsDivider: "#EAEAEA",
   settingsNav: "#EAEAEA",
+  sheetPage: "#F2F2F7",
+  sheetCell: "#FFFFFF",
+  sheetBorder: "#E5E5EA",
+  sheetLabel: "#8A8A8E",
+  sheetChevron: "#BABABF",
+  sheetSwitch: "#AEAEB2",
+  catalogPage: "#F2F2F7",
+  catalogField: "#FFFFFF",
   foreground: "#1C1C1C",
   card: "#FFFFFF",
   cardForeground: "#1C1C1C",
@@ -297,6 +370,7 @@ export const lightTokens = {
   paletteHighlight: "#EDEDED",
   control: "#F2F2F2",
   controlOpenBorder: "#E6E6E6",
+  controlActive: "#E8E8E8",
   controlIcon: "#2E2E2E",
   primary: "#1C1C1C",
   primaryForeground: "#FCFCFC",
@@ -306,6 +380,10 @@ export const lightTokens = {
   secondaryForeground: "#1C1C1C",
   chatUser: "#1C1C1C",
   chatUserForeground: "#FFFFFF",
+  chatBot: "#EFEFEF",
+  chatReaction: "#D3E5FA",
+  chatTimestamp: "#808080",
+  sheet: "#F2F2F2",
   chatPlaceholder: "#A4A4A4",
   composerIcon: "#7A7A7A",
   composerControlBorder: "#E1E1E1",
@@ -320,8 +398,12 @@ export const lightTokens = {
   previewWaking: "#9C9C9C",
   caption: "#7F7F7F",
   computerBackdrop: "#141414",
+  computerPage: "#000000",
   computerIcon: "#DCDCDC",
   computerIconHover: "#FFFFFF",
+  groupedBackground: "#F4F4F4",
+  groupedCard: "#FFFFFF",
+  groupedDivider: "#E5E5E5",
   cardRing: "#EDEDED",
   attachment: "#FFFFFF",
   attachmentRing: "rgba(28, 28, 28, 0.08)",
@@ -344,6 +426,14 @@ export const lightTokens = {
   destructive: "#DC2626",
   destructiveFill: "#E5484D",
   destructiveForeground: "#FFFFFF",
+  callHangUp: "#E72E3B",
+  callHangUpHover: "#C82532",
+  callTurnUser: "#1C1C1C",
+  callTurnUserForeground: "#FFFFFF",
+  callTurnBot: "#F1F1F1",
+  callRecord: "#F3F3F3",
+  callRecordRule: "#E2E2E2",
+  callRecordBotTurn: "#E6E6E6",
   border: "#E3E3E3",
   input: "#EDEDED",
   inputHover: "#E1E1E1",
@@ -373,6 +463,7 @@ export const lightTokens = {
   warning: "#B7791F",
   statusWorking: "#2563EB",
   unread: "#086ED3",
+  inboxBackground: "#FCFCFC",
   avatarWhite: "#000000",
   avatarGrey: "#959595",
   avatarPencil: "#F5F5F5",

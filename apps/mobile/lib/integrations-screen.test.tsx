@@ -17,6 +17,9 @@ const state = vi.hoisted(() => ({
   focused: true,
 }));
 vi.mock("expo-router", () => ({
+  Stack: { Screen: () => null },
+  useLocalSearchParams: () => ({}),
+  useRouter: () => ({ push: vi.fn() }),
   useFocusEffect: (callback: () => undefined | (() => void)) => {
     useEffect(() => {
       if (state.focused) return callback();
@@ -39,6 +42,8 @@ vi.mock("./i18n", () => ({
   useI18n: () => ({ t: (text: string) => text }),
 }));
 vi.mock("../components/row-accessories", () => ({ Chevron: () => null }));
+vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
+vi.mock("./native-controls", () => ({ iosAtLeast: () => false }));
 vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -159,25 +164,25 @@ it("keeps Search visible and shows rows on a cold load until the first success",
   expect(container.querySelector('[data-testid="integrations-loading"]')?.children).toHaveLength(8);
   await act(async () => resolveCatalog([item]));
   expect(container.querySelector('[data-testid="integrations-loading"]')).toBeNull();
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
   expect(state.write).toHaveBeenCalledWith(expect.anything(), {
     catalog: [item],
     connections: [account],
   });
 });
-it("paints the cached list and Added state before replacing it in the background", async () => {
+it("paints the cached list and Connected state before replacing it in the background", async () => {
   state.read.mockReturnValue({ catalog: [item], connections: [account] });
   await render();
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
   expect(container.querySelector('[data-testid="integrations-loading"]')).toBeNull();
   await act(async () => resolveCatalog([{ ...item, name: "Refreshed app" }]));
-  expect(container.textContent).toContain("Refreshed appAdded");
+  expect(container.textContent).toContain("Refreshed appConnected");
 });
 it("keeps cached rows after a refresh failure and offers Retry", async () => {
   state.read.mockReturnValue({ catalog: [item], connections: [account] });
   await render();
   await act(async () => rejectCatalog(new Error("Unavailable")));
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
   const retry = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Retry",
   );
@@ -241,7 +246,7 @@ it("persists a rename before a pending stale refresh can overwrite it", async ()
   state.read.mockReturnValue({ catalog: [item], connections: [account] });
   await render();
   const added = [...container.querySelectorAll("button")].find(
-    (button) => button.textContent === "Added",
+    (button) => button.textContent === "Connected",
   );
   await act(async () => added?.click());
   const input = container.querySelector("input")!;
@@ -268,12 +273,12 @@ it("persists a rename before a pending stale refresh can overwrite it", async ()
 });
 
 it.each(["Remove", "Uninstall"])(
-  "persists revoked Added state after %s even if the following refresh fails",
+  "persists revoked Connected state after %s even if the following refresh fails",
   async (action) => {
     state.read.mockReturnValue({ catalog: [item], connections: [account] });
     await render();
     const added = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Added",
+      (button) => button.textContent === "Connected",
     );
     await act(async () => added?.click());
     state.rpc.mockImplementation((proc: string) =>
@@ -303,14 +308,14 @@ it("persists a completed connection before refreshing", async () => {
     return Promise.resolve([]);
   });
   const add = [...container.querySelectorAll("button")].find(
-    (button) => button.textContent === "Add",
+    (button) => button.textContent === "Connect",
   );
   await act(async () => add?.click());
   expect(state.write).toHaveBeenLastCalledWith(expect.anything(), {
     catalog: [item],
     connections: [account],
   });
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
 });
 
 it("paints persisted cached rows while identity is pending or offline", async () => {
@@ -323,10 +328,10 @@ it("paints persisted cached rows while identity is pending or offline", async ()
     }),
   );
   await render();
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
   expect(state.rpc).not.toHaveBeenCalled();
   await act(async () => rejectIdentity(new Error("offline")));
-  expect(container.textContent).toContain("Example appAdded");
+  expect(container.textContent).toContain("Example appConnected");
   expect(container.textContent).toContain("Retry");
 });
 
@@ -347,7 +352,7 @@ it("rebuilds a stale space and continues refreshing while the screen stays open"
   await act(async () => resolveCatalog([item]));
   expect(state.scope).toHaveBeenCalledTimes(2);
   expect(container.textContent).not.toContain("Example app");
-  expect(container.textContent).toContain("Recovered appAdd");
+  expect(container.textContent).toContain("Recovered appConnect");
   expect(state.write).toHaveBeenLastCalledWith(
     { userId: "user-a", spaceId: "space-b" },
     {
@@ -369,7 +374,7 @@ it("keeps sources loading when a rename cancels the catalog refresh", async () =
   );
   await render();
   await act(async () =>
-    [...container.querySelectorAll("button")].find((b) => b.textContent === "Added")?.click(),
+    [...container.querySelectorAll("button")].find((b) => b.textContent === "Connected")?.click(),
   );
   const input = container.querySelector("input")!;
   await act(async () => {
@@ -429,7 +434,7 @@ it("refreshes a different space on focus return and rejects the blurred refresh"
   expect(container.textContent).not.toContain("Example app");
   expect(container.querySelector('[data-testid="integrations-loading"]')).not.toBeNull();
   await act(async () => resolveNew([{ ...item, name: "New space app", connected: false }]));
-  expect(container.textContent).toContain("New space appAdd");
+  expect(container.textContent).toContain("New space appConnect");
   expect(state.scope).toHaveBeenCalledTimes(2);
 });
 
@@ -439,7 +444,7 @@ it.each(["rename", "revoke", "uninstall", "connect"])(
     state.read.mockReturnValue({ catalog: [item], connections: [account] });
     await render();
     await act(async () =>
-      [...container.querySelectorAll("button")].find((b) => b.textContent === "Added")?.click(),
+      [...container.querySelectorAll("button")].find((b) => b.textContent === "Connected")?.click(),
     );
     let finish!: (value: unknown) => void;
     const pending = new Promise((resolve) => {
@@ -496,7 +501,7 @@ it.each(["rename", "revoke", "uninstall", "connect"])(
       ),
     );
     await act(async () => resolveCatalog([item]));
-    expect(container.textContent).toContain("New space appAdd");
+    expect(container.textContent).toContain("New space appConnect");
     const writes = state.write.mock.calls.length;
     await act(async () => finish({ ...account, displayName: "Old space rename" }));
     expect(state.write).toHaveBeenCalledTimes(writes);
@@ -528,9 +533,9 @@ it("ignores an old focus identity error after the new focus succeeds", async () 
   );
   state.focused = true;
   await render();
-  expect(container.textContent).toContain("New space appAdd");
+  expect(container.textContent).toContain("New space appConnect");
   await act(async () => failIdentity(new Error("Old focus failed")));
   expect(container.textContent).not.toContain("Old focus failed");
   expect(container.textContent).not.toContain("Retry");
-  expect(container.textContent).toContain("New space appAdd");
+  expect(container.textContent).toContain("New space appConnect");
 });

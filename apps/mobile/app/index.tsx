@@ -1,8 +1,7 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { RunActivityRow, SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { normalizeCreateBotProfile } from "@rakazo/contracts";
 import { accountDisplay, isRunWorking } from "@rakazo/core";
-import { botColors, fontWeight, typeScale } from "@rakazo/ui-tokens";
+import { botColors, typeScale } from "@rakazo/ui-tokens";
 import type { Href } from "expo-router";
 import {
   Redirect,
@@ -40,6 +39,8 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -49,9 +50,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BotAvatar } from "../components/bot-avatar";
 import type { BotOrganizationUpdate } from "../components/bot-organize-modal";
 import { BotOrganizeModal } from "../components/bot-organize-modal";
+import { GlassSurface } from "../components/glass-surface";
 import { GroupAvatar } from "../components/group-avatar";
 import { HomeErrorState } from "../components/home-error-state";
-import { InboxSwipeRow } from "../components/inbox-swipe-row";
+import { InboxPinnedMenu, InboxSwipeRow } from "../components/inbox-swipe-row";
 import { NativeSymbol } from "../components/native-symbol";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {
@@ -92,7 +94,6 @@ import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
 import type { CollapsedSections } from "../lib/collapsed-sections";
 import { loadCollapsedSections, saveCollapsedSections } from "../lib/collapsed-sections";
 import { confirmDeleteSection } from "../lib/confirm-delete-section";
-import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
 import { t, useI18n } from "../lib/i18n";
 import { botTag, formatThreadTime } from "../lib/inbox";
 import { retainInboxValue } from "../lib/inbox-retention";
@@ -121,7 +122,7 @@ import { iosAtLeast } from "../lib/native-controls";
 import { offerPasskeyOnce } from "../lib/passkey";
 import { previewSnippet } from "../lib/preview";
 import { registerPushToken } from "../lib/push";
-import { androidRipple } from "../lib/ripple";
+import { androidRipple, withAlpha } from "../lib/ripple";
 import { loadSavedInbox, saveInbox } from "../lib/saved-chats";
 import { setSearchInbox } from "../lib/search-inbox";
 import { promptSectionName } from "../lib/section-name-prompt";
@@ -258,7 +259,6 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
   const activityRequestId = useRef(0);
   const inboxRequestId = useRef(0);
   const inboxLoaded = useRef(false);
-  const creatingBotRef = useRef(false);
   const spaceActionRef = useRef<{ busy: boolean; recoveryId: string | null }>({
     busy: false,
     recoveryId: null,
@@ -532,7 +532,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     if (me) setSearchInbox(inboxSpaces);
   }, [inboxSpaces, me]);
   const listData = useMemo((): InboxItem[] => {
-    // Android pins sit above the list; iOS keeps rows with native swipe and context menus.
+    // Pinned chats sit above the sections as large tiles and leave the rows.
     const otherSpaces = spaces.filter((space) => space.id !== me?.spaceId);
     const pinned: PinnedChat[] = [
       ...[...visible, ...otherSpaces.flatMap((space) => space.bots)]
@@ -544,11 +544,11 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     ];
     const sidebarSpaces = inboxSpaces.map((space) => ({
       ...space,
-      bots: space.bots.filter((bot) => SWIPE_ROWS || !bot.pinned),
-      groups: space.groups.filter((group) => SWIPE_ROWS || !group.pinned),
+      bots: space.bots.filter((bot) => !bot.pinned),
+      groups: space.groups.filter((group) => !group.pinned),
     }));
     const items: InboxItem[] = spaceInboxItems(sidebarSpaces, collapsed, me?.spaceId);
-    return !SWIPE_ROWS && pinned.length > 0 ? [{ type: "pinned", chats: pinned }, ...items] : items;
+    return pinned.length > 0 ? [{ type: "pinned", chats: pinned }, ...items] : items;
   }, [inboxSpaces, collapsed, me?.spaceId, spaces, visible, visibleGroups, locale]);
   const initials = accountDisplay(me ?? {}, t("You")).initial ?? "?";
   const organizeSpace = organizeTarget
@@ -694,45 +694,14 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     [deleteInboxSpace, t],
   );
 
-  const createQuickBot = useCallback(async () => {
-    if (creatingBotRef.current || spaceActionRef.current.busy || spaceActionRef.current.recoveryId)
-      return;
-    creatingBotRef.current = true;
-    try {
-      // Authoritative roster so a slow home fetch does not treat later bots as first.
-      // A failed list is unknown — use the delayed path rather than assuming first.
-      const existing = await rpc<MobileBot[]>("bots/list").catch(() => null);
-      const isFirstBot = existing !== null && existing.length === 0;
-      const bot = await rpc<MobileBot>("bots/create", {
-        ...normalizeCreateBotProfile({ name: "New Bot", title: "", description: "" }),
-        notifyOnFinish: true,
-        computerMode: "team",
-      });
-      void refreshBots().catch(() => undefined);
-      allowFocusPrompt(bot.id);
-      openChat({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
-      void (async () => {
-        const started = await rpc("onboarding/start", { botId: bot.id })
-          .then(() => true)
-          .catch(() => false);
-        if (!started) return;
-        scheduleFocusPrompt(bot.id, isFirstBot);
-      })();
-    } catch (err) {
-      setError(errorText(err, t("Could not create bot")));
-    } finally {
-      creatingBotRef.current = false;
-    }
-  }, [openChat, refreshBots, t]);
-
   const runCreateAction = useCallback(
     (action: "bot" | "group" | "space") => {
       if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-      if (action === "bot") void createQuickBot();
+      if (action === "bot") router.push("/new");
       else if (action === "group") router.push("/new-group");
       else router.push("/new-space");
     },
-    [createQuickBot, router],
+    [router],
   );
 
   const openCreateChooser = useCallback(() => {
@@ -740,13 +709,14 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       t("Create"),
       undefined,
       [
-        { text: t("New bot"), onPress: () => runCreateAction("bot") },
-        { text: t("New group"), onPress: () => runCreateAction("group") },
-        { text: t("New space"), onPress: () => runCreateAction("space") },
+        { text: t("New Bot"), onPress: () => runCreateAction("bot") },
+        { text: t("New Group Chat"), onPress: () => runCreateAction("group") },
+        { text: t("New Space"), onPress: () => runCreateAction("space") },
+        { text: t("Activity"), onPress: toggleActivityMode },
       ],
       { cancelable: true },
     );
-  }, [runCreateAction, t]);
+  }, [runCreateAction, toggleActivityMode, t]);
 
   useLayoutEffect(() => {
     if (!nativeHeader) return;
@@ -758,28 +728,25 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       title: "",
       unstable_headerLeftItems: () => [
         {
-          type: "button" as const,
-          label: initials,
-          labelStyle: { fontSize: 15, fontWeight: "600" },
-          accessibilityLabel: t("Account"),
-          onPress: () => router.push("/account"),
+          // A square element keeps the shared glass a 44pt circle, like the + button.
+          type: "custom" as const,
+          // Its own glass circle: the shared bar background pads custom items into a capsule.
+          hidesSharedBackground: true,
+          element: (
+            <GlassSurface shape="circle" style={styles.accountButton}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("Account")}
+                onPress={() => router.push("/account")}
+                style={styles.accountPress}
+              >
+                <Text style={styles.profileInitials}>{initials}</Text>
+              </Pressable>
+            </GlassSurface>
+          ),
         },
       ],
       unstable_headerRightItems: () => [
-        {
-          type: "button" as const,
-          accessibilityLabel: t("Activity"),
-          icon: { type: "sfSymbol" as const, name: activityMode ? "bell.fill" : "bell" },
-          selected: activityMode,
-          onPress: toggleActivityMode,
-        },
-        {
-          type: "button" as const,
-          accessibilityLabel: t("Search"),
-          identifier: "home-search-button",
-          icon: { type: "sfSymbol" as const, name: "magnifyingglass" },
-          onPress: () => router.push("/search"),
-        },
         {
           type: "menu" as const,
           accessibilityLabel: t("Create"),
@@ -788,21 +755,24 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             items: [
               {
                 type: "action" as const,
-                label: t("New bot"),
-                icon: { type: "sfSymbol" as const, name: "person.crop.circle.badge.plus" },
+                label: t("New Bot"),
                 onPress: () => runCreateAction("bot"),
               },
               {
                 type: "action" as const,
-                label: t("New group"),
-                icon: { type: "sfSymbol" as const, name: "person.2" },
+                label: t("New Group Chat"),
                 onPress: () => runCreateAction("group"),
               },
               {
                 type: "action" as const,
-                label: t("New space"),
-                icon: { type: "sfSymbol" as const, name: "square.grid.2x2" },
+                label: t("New Space"),
                 onPress: () => runCreateAction("space"),
+              },
+              {
+                type: "action" as const,
+                label: t("Activity"),
+                state: activityMode ? ("on" as const) : ("off" as const),
+                onPress: toggleActivityMode,
               },
             ],
           },
@@ -813,6 +783,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     nativeHeader,
     navigation,
     ready,
+    styles,
     hasSession,
     initials,
     activityMode,
@@ -1069,11 +1040,38 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     [loadBots, t],
   );
 
+  const listRef = useRef<FlatList<InboxItem>>(null);
+  const [lastVisible, setLastVisible] = useState(-1);
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      setLastVisible(Math.max(-1, ...viewableItems.map((item) => item.index ?? -1)));
+    },
+  ).current;
+  // Unread chats below the last fully visible row, nearest first.
+  const unreadBelow = useMemo(
+    () =>
+      listData.flatMap((item, index) =>
+        index > lastVisible &&
+        ((item.type === "bot" && item.bot.unread) || (item.type === "group" && item.group.unread))
+          ? [index]
+          : [],
+      ),
+    [listData, lastVisible],
+  );
+  const scrollToUnread = useCallback(() => {
+    const index = unreadBelow[0];
+    if (index !== undefined) listRef.current?.scrollToIndex({ index, viewPosition: 0.5 });
+  }, [unreadBelow]);
+
   const renderItem = useCallback(
     ({ item }: { item: InboxItem }) =>
       item.type === "pinned" ? (
         <PinnedTiles
           chats={item.chats}
+          sections={botSections}
+          menuSpaceId={me?.spaceId}
+          onOrganize={organizeFromMenu}
+          onEditSection={editSectionFromMenu}
           onOpenBot={openBot}
           onOpenGroup={openGroup}
           onLongPressBot={organizeBot}
@@ -1126,22 +1124,29 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
           </View>
         ) : (
           <View style={styles.sectionHeadingRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                item.collapsed
-                  ? t("Expand {name}", { name: item.title })
-                  : t("Collapse {name}", { name: item.title })
-              }
-              accessibilityState={{ expanded: !item.collapsed }}
-              accessibilityValue={item.collapsed ? { text: String(item.count ?? 0) } : undefined}
-              onPress={() => toggleCollapsed(item.key)}
-              style={({ pressed }) => [styles.sectionToggle, pressed && styles.rowPressed]}
+            <SectionMenu
+              sectionId={item.sectionId}
+              onDelete={() => {
+                if (item.sectionId) deleteSection({ id: item.sectionId, name: item.title });
+              }}
             >
-              <Text style={styles.sectionTitle}>{item.title}</Text>
-              {item.collapsed ? <Text style={styles.sectionCount}>{item.count ?? 0}</Text> : null}
-              <SectionChevron collapsed={item.collapsed === true} />
-            </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  item.collapsed
+                    ? t("Expand {name}", { name: item.title })
+                    : t("Collapse {name}", { name: item.title })
+                }
+                accessibilityState={{ expanded: !item.collapsed }}
+                accessibilityValue={item.collapsed ? { text: String(item.count ?? 0) } : undefined}
+                onPress={() => toggleCollapsed(item.key)}
+                style={({ pressed }) => [styles.sectionToggle, pressed && styles.rowPressed]}
+              >
+                <Text style={styles.sectionTitle}>{item.title}</Text>
+                {item.collapsed ? <Text style={styles.sectionCount}>{item.count ?? 0}</Text> : null}
+                <SectionChevron collapsed={item.collapsed === true} />
+              </Pressable>
+            </SectionMenu>
             {item.sectionId && Platform.OS === "android" ? (
               // A plain button, like the create control: the Android menu trigger can collapse to
               // zero width on an older binary, which would hide the only way to delete an empty section.
@@ -1155,29 +1160,6 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
               >
                 <NativeSymbol ios="ellipsis" android="ellipsis-horizontal" size={20} />
               </Pressable>
-            ) : item.sectionId ? (
-              <MenuView
-                actions={[
-                  {
-                    id: "delete",
-                    title: t("Delete section"),
-                    image: "trash",
-                    attributes: { destructive: true },
-                  },
-                ]}
-                colorScheme={appearance}
-                onPressAction={() => {
-                  if (item.sectionId) deleteSection({ id: item.sectionId, name: item.title });
-                }}
-              >
-                <View
-                  accessibilityLabel={t("Section actions for {name}", { name: item.title })}
-                  accessibilityRole="button"
-                  style={styles.spaceActions}
-                >
-                  <NativeSymbol ios="ellipsis" android="ellipsis-horizontal" size={20} />
-                </View>
-              </MenuView>
             ) : null}
           </View>
         )
@@ -1263,46 +1245,27 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
               <Text style={styles.profileInitials}>{initials}</Text>
             </HeaderButton>
           </View>
-          <View style={styles.headerActions}>
-            <HeaderButton
-              accessibilityLabel={t("Activity")}
-              active={activityMode}
-              accent
-              onPress={toggleActivityMode}
-            >
-              <NativeSymbol
-                ios={activityMode ? "bell.fill" : "bell"}
-                android={activityMode ? "notifications" : "notifications-outline"}
-                size={17}
-                color={activityMode ? tokens.primaryForeground : tokens.foreground}
-              />
-            </HeaderButton>
-            <HeaderButton
-              testID="home-search-button"
-              accessibilityLabel={t("Search")}
-              onPress={() => router.push("/search")}
-            >
-              <NativeSymbol ios="magnifyingglass" android="search" size={17} />
-            </HeaderButton>
+          <View style={styles.circleButton}>
             {Platform.OS === "android" ? (
               // A plain button: the native Android menu trigger collapses to zero width when the
               // installed app binary is older than the JS update, which hid the only way to create.
               <HeaderButton accessibilityLabel={t("Create")} onPress={openCreateChooser}>
-                <NativeSymbol ios="plus" android="add" size={18} />
+                <NativeSymbol ios="plus" android="add" size={22} />
               </HeaderButton>
             ) : (
               <MenuView
                 actions={[
-                  { id: "bot", title: t("New bot"), image: "person.crop.circle.badge.plus" },
-                  { id: "group", title: t("New group"), image: "person.2" },
-                  { id: "space", title: t("New space"), image: "square.grid.2x2" },
+                  { id: "bot", title: t("New Bot") },
+                  { id: "group", title: t("New Group Chat") },
+                  { id: "space", title: t("New Space") },
+                  { id: "activity", title: t("Activity"), state: activityMode ? "on" : "off" },
                 ]}
                 colorScheme={appearance}
                 onPressAction={({ nativeEvent }) => {
                   const action = nativeEvent.event;
                   if (action === "bot" || action === "group" || action === "space") {
                     runCreateAction(action);
-                  }
+                  } else if (action === "activity") toggleActivityMode();
                 }}
               >
                 <View
@@ -1310,7 +1273,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
                   accessibilityRole="button"
                   style={styles.headerButton}
                 >
-                  <NativeSymbol ios="plus" android="add" size={18} />
+                  <NativeSymbol ios="plus" android="add" size={22} />
                 </View>
               </MenuView>
             )}
@@ -1321,7 +1284,18 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       <SelectedChatContext.Provider value={embedded ? selectedChatId : null}>
         <CompactRowsContext.Provider value={compactRows}>
           <FlatList<InboxItem>
+            ref={listRef}
             style={{ flex: 1 }}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={{ itemVisiblePercentThreshold: 100 }}
+            onScrollToIndexFailed={(info) => {
+              // Rows further down are not laid out yet: get close, then land on the row.
+              listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index });
+              setTimeout(
+                () => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5 }),
+                120,
+              );
+            }}
             data={showLoadFailure ? [] : listData}
             keyExtractor={(item) => {
               if (item.type === "pinned") return "pinned";
@@ -1392,6 +1366,105 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
           />
         </CompactRowsContext.Provider>
       </SelectedChatContext.Provider>
+      {nativeHeader ? (
+        // Rows fade out under the status bar and header buttons as they scroll up.
+        <View
+          pointerEvents="none"
+          style={[
+            styles.topFade,
+            {
+              height: insets.top + 60,
+              experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 1))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 60%, ${String(withAlpha(tokens.inboxBackground, 0))} 100%)`,
+            },
+          ]}
+        />
+      ) : null}
+      {showLoadFailure ? null : (
+        // Rows fade out under the floating search bar.
+        <View
+          pointerEvents="none"
+          style={[
+            styles.bottomFade,
+            {
+              height: Math.max(insets.bottom - 4, 12) + BOTTOM_BAR.height + 31,
+              experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 0))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 40%, ${String(withAlpha(tokens.inboxBackground, 0.95))} 100%)`,
+            },
+          ]}
+        />
+      )}
+      {showLoadFailure ? null : (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.bottomBar,
+            {
+              bottom: Math.max(insets.bottom - 4, 12),
+              paddingHorizontal: BOTTOM_BAR.inset + columnInset,
+            },
+          ]}
+        >
+          {unreadBelow.length > 0 ? (
+            <Animated.View
+              entering={FadeIn.duration(160)}
+              exiting={FadeOut.duration(160)}
+              style={styles.unreadPillSlot}
+              pointerEvents="box-none"
+            >
+              <Pressable
+                accessibilityRole="button"
+                onPress={scrollToUnread}
+                style={({ pressed }) => [styles.unreadPill, pressed && styles.rowPressed]}
+              >
+                <NativeSymbol
+                  ios="chevron.down"
+                  android="chevron-down"
+                  size={14}
+                  weight="semibold"
+                  color={tokens.destructiveForeground}
+                />
+                <Text style={styles.unreadPillLabel}>
+                  {t("{count} unread", { count: unreadBelow.length })}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          ) : null}
+          <GlassSurface
+            shape="circle"
+            style={styles.gridButton}
+            fallbackStyle={[styles.bottomFallback, { borderRadius: BOTTOM_BAR.button / 2 }]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("Artifacts")}
+              onPress={() => router.push("/artifacts")}
+              style={({ pressed }) => [styles.accountPress, pressed && styles.rowPressed]}
+            >
+              <GridPlusIcon />
+            </Pressable>
+          </GlassSurface>
+          <GlassSurface
+            style={styles.searchPill}
+            fallbackStyle={styles.bottomFallback}
+            cornerRadius={BOTTOM_BAR.height / 2}
+          >
+            <Pressable
+              testID="home-search-button"
+              accessibilityRole="search"
+              accessibilityLabel={t("Search")}
+              onPress={() => router.push("/search")}
+              style={({ pressed }) => [styles.searchPillButton, pressed && styles.rowPressed]}
+            >
+              <NativeSymbol
+                ios="magnifyingglass"
+                android="search"
+                size={23}
+                color={native.secondaryLabel}
+              />
+              <Text style={styles.searchPillLabel}>{t("Search")}</Text>
+            </Pressable>
+          </GlassSurface>
+        </View>
+      )}
       {organizeChat && organizeTarget ? (
         <BotOrganizeModal
           bot={organizeChat}
@@ -1500,7 +1573,8 @@ function ActivityRow({
   );
 }
 
-const INBOX_ROW = { padding: 16, gap: 12, avatarSize: 62 };
+const BOTTOM_BAR = { height: 48, button: 48, inset: 18 };
+const INBOX_ROW = { padding: 24, gap: 15, avatarSize: 44 };
 const COMPACT_INBOX_ROW = { padding: 12, gap: 10 };
 
 function ConversationRow({
@@ -1620,12 +1694,14 @@ function ConversationRow({
           <View style={styles.rowMeta}>
             {indicator}
             {time ? <Text style={styles.time}>{time}</Text> : null}
-            {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
           </View>
         </View>
-        <Text style={[styles.preview, unread && styles.unreadPreview]} numberOfLines={1}>
-          {preview}
-        </Text>
+        <View style={styles.previewRow}>
+          <Text style={styles.preview} numberOfLines={1}>
+            {preview}
+          </Text>
+          {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
+        </View>
       </View>
     </Pressable>
   );
@@ -1698,11 +1774,64 @@ function ArchivedChatsRow({ count, onPress }: { count: number; onPress: () => vo
   );
 }
 
-/** Points right while a section is collapsed and turns down as it opens. */
+/** Three squares and a plus: the way to everything the bots made. */
+function GridPlusIcon() {
+  const styles = useThemedStyles(createHomeStyles);
+  return (
+    <View style={styles.gridIcon}>
+      <View style={styles.gridCell} />
+      <View style={styles.gridCell} />
+      <View style={styles.gridCell} />
+      <View style={styles.gridPlus}>
+        <View style={styles.gridPlusBar} />
+        <View style={[styles.gridPlusBar, { transform: [{ rotate: "90deg" }] }]} />
+      </View>
+    </View>
+  );
+}
+
+/** On iOS a long press on a named section's heading offers Delete, so it needs no button. */
+function SectionMenu({
+  sectionId,
+  onDelete,
+  children,
+}: {
+  sectionId?: string;
+  onDelete: () => void;
+  children: ReactNode;
+}) {
+  const styles = useThemedStyles(createHomeStyles);
+  const { t } = useI18n();
+  const [width, setWidth] = useState(0);
+  if (!sectionId || Platform.OS !== "ios") return children;
+  // The native trigger sizes to its content, so the heading gets the row's width explicitly.
+  return (
+    <View style={styles.sectionMenu} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+      <MenuView
+        actions={[
+          {
+            id: "delete",
+            title: t("Delete section"),
+            image: "trash",
+            attributes: { destructive: true },
+          },
+        ]}
+        colorScheme={resolveMobileAppearance()}
+        shouldOpenOnLongPress
+        onPressAction={onDelete}
+      >
+        <View style={{ width }}>{children}</View>
+      </MenuView>
+    </View>
+  );
+}
+
+/** Points down while a section is open and turns right as it collapses. */
 function SectionChevron({ collapsed }: { collapsed: boolean }) {
-  const rotation = useSharedValue(collapsed ? 0 : 90);
+  const styles = useThemedStyles(createHomeStyles);
+  const rotation = useSharedValue(collapsed ? -90 : 0);
   useEffect(() => {
-    rotation.value = withTiming(collapsed ? 0 : 90, {
+    rotation.value = withTiming(collapsed ? -90 : 0, {
       duration: 220,
       easing: Easing.out(Easing.cubic),
       reduceMotion: ReduceMotion.System,
@@ -1710,41 +1839,57 @@ function SectionChevron({ collapsed }: { collapsed: boolean }) {
   }, [collapsed, rotation]);
   const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
   return (
-    <Animated.View style={style}>
+    <Animated.View style={[styles.sectionChevron, style]}>
       <NativeSymbol
-        ios="chevron.right"
-        android="chevron-forward"
-        size={12}
-        color={native.tertiaryLabel}
+        ios="chevron.down"
+        android="chevron-down"
+        size={13}
+        weight="light"
+        color={native.secondaryLabel}
       />
     </Animated.View>
   );
 }
 
-/** Android pinned chats open with a tap and organize with a long press. */
+// Shapes fill about 88% of their box, so a 100pt box draws Grok's 88pt pinned art.
+const PINNED_TILE = { width: 134, height: 122, avatarSize: 100 };
+
+/**
+ * Pinned chats as large tiles, three to a row. They open with a tap; a long press opens the
+ * system menu on iOS and the organize sheet elsewhere.
+ */
 const PinnedTiles = memo(function PinnedTiles({
   chats,
+  sections,
+  menuSpaceId,
   onOpenBot,
   onOpenGroup,
   onLongPressBot,
   onLongPressGroup,
   onBotAction,
   onGroupAction,
+  onOrganize,
+  onEditSection,
 }: {
   chats: PinnedChat[];
+  /** Only chats in this space get the in-place menu; others use the organize sheet. */
+  menuSpaceId?: string;
   onOpenBot: (bot: MobileBot | SpaceBot) => void;
   onOpenGroup: (group: MobileGroup | SpaceGroup) => void;
   onLongPressBot: (bot: MobileBot | SpaceBot) => void;
   onLongPressGroup: (group: MobileGroup | SpaceGroup) => void;
   onBotAction: (action: InboxRowAction, bot: MobileBot | SpaceBot) => void;
   onGroupAction: (action: InboxRowAction, group: MobileGroup | SpaceGroup) => void;
-}) {
+} & RowMenuProps) {
   const { t } = useI18n();
   const styles = useThemedStyles(createHomeStyles);
   const selectedId = useContext(SelectedChatContext);
-  // Three tiles share the row, so a narrow pane shrinks the avatars instead of overlapping them.
+  // A narrow pane shrinks the tiles so three still share the row.
   const [rowWidth, setRowWidth] = useState(0);
-  const avatarSize = rowWidth > 0 ? Math.min(84, Math.floor((rowWidth - 16) / 3 - 8)) : 84;
+  const tileWidth =
+    rowWidth > 0 ? Math.min(PINNED_TILE.width, Math.floor(rowWidth / 3)) : PINNED_TILE.width;
+  const avatarSize = Math.min(PINNED_TILE.avatarSize, tileWidth - 16);
+  const tileSize = { width: tileWidth, height: PINNED_TILE.height };
   return (
     <View
       style={styles.pinnedTiles}
@@ -1752,18 +1897,18 @@ const PinnedTiles = memo(function PinnedTiles({
     >
       {chats.map((chat) => {
         const id = chat.kind === "bot" ? chat.bot.id : chat.group.id;
-        const name = chat.kind === "bot" ? chat.bot.name : chat.group.name;
-        const unread = chat.kind === "bot" ? chat.bot.unread : chat.group.unread;
-        const actions = inboxRowActionList(chat.kind === "bot" ? chat.bot : chat.group);
+        const item = chat.kind === "bot" ? chat.bot : chat.group;
+        const actions = inboxRowActionList(item);
         const runAction = (action: InboxRowAction) =>
           chat.kind === "bot" ? onBotAction(action, chat.bot) : onGroupAction(action, chat.group);
         const organize = () =>
           chat.kind === "bot" ? onLongPressBot(chat.bot) : onLongPressGroup(chat.group);
-        return (
+        const nativeMenu = SWIPE_ROWS && item.spaceId === menuSpaceId;
+        const tile = (
           <Pressable
             key={`${chat.kind}-${id}`}
             accessibilityRole="button"
-            accessibilityLabel={name}
+            accessibilityLabel={item.unread ? `${item.name}, ${t("unread")}` : item.name}
             accessibilityState={{ selected: selectedId === id }}
             accessibilityActions={actions.map((action) => ({
               name: action,
@@ -1774,28 +1919,62 @@ const PinnedTiles = memo(function PinnedTiles({
               if (action) runAction(action);
             }}
             onPress={() => (chat.kind === "bot" ? onOpenBot(chat.bot) : onOpenGroup(chat.group))}
-            onLongPress={organize}
+            onLongPress={nativeMenu ? undefined : organize}
             style={({ pressed }) => [
               styles.pinnedTile,
+              tileSize,
               selectedId === id ? { backgroundColor: native.fillPressed } : null,
               pressed && styles.rowPressed,
             ]}
           >
-            {chat.kind === "bot" ? (
-              <BotAvatar
-                color={chat.bot.color || FALLBACK_COLOR}
-                identity={chat.bot.id}
-                size={avatarSize}
-                status={chat.bot.status}
-                muted={chat.bot.notifyOnFinish === false}
-              />
-            ) : (
-              <GroupAvatar members={chat.group.members} size={avatarSize} />
-            )}
-            <Text style={[styles.pinnedName, unread && styles.pinnedUnread]} numberOfLines={1}>
-              {name}
-            </Text>
+            <View style={styles.pinnedArt}>
+              {chat.kind === "bot" ? (
+                <BotAvatar
+                  color={chat.bot.color || FALLBACK_COLOR}
+                  identity={chat.bot.id}
+                  size={avatarSize}
+                  status={chat.bot.status}
+                  muted={chat.bot.notifyOnFinish === false}
+                  animated
+                />
+              ) : (
+                <GroupAvatar members={chat.group.members} size={avatarSize} />
+              )}
+            </View>
+            <View style={styles.pinnedLabel}>
+              <Text style={styles.pinnedName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              {item.unread ? <View style={styles.pinnedUnreadDot} /> : null}
+            </View>
           </Pressable>
+        );
+        if (!nativeMenu) return tile;
+        return (
+          <InboxPinnedMenu
+            key={`${chat.kind}-${id}`}
+            size={tileSize}
+            unread={item.unread}
+            pinned
+            notifyOnFinish={chat.kind === "bot" ? chat.bot.notifyOnFinish : undefined}
+            sectionId={item.sectionId}
+            sections={sections}
+            preview={{
+              title: item.name,
+              message: item.preview,
+              avatar:
+                chat.kind === "bot" ? (
+                  <BotAvatar color={chat.bot.color || FALLBACK_COLOR} identity={id} size={30} />
+                ) : (
+                  <GroupAvatar members={chat.group.members} size={30} />
+                ),
+            }}
+            onAction={runAction}
+            onOrganize={(update) => onOrganize(chat.kind, item, update)}
+            onEditSection={(mode) => onEditSection(chat.kind, item, mode)}
+          >
+            {tile}
+          </InboxPinnedMenu>
         );
       })}
     </View>
@@ -1841,9 +2020,9 @@ const BotRow = memo(function BotRow({
   onAction?: (action: InboxRowAction, bot: MobileBot | SpaceBot) => void;
 } & RowMenuProps) {
   const { t } = useI18n();
-  const preview = previewSnippet(bot.preview, 40) || bot.title || t("No messages yet");
-  const time = bot.updatedAt ? formatThreadTime(bot.updatedAt, new Date(day)) : "";
   const tag = botTag(bot.title, bot.name);
+  const preview = previewSnippet(bot.preview, 40) || (tag ? "" : t("No messages yet"));
+  const time = bot.updatedAt ? formatThreadTime(bot.updatedAt, new Date(day)) : "";
   const working = isRunWorking(bot.status);
   // Only flat avatars carry a usable color; image avatars fall back to the muted dot.
   const presentation = mobileBotAvatarPresentation(bot.color || FALLBACK_COLOR);
@@ -1890,6 +2069,7 @@ const BotRow = memo(function BotRow({
           size={INBOX_ROW.avatarSize}
           status={bot.status}
           muted={bot.notifyOnFinish === false}
+          animated
         />
       }
     />
@@ -1905,7 +2085,7 @@ const BotRow = memo(function BotRow({
       preview={{
         title: bot.name,
         message: bot.preview,
-        avatar: <BotAvatar color={bot.color || FALLBACK_COLOR} identity={bot.id} size={32} />,
+        avatar: <BotAvatar color={bot.color || FALLBACK_COLOR} identity={bot.id} size={30} />,
       }}
       onAction={runAction}
       onOrganize={(update) => onOrganize("bot", bot, update)}
@@ -1969,7 +2149,7 @@ const GroupRow = memo(function GroupRow({
       preview={{
         title: group.name,
         message: group.preview,
-        avatar: <GroupAvatar members={group.members} size={32} />,
+        avatar: <GroupAvatar members={group.members} size={30} />,
       }}
       onAction={runAction}
       onOrganize={(update) => onOrganize("group", group, update)}
@@ -1987,7 +2167,7 @@ function createHomeStyles() {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: native.page,
+      backgroundColor: tokens.inboxBackground,
     },
     centered: {
       alignItems: "center",
@@ -2000,13 +2180,6 @@ function createHomeStyles() {
       paddingHorizontal: 16,
       paddingTop: 8,
       paddingBottom: 10,
-    },
-    headerActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 2,
-      borderRadius: 22,
-      backgroundColor: native.fillPressed,
     },
     circleButton: {
       width: 44,
@@ -2030,6 +2203,25 @@ function createHomeStyles() {
     headerButtonAccent: {
       backgroundColor: tokens.primary,
     },
+    accountButton: { width: 44, height: 44 },
+    accountPress: { flex: 1, alignItems: "center", justifyContent: "center" },
+    gridButton: { width: 48, height: 48 },
+    gridIcon: { width: 20, height: 20, flexDirection: "row", flexWrap: "wrap", gap: 2 },
+    gridCell: {
+      width: 9,
+      height: 9,
+      borderRadius: 2.5,
+      borderWidth: 2,
+      borderColor: native.label,
+    },
+    gridPlus: { width: 9, height: 9, alignItems: "center", justifyContent: "center" },
+    gridPlusBar: {
+      position: "absolute",
+      width: 9,
+      height: 2,
+      borderRadius: 1,
+      backgroundColor: native.label,
+    },
     profileInitials: {
       color: native.label,
       fontSize: 15,
@@ -2042,7 +2234,8 @@ function createHomeStyles() {
     },
     list: {
       flexGrow: 1,
-      paddingBottom: 32,
+      // Clears the floating search bar (BOTTOM_BAR).
+      paddingBottom: 91,
     },
     empty: {
       color: native.secondaryLabel,
@@ -2053,8 +2246,10 @@ function createHomeStyles() {
     row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: INBOX_ROW.padding,
-      paddingVertical: 14,
+      minHeight: 80,
+      paddingStart: INBOX_ROW.padding,
+      paddingEnd: 23,
+      paddingVertical: 8,
       gap: INBOX_ROW.gap,
     },
     rowSelected: {
@@ -2066,31 +2261,41 @@ function createHomeStyles() {
     pinnedTiles: {
       flexDirection: "row",
       flexWrap: "wrap",
-      paddingHorizontal: 8,
-      paddingTop: 4,
-      paddingBottom: 12,
+      justifyContent: "center",
+      paddingTop: 31,
+      paddingBottom: 3,
     },
     pinnedTile: {
-      width: "33.33%",
       alignItems: "center",
-      paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingHorizontal: 6,
       borderRadius: 16,
-      gap: 4,
+      gap: 6,
+    },
+    // The larger art overlaps the tile's padding so the label keeps Grok's position.
+    pinnedArt: { marginTop: -1, marginBottom: -3 },
+    pinnedLabel: {
+      maxWidth: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
     pinnedName: {
+      flexShrink: 1,
       color: native.secondaryLabel,
-      fontSize: 13,
-      fontWeight: "500",
+      fontSize: 14.5,
+      lineHeight: 20,
       textAlign: "center",
       writingDirection: "auto",
     },
-    pinnedUnread: {
-      color: native.label,
-      fontWeight: "700",
+    pinnedUnreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: tokens.unread,
     },
     compactRow: {
-      paddingHorizontal: COMPACT_INBOX_ROW.padding,
+      paddingStart: COMPACT_INBOX_ROW.padding,
+      paddingEnd: COMPACT_INBOX_ROW.padding,
       gap: COMPACT_INBOX_ROW.gap,
     },
     treeToggle: {
@@ -2106,11 +2311,10 @@ function createHomeStyles() {
     rowBody: {
       flex: 1,
       minWidth: 0,
-      gap: 2,
     },
     rowTop: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       gap: 8,
     },
     titleRow: {
@@ -2119,7 +2323,7 @@ function createHomeStyles() {
       overflow: "hidden",
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 9,
     },
     // At the largest text sizes a tag that doesn't fit beside the name moves under it.
     titleRowWrapped: {
@@ -2134,41 +2338,47 @@ function createHomeStyles() {
       flexShrink: 0,
       maxWidth: "100%",
       color: native.label,
-      ...typeScale.cardTitle,
+      fontSize: 18,
+      lineHeight: 24,
       writingDirection: "auto",
     },
     tag: {
       flexShrink: 1,
       minWidth: 0,
+      height: 22,
+      justifyContent: "center",
       overflow: "hidden",
-      borderRadius: 999,
+      borderRadius: 8,
       backgroundColor: native.quietFill,
       paddingHorizontal: 7,
-      paddingVertical: 2,
     },
     tagLabel: {
       color: native.secondaryLabel,
-      fontSize: typeScale.caption.fontSize,
-      fontWeight: fontWeight.medium,
+      fontSize: 14.5,
       writingDirection: "auto",
     },
     time: {
-      color: native.tertiaryLabel,
-      ...typeScale.caption,
+      color: native.dimLabel,
+      fontSize: 14.5,
+      lineHeight: 24,
+      fontVariant: ["tabular-nums"],
+    },
+    previewRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
     },
     preview: {
+      flex: 1,
       color: native.secondaryLabel,
-      ...typeScale.secondary,
+      fontSize: 16,
+      lineHeight: 24,
       writingDirection: "auto",
     },
-    unreadPreview: {
-      color: native.label,
-      fontWeight: "600",
-    },
     unreadDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       backgroundColor: tokens.unread,
     },
     spaceHeading: {
@@ -2199,23 +2409,92 @@ function createHomeStyles() {
       paddingHorizontal: 20,
       justifyContent: "center",
     },
+    topFade: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+    },
+    bottomFade: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    bottomBar: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    bottomFallback: {
+      backgroundColor: native.page,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: native.separator,
+    },
+    searchPill: {
+      flex: 1,
+      height: 48,
+      borderRadius: 24,
+    },
+    searchPillButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 13,
+    },
+    searchPillLabel: {
+      color: native.secondaryLabel,
+      fontSize: 18,
+    },
+    unreadPillSlot: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 84,
+      alignItems: "center",
+    },
+    unreadPill: {
+      height: 36,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingStart: 15,
+      paddingEnd: 14,
+      borderRadius: 18,
+      backgroundColor: tokens.unread,
+    },
+    unreadPillLabel: {
+      // White on the unread blue in both themes.
+      color: tokens.destructiveForeground,
+      fontSize: 16,
+      fontWeight: "600",
+    },
     sectionHeadingRow: { flexDirection: "row", alignItems: "center", paddingRight: 16 },
+    sectionMenu: { flex: 1, alignSelf: "stretch" },
     sectionToggle: {
       flex: 1,
       alignSelf: "stretch",
       minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 4,
+      gap: 9,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 6,
     },
     archivedRow: { flex: 0, width: "100%" },
     sectionTitle: {
       flexShrink: 1,
       color: native.secondaryLabel,
-      ...typeScale.secondary,
+      fontSize: 16,
+      lineHeight: 20,
+    },
+    sectionChevron: {
+      marginTop: 1,
     },
     sectionCount: {
       color: native.tertiaryLabel,

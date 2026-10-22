@@ -16,6 +16,13 @@ vi.mock("@lingui/react/macro", () => {
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
 
+const callSession = vi.hoisted(() => ({ current: null as { botId: string } | null }));
+vi.mock("../lib/call-session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/call-session")>()),
+  useCallSession: () => callSession.current,
+  useCallBotId: () => callSession.current?.botId ?? null,
+}));
+
 import { dictation } from "../lib/dictation";
 import {
   Composer,
@@ -23,6 +30,7 @@ import {
   ComputerControlPill,
   computerFrameStyle,
   MessageView,
+  showsWorkingLine,
 } from "./Shell";
 
 let root: Root | null = null;
@@ -571,43 +579,215 @@ it("clears accepted saved text when only an attachment was picked during the sen
   expect(localStorage.getItem("rakazo.composerDraft.bot:bot-1")).toBeNull();
 });
 
-it.each([false, true])(
-  "preserves dictation alongside a draft when sending fails (throws=%s)",
-  async (throws) => {
-    let finish!: (value: boolean) => void;
-    let fail!: (error: Error) => void;
-    const onSend = vi.fn(
-      () =>
-        new Promise<boolean>((resolve, reject) => {
-          finish = resolve;
-          fail = reject;
-        }),
-    );
-    let onFinal!: (text: string) => void;
-    const listen = vi.spyOn(dictation, "listen").mockImplementation(async (options) => {
-      onFinal = options.onFinal;
-    });
-    try {
-      const textarea = renderComposer(onSend, { phoneCallsEnabled: true });
-      const mic = container?.querySelector<HTMLButtonElement>('button[aria-label="Hold to talk"]');
-      expect(mic).not.toBeNull();
-      act(() => mic?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
-      act(() => onFinal("dictated words"));
-      type(textarea, "typed draft");
-      await act(async () => {
-        if (throws) fail(new Error("offline"));
-        else finish(false);
-      });
-      expect(textarea.value).toBe("typed draft dictated words");
-    } finally {
-      listen.mockRestore();
-    }
-  },
-);
+describe("composer dictation", () => {
+  const mic = () =>
+    container?.querySelector<HTMLButtonElement>('button[aria-label="Start voice input"]');
+  const chip = () => container?.querySelector<HTMLButtonElement>('[data-testid="dictation-chip"]');
+  const button = (label: string) =>
+    container?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  type Emit = (snapshot: {
+    status: "idle" | "listening" | "transcribing";
+    transcript: string;
+  }) => void;
+  const emit: Emit = (snapshot) => act(() => (dictation as unknown as { set: Emit }).set(snapshot));
+  let onFinal: (text: string) => void;
+  let listen: ReturnType<typeof vi.spyOn>;
+  let submit: ReturnType<typeof vi.spyOn>;
+  let stop: ReturnType<typeof vi.spyOn>;
 
-it("hides call dictation until the server enables it", () => {
-  renderComposer(vi.fn().mockResolvedValue(true));
-  expect(container?.querySelector('button[aria-label="Hold to talk"]')).toBeNull();
+  beforeEach(() => {
+    listen = vi.spyOn(dictation, "listen").mockImplementation(async (options) => {
+      onFinal = options.onFinal;
+      (dictation as unknown as { set: Emit }).set({ status: "listening", transcript: "" });
+    });
+    // The words come back the way dictation hands them over: idle first, then the text.
+    submit = vi.spyOn(dictation, "submitHold").mockImplementation(() => {
+      (dictation as unknown as { set: Emit }).set({ status: "idle", transcript: "" });
+      onFinal("dictated words");
+    });
+    stop = vi.spyOn(dictation, "stop");
+  });
+
+  afterEach(() => {
+    listen.mockRestore();
+    submit.mockRestore();
+    stop.mockRestore();
+  });
+
+  it("records on click and puts the words in the field when the chip stops it", () => {
+    const onSend = vi.fn();
+    const textarea = renderComposer(onSend, { phoneCallsEnabled: true });
+    type(textarea, "typed draft");
+    act(() => mic()?.click());
+    expect(listen).toHaveBeenCalledWith(expect.objectContaining({ mode: "hold", meter: true }));
+    expect(mic()).toBeNull();
+    expect(chip()?.getAttribute("aria-label")).toBe("Stop dictation");
+    expect(textarea.placeholder).toBe("Listening…");
+    act(() => chip()?.click());
+    expect(textarea.value).toBe("typed draft dictated words");
+    expect(onSend).not.toHaveBeenCalled();
+    expect(chip()).toBeNull();
+    expect(mic()).not.toBeNull();
+  });
+
+  it("sends the draft with the words when the arrow stops it", async () => {
+    const onSend = vi.fn().mockResolvedValue(true);
+    const textarea = renderComposer(onSend, { phoneCallsEnabled: true, onVoice: vi.fn() });
+    act(() => mic()?.click());
+    // While recording, the voice button is the send arrow.
+    expect(button("Voice")).toBeNull();
+    await act(async () => button("Send")?.click());
+    expect(onSend).toHaveBeenCalledWith("dictated words", [], expect.any(String));
+    expect(textarea.value).toBe("");
+  });
+
+  it("keeps focus in the field while recording, so Escape there discards the take", () => {
+    const textarea = renderComposer(vi.fn(), { phoneCallsEnabled: true });
+    act(() => mic()?.click());
+    expect(document.activeElement).toBe(textarea);
+    act(() => {
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(stop).toHaveBeenCalledWith("cancel");
+    expect(chip()).toBeNull();
+  });
+
+  it("hands focus back to the field after the chip stops the take", () => {
+    const textarea = renderComposer(vi.fn(), { phoneCallsEnabled: true });
+    act(() => mic()?.click());
+    // The chip takes focus when clicked, then disappears with the take.
+    chip()?.focus();
+    act(() => chip()?.click());
+    expect(chip()).toBeNull();
+    expect(document.activeElement).toBe(textarea);
+  });
+
+  it("discards the take on Escape", () => {
+    const textarea = renderComposer(vi.fn(), { phoneCallsEnabled: true });
+    act(() => mic()?.click());
+    act(() => {
+      chip()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(stop).toHaveBeenCalledWith("cancel");
+    expect(chip()).toBeNull();
+    expect(textarea.value).toBe("");
+  });
+
+  it("shows only a spinner while the words are transcribed", () => {
+    const textarea = renderComposer(vi.fn(), { phoneCallsEnabled: true, onVoice: vi.fn() });
+    act(() => mic()?.click());
+    emit({ status: "transcribing", transcript: "" });
+    expect(container?.querySelector('[role="status"][aria-label="Transcribing…"]')).not.toBeNull();
+    expect(button("Send")).toBeNull();
+    expect(textarea.placeholder).toBe("Transcribing…");
+  });
+
+  it("hides the mic until the server enables calls", () => {
+    renderComposer(vi.fn().mockResolvedValue(true));
+    expect(mic()).toBeNull();
+  });
+});
+
+describe("composer while a bot works", () => {
+  it("sends on one Enter pressed while Stop is in flight, once the run shows as stopped", () => {
+    const onSend = vi.fn().mockResolvedValue(true);
+    const textarea = renderComposer(onSend, { running: true, stopping: true });
+    type(textarea, "next message");
+    pressEnter(textarea);
+    expect(onSend).not.toHaveBeenCalled();
+    // The run is cancelled before the stop request returns: the message goes now.
+    rerenderComposer({ running: false });
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith("next message", [], expect.any(String));
+  });
+
+  it("sends at once once a stopped run is gone, even before the stop request returns", () => {
+    const onSend = vi.fn().mockResolvedValue(true);
+    const textarea = renderComposer(onSend, { running: false, stopping: true });
+    type(textarea, "next message");
+    pressEnter(textarea);
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends the controls with Stop, which stops the run, as does Escape", () => {
+    const onStop = vi.fn(async () => {});
+    const textarea = renderComposer(vi.fn(), {
+      running: true,
+      onStop,
+      onVoice: vi.fn(),
+      phoneCallsEnabled: true,
+    });
+    const labels = Array.from(
+      textarea.closest("fieldset")?.querySelectorAll("button[aria-label]") ?? [],
+    ).map((button) => button.getAttribute("aria-label"));
+    expect(labels.slice(-3)).toEqual(["Start voice input", "Voice", "Stop"]);
+    act(() => container?.querySelector<HTMLButtonElement>('button[aria-label="Stop"]')?.click());
+    expect(onStop).toHaveBeenCalledTimes(1);
+    act(() => {
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(onStop).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops Stop once the bot is done", () => {
+    renderComposer(vi.fn(), { running: false, onVoice: vi.fn() });
+    expect(container?.querySelector('button[aria-label="Stop"]')).toBeNull();
+  });
+});
+
+describe("composer voice button", () => {
+  const voiceButton = () =>
+    container?.querySelector<HTMLButtonElement>('button[aria-label="Voice"]');
+  const sendButton = () => container?.querySelector<HTMLButtonElement>('button[aria-label="Send"]');
+
+  afterEach(() => {
+    callSession.current = null;
+  });
+
+  it("takes the send button's place while there is nothing to send, and starts voice mode", () => {
+    const onVoice = vi.fn();
+    const onSend = vi.fn();
+    renderComposer(onSend, { onVoice, phoneCallsEnabled: true });
+    expect(sendButton()).toBeNull();
+    expect(voiceButton()?.disabled).toBe(false);
+    expect(container?.querySelector('button[aria-label="Start voice input"]')).not.toBeNull();
+    act(() => voiceButton()?.click());
+    expect(onVoice).toHaveBeenCalledTimes(1);
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("turns into send once the draft has text or an attachment, keeping the mic", () => {
+    const textarea = renderComposer(vi.fn(), { onVoice: vi.fn(), phoneCallsEnabled: true });
+    const voice = voiceButton();
+    type(textarea, "hi");
+    expect(voiceButton()).toBeNull();
+    expect(sendButton()?.disabled).toBe(false);
+    // One button whose glyphs swap, so the change can animate.
+    expect(sendButton()).toBe(voice);
+    // Like Grok, the mic stays beside it.
+    expect(container?.querySelector('button[aria-label="Start voice input"]')).not.toBeNull();
+    type(textarea, "");
+    expect(voiceButton()).not.toBeNull();
+    rerenderComposer({
+      pendingAttachments: [
+        { id: "a", threadKey: "bot-1", file: new File(["x"], "a.txt", { type: "text/plain" }) },
+      ],
+    });
+    expect(voiceButton()).toBeNull();
+    expect(sendButton()).not.toBeNull();
+  });
+
+  it("stays a disabled send button without voice mode", () => {
+    renderComposer(vi.fn());
+    expect(voiceButton()).toBeNull();
+    expect(sendButton()?.disabled).toBe(true);
+  });
+
+  it("is disabled during a call", () => {
+    callSession.current = { botId: "bot-1" };
+    renderComposer(vi.fn(), { onVoice: vi.fn() });
+    expect(voiceButton()?.disabled).toBe(true);
+  });
 });
 
 describe("composer attachments", () => {
@@ -867,6 +1047,12 @@ describe("computerFrameStyle", () => {
   });
 });
 
+it("hides the working line only while the thread's bot is on a call", () => {
+  expect(showsWorkingLine(true, true)).toBe(false);
+  expect(showsWorkingLine(true, false)).toBe(true);
+  expect(showsWorkingLine(false, false)).toBe(false);
+});
+
 describe("ComposerDock", () => {
   let resize: (() => void) | null = null;
 
@@ -935,7 +1121,15 @@ describe("ComposerDock", () => {
 });
 
 describe("MessageView alignment", () => {
-  const view = (role: ThreadMessage["role"], blocks: ThreadMessage["blocks"]) => {
+  const view = (
+    role: ThreadMessage["role"],
+    blocks: ThreadMessage["blocks"],
+    {
+      voiceReady = false,
+      speaking = false,
+      onSpeak = () => undefined,
+    }: { voiceReady?: boolean; speaking?: boolean; onSpeak?: () => void } = {},
+  ) => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     window.matchMedia ??= () =>
       ({
@@ -970,9 +1164,9 @@ describe("MessageView alignment", () => {
           onRefresh={done}
           onBotChanged={done}
           onAddRoutine={noop}
-          voiceReady={false}
-          speaking={false}
-          onSpeak={noop}
+          voiceReady={voiceReady}
+          speaking={speaking}
+          onSpeak={onSpeak}
           onOpenComputer={noop}
           showToolActivity={false}
           onReply={noop}
@@ -983,6 +1177,49 @@ describe("MessageView alignment", () => {
     );
     return container.firstElementChild as HTMLElement;
   };
+
+  it("puts the speaker in the hover row between reply and more, not in the bubble", () => {
+    const onSpeak = vi.fn();
+    const row = view("bot", [{ kind: "text", text: "Hello" }], { voiceReady: true, onSpeak });
+    const actions = row.querySelector('[data-testid="message-hover-actions"]');
+    const labels = Array.from(actions?.querySelectorAll("[aria-label]") ?? []).map((element) =>
+      element.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual(["React", "Reply", "Speak this reply", "More"]);
+    expect(
+      row.querySelector('[data-testid="message-bot-bubble"] button[aria-label="Speak this reply"]'),
+    ).toBeNull();
+    act(() =>
+      row.querySelector<HTMLButtonElement>('button[aria-label="Speak this reply"]')?.click(),
+    );
+    expect(onSpeak).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets go of focus after a mouse click, so the row hides once reading ends", () => {
+    const row = view("bot", [{ kind: "text", text: "Hello" }], { voiceReady: true });
+    const speak = row.querySelector<HTMLButtonElement>('button[aria-label="Speak this reply"]');
+    speak?.focus();
+    act(() => {
+      speak?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    });
+    expect(document.activeElement).not.toBe(speak);
+    speak?.focus();
+    act(() => {
+      speak?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+    });
+    expect(document.activeElement).toBe(speak);
+  });
+
+  it("keeps the stop button showing while a reply is read aloud", () => {
+    const row = view("bot", [{ kind: "text", text: "Hello" }], {
+      voiceReady: true,
+      speaking: true,
+    });
+    expect(row.querySelector('button[aria-label="Stop speaking"]')).not.toBeNull();
+    expect(row.querySelector('[data-testid="message-hover-rail"]')?.className).not.toContain(
+      "opacity-0",
+    );
+  });
 
   it("keeps a group-chat message row centered when it arrives as a user message", () => {
     const column = view("user", [

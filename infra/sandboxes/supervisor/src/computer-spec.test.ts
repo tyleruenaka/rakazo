@@ -202,6 +202,20 @@ describe("graphical computer spec", () => {
     });
   });
 
+  it("sets the computer's time zone only when one is given", () => {
+    const base = {
+      name: "rakazo-bot-x",
+      image: "img",
+      botId: "x",
+      spaceId: "s",
+      homePath: "/data/x",
+    };
+    expect(containerCreateOptions(base).Env.some((entry) => entry.startsWith("TZ="))).toBe(false);
+    expect(containerCreateOptions({ ...base, timeZone: "Pacific/Auckland" }).Env).toContain(
+      "TZ=Pacific/Auckland",
+    );
+  });
+
   it("matches a computer's DNS servers to the configured ones", () => {
     expect(computerDnsMatches(null, undefined)).toBe(true);
     expect(computerDnsMatches([], undefined)).toBe(true);

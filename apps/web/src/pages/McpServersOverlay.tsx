@@ -370,7 +370,7 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
         className="flex max-h-[calc(100%-2rem)] w-[960px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 sm:max-w-[960px]"
       >
         <DialogHeader className="flex-row items-center justify-between border-b border-border px-6 py-5">
-          <DialogTitle className="text-xl text-foreground">
+          <DialogTitle className="text-xl font-medium text-foreground">
             <Trans>MCP servers</Trans>
           </DialogTitle>
           <DialogClose
@@ -395,7 +395,7 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <FieldGroup className="gap-4">
+              <FieldGroup className="gap-4 [&_[data-slot=field-label]]:text-[13px]">
                 <Field>
                   <FieldLabel htmlFor="mcp-name">
                     <Trans>Server name</Trans>

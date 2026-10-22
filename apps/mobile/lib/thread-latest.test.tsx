@@ -38,7 +38,7 @@ describe("mobile jump to latest", () => {
       "paddingBottom: 12 + 44 + 16",
     );
     // The button stays floating over the transcript rather than resizing it.
-    expect(source).toContain('position: "absolute", end: 0, bottom: 12');
+    expect(source).toContain('position: "absolute", end: 14, bottom: 8');
   });
 
   it.each(["no newer gap", "newer pages closed the gap"])(

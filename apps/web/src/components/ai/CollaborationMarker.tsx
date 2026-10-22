@@ -9,14 +9,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  GroupAvatar,
-  type GroupAvatarMember,
   useAvatarStyle,
 } from "@rakazo/ui-web";
 import { ChevronDown } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Fragment } from "react";
-import { LoadingState } from "./primitives";
 
 /** The bot-to-bot exchange chip: a pill that fills on hover and keyboard focus, like Grok. */
 const peerChipClass =
@@ -234,14 +231,6 @@ export function CollaborationMarkerGroup({
     >
       <span>{label}</span>
       {chips}
-    </div>
-  );
-}
-
-export function ActiveBotGlyph({ bots, label }: { bots: GroupAvatarMember[]; label: string }) {
-  return (
-    <div className="flex min-h-10 items-center px-1">
-      <LoadingState indicator={<GroupAvatar members={bots} size={28} />} label={label} />
     </div>
   );
 }

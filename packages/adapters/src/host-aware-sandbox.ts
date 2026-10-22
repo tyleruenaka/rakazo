@@ -92,6 +92,7 @@ export class HostAwareSandbox implements SandboxProvider {
       homePath: string;
       providerRef?: string;
       providerKind?: ComputerRef["kind"];
+      timeZone?: string;
     },
     context: AdapterContext,
   ) {

@@ -187,7 +187,7 @@ export default function Account() {
     <SettingsRow
       accessible
       title={t("Usage")}
-      detail={
+      value={
         usage
           ? t("{runs} runs · {tokens} tokens", {
               runs: usage.runs,
@@ -395,10 +395,20 @@ export default function Account() {
           <SettingsRow
             accessible
             detail={me?.email && account.label !== me.email ? me.email : undefined}
-            prominent
             title={account.label}
           />
           {focus !== "usage" ? usageBlock : null}
+        </SettingsGroup>
+
+        <SettingsGroup>
+          <SettingsRow
+            accessibilityRole="button"
+            chevron="right"
+            detail={t("Search plugins")}
+            disabled={pending}
+            onPress={() => router.push("/integrations")}
+            title={t("Connect apps")}
+          />
         </SettingsGroup>
 
         {(security?.sso && !security.ssoLinked) || canChangePassword ? (
@@ -613,7 +623,6 @@ export default function Account() {
               { title: t("Artifacts"), href: "/artifacts" },
               { title: t("Models"), href: "/models" },
               { title: t("Voice"), href: "/voice" },
-              { title: t("Integrations"), href: "/integrations" },
               { title: t("AI data sharing"), href: "/ai-data-sharing" },
             ] as const
           ).map(({ title, href }) => (
@@ -664,22 +673,20 @@ export default function Account() {
           ) : null}
         </SettingsGroup>
 
-        <View style={styles.section}>
-          <NativeActionButton
+        <SettingsGroup>
+          <SettingsRow
+            accessibilityRole="button"
             disabled={pending}
-            fill
-            label={t("Sign out")}
+            dimmed={pending}
             onPress={() => void handleSignOut()}
-            prominence="secondary"
+            title={t("Sign out")}
           />
-          <SettingsGroup>
-            {signOutError ? (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {signOutError}
-              </Text>
-            ) : null}
-          </SettingsGroup>
-        </View>
+          {signOutError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {signOutError}
+            </Text>
+          ) : null}
+        </SettingsGroup>
 
         {archivedCount > 0 ? (
           <SettingsGroup>
@@ -836,12 +843,12 @@ function createAccountStyles() {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: native.groupedPage,
+      backgroundColor: tokens.sheetPage,
     },
     content: {
       flexGrow: 1,
       paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingTop: 28,
       paddingBottom: 32,
       gap: 28,
     },
@@ -860,11 +867,11 @@ function createAccountStyles() {
     },
     option: {
       minHeight: 48,
-      borderRadius: 14,
+      borderRadius: 16,
       borderCurve: "continuous",
-      borderWidth: 2,
-      borderColor: "transparent",
-      backgroundColor: native.groupedCell,
+      borderWidth: 1,
+      borderColor: tokens.sheetBorder,
+      backgroundColor: tokens.sheetCell,
       paddingHorizontal: 12,
       paddingVertical: 12,
       alignItems: "center",

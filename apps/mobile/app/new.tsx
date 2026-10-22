@@ -1,21 +1,19 @@
-import type { ComputerMode } from "@rakazo/contracts";
-import {
-  BOT_DESCRIPTION_MAX_LENGTH,
-  BOT_NAME_MAX_LENGTH,
-  BOT_TITLE_MAX_LENGTH,
-  normalizeCreateBotProfile,
-} from "@rakazo/contracts";
-import { Stack, useRouter } from "expo-router";
+import { BOT_NAME_MAX_LENGTH, normalizeCreateBotProfile } from "@rakazo/contracts";
+import { BOT_AVATAR_COLORS, SHIPPED_BOT_AVATAR_SHAPE_KEYS } from "@rakazo/core";
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text, TextInput } from "react-native";
-import { ComputerModePicker } from "../components/computer-mode-picker";
-import { NativeActionButton } from "../components/native-action-button";
-import { cancelHeaderOptions } from "../components/sheet-header";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
+import { AvatarPicker } from "../components/avatar-picker";
+import { BotAvatar } from "../components/bot-avatar";
+import { botHintColor } from "../components/bot-card";
+import { GlassIconButton } from "../components/glass-icon-button";
 import type { MobileBot } from "../lib/api";
 import { rpc } from "../lib/api";
+import { withAvatarShape } from "../lib/bot-avatar-edit";
 import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
 import { useI18n } from "../lib/i18n";
-import { native, useMobileTokens } from "../lib/native";
+import { useMobileTokens } from "../lib/native";
 import { errorText } from "../lib/user-error";
 
 export default function NewBot() {
@@ -23,11 +21,15 @@ export default function NewBot() {
   const tokens = useMobileTokens();
   const router = useRouter();
   const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [computerMode, setComputerMode] = useState<ComputerMode>("team");
+  const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Create rides 12pt above the keyboard so it stays reachable; with the keyboard up the sheet
+  // reaches the screen's bottom edge.
+  const keyboard = useAnimatedKeyboard();
+  const footerStyle = useAnimatedStyle(() => ({
+    paddingBottom: Math.max(28, keyboard.height.value + 12),
+  }));
 
   function close() {
     if (router.canDismiss()) {
@@ -50,9 +52,9 @@ export default function NewBot() {
       const existing = await rpc<MobileBot[]>("bots/list").catch(() => null);
       const isFirstBot = existing !== null && existing.length === 0;
       const bot = await rpc<MobileBot>("bots/create", {
-        ...normalizeCreateBotProfile({ name, title, description }),
+        ...normalizeCreateBotProfile({ name, title: "", description: "" }),
         notifyOnFinish: true,
-        computerMode,
+        color: avatar,
       });
       allowFocusPrompt(bot.id);
       router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
@@ -70,78 +72,125 @@ export default function NewBot() {
     }
   }
 
+  const ready = !!name.trim() && !pending;
+
   return (
-    <>
-      <Stack.Screen options={cancelHeaderOptions(t("Cancel"), close)} />
+    // The native sheet needs a real root view to attach to; a flattened one leaves it empty.
+    <View collapsable={false} style={[styles.sheet, { backgroundColor: tokens.card }]}>
       <ScrollView
         automaticallyAdjustKeyboardInsets
-        contentInsetAdjustmentBehavior="automatic"
-        style={{ flex: 1, backgroundColor: tokens.background }}
-        contentContainerStyle={{ padding: 24 }}
+        contentInsetAdjustmentBehavior="never"
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
+        <View style={styles.header}>
+          <GlassIconButton
+            accessibilityLabel={t("Close")}
+            android="close"
+            iconSize={19}
+            ios="xmark"
+            onPress={close}
+            size={44}
+          />
+          <Text accessibilityRole="header" style={[styles.title, { color: tokens.foreground }]}>
+            {t("Create New Bot")}
+          </Text>
+        </View>
+        <View style={styles.preview}>
+          <BotAvatar color={avatar} identity={PREVIEW_IDENTITY} size={196} />
+        </View>
         <TextInput
+          accessibilityLabel={t("Name")}
           value={name}
           maxLength={BOT_NAME_MAX_LENGTH}
           onChangeText={setName}
-          placeholder={t("Name this bot")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-          }}
+          placeholder={t("Name your Bot")}
+          placeholderTextColor={botHintColor()}
+          returnKeyType="done"
+          onSubmitEditing={() => void create()}
+          style={[
+            styles.name,
+            {
+              color: tokens.foreground,
+              backgroundColor: tokens.glassFill,
+              borderColor: tokens.popoverBorder,
+            },
+          ]}
         />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Title")}
-        </Text>
-        <TextInput
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChangeText={setTitle}
-          placeholder={t("Describe what this bot does")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-          }}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Description")}
-        </Text>
-        <TextInput
-          value={description}
-          maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-          onChangeText={setDescription}
-          placeholder={t("What this bot is for")}
-          placeholderTextColor={tokens.mutedForeground}
-          multiline
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-            minHeight: 120,
-            textAlignVertical: "top",
-          }}
-        />
-        <ComputerModePicker value={computerMode} onChange={setComputerMode} />
-        {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
-        <NativeActionButton
-          disabled={!name.trim() || pending}
-          label={pending ? t("Creating…") : t("Create")}
-          onPress={() => void create()}
-          style={{ marginTop: 24 }}
-        />
+        <View style={styles.picker}>
+          <AvatarPicker identity={PREVIEW_IDENTITY} onChange={setAvatar} value={avatar} />
+        </View>
+        {error ? <Text style={[styles.error, { color: tokens.destructive }]}>{error}</Text> : null}
       </ScrollView>
-    </>
+      <Animated.View style={[styles.footer, footerStyle]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !ready }}
+          disabled={!ready}
+          onPress={() => void create()}
+          style={({ pressed }) => [
+            styles.create,
+            { backgroundColor: tokens.primary },
+            !ready && styles.createDisabled,
+            pressed && styles.createPressed,
+          ]}
+        >
+          <Text style={[styles.createLabel, { color: tokens.primaryForeground }]}>
+            {pending ? t("Creating…") : t("Create")}
+          </Text>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
+
+// Grok starts a new bot as a grey cloud.
+const DEFAULT_AVATAR = withAvatarShape(
+  BOT_AVATAR_COLORS.at(-1) ?? "",
+  SHIPPED_BOT_AVATAR_SHAPE_KEYS.indexOf("cloud"),
+);
+
+// Seeds the default look in the preview and the shape grid until the bot has an id.
+const PREVIEW_IDENTITY = "new-bot";
+
+const styles = StyleSheet.create({
+  sheet: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingTop: 16,
+    marginStart: -2,
+  },
+  title: { fontSize: 17 },
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 24 },
+  footer: { paddingHorizontal: 16 },
+  preview: { alignItems: "center", marginTop: -13 },
+  name: {
+    marginTop: 44,
+    height: 54,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    fontSize: 22,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  picker: { marginTop: 34 },
+  error: { marginTop: 16, textAlign: "center" },
+  create: {
+    marginHorizontal: 13,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Grok greys the whole pill out until the bot has a name.
+  createDisabled: { opacity: 0.5 },
+  createPressed: { opacity: 0.8 },
+  createLabel: { fontSize: 17, fontWeight: "500" },
+});

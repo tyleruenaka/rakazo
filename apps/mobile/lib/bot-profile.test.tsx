@@ -54,6 +54,7 @@ vi.mock("react-native", () => {
   const view = ({ children }: { children?: ReactNode }) => createElement("div", null, children);
   return {
     Platform: { OS: "ios" },
+    PlatformColor: (name: string) => name,
     StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
     useWindowDimensions: () => ({ fontScale: 1, width: 390 }),
     ActivityIndicator: () => createElement("progress"),
@@ -185,65 +186,34 @@ function profileRpc(
 }
 
 describe("bot profile", () => {
-  it("links the bot's settings, artifacts and computer", async () => {
+  it("opens editing, routines, the library and the computer", async () => {
     profileRpc(async () => []);
     await render(createElement(BotProfile));
 
-    expect(container.textContent).toContain("Helper");
-    button("Chat settings").click();
-    button("Artifacts").click();
+    button("Edit").click();
+    button("Routines").click();
+    button("Library").click();
     button("Computer").click();
     expect(push.mock.calls).toEqual([
       [{ pathname: "/bot-settings", params: { botId: "bot-fixture" } }],
+      [{ pathname: "/routine", params: { botId: "bot-fixture", botName: "Fixture" } }],
       [{ pathname: "/artifacts", params: { botId: "bot-fixture" } }],
       [{ pathname: "/computer", params: { botId: "bot-fixture", name: "Fixture" } }],
     ]);
   });
 
-  it("hides routines while they load and when there are none", async () => {
-    profileRpc(() => new Promise(() => undefined));
+  it("counts the routines that are on once they load", async () => {
+    let load!: (rows: unknown) => void;
+    profileRpc(() => new Promise((resolve) => (load = resolve)));
     await render(createElement(BotProfile));
     expect(rpc).toHaveBeenCalledWith("routines/list", { botId: "bot-fixture" });
-    expect(container.textContent).not.toContain("Routines");
+    expect(button("Routines").textContent).toBe("Routines");
 
-    act(() => root.unmount());
-    root = createRoot(container);
-    profileRpc(async () => []);
-    await render(createElement(BotProfile));
-    expect(container.textContent).not.toContain("Routines");
-  });
-
-  it("lists routines soonest first with readable details and opens them", async () => {
-    profileRpc(async () => [
-      routine("r3", "Inbox webhook", { webhookEnabled: true }),
-      routine("r1", "Morning digest", {
-        crons: ["0 7 * * 1-5"],
-        nextRunAt: "2026-10-20T05:00:00.000Z",
-      }),
-      routine("r2", "Weekly report", {
-        active: false,
-        crons: ["0 9 * * 1"],
-        timezone: "America/New_York",
-        nextRunAt: "2026-10-19T13:00:00.000Z",
-      }),
-    ]);
-    await render(createElement(BotProfile));
-
-    expect(container.textContent).toContain("Routines");
-    const rows = [...container.querySelectorAll("button")]
-      .map((node) => node.textContent ?? "")
-      .filter((text) => /digest|report|webhook/.test(text));
-    expect(rows).toEqual([
-      "Weekly reportEvery Monday at 9:00 AM · America/New_York · Paused",
-      "Morning digestWeekdays at 7:00 AM",
-      "Inbox webhookWebhook",
-    ]);
-    button("Weekly report").click();
-    expect(push).toHaveBeenCalledWith({
-      pathname: "/routine",
-      params: { botId: "bot-fixture", botName: "Fixture", routineId: "r2", origin: "profile" },
-    });
-    expect(button("Morning digest")).toBeTruthy();
+    await act(async () =>
+      load([routine("r1", "Morning digest"), routine("r2", "Weekly", { active: false })]),
+    );
+    // The i18n mock leaves placeholders as they are.
+    expect(button("Routines").textContent).toBe("Routines{count} on");
   });
 
   it("shows a failed routine load as a row that retries", async () => {
@@ -253,13 +223,12 @@ describe("bot profile", () => {
       return [routine("r1", "Morning digest")];
     });
     await render(createElement(BotProfile));
-    expect(container.textContent).toContain("Routines");
     expect(container.textContent).toContain("offline");
 
     fail = false;
     await act(async () => button("Try again.").click());
     expect(container.textContent).not.toContain("Try again.");
-    expect(button("Morning digest")).toBeTruthy();
+    expect(button("Routines").textContent).toBe("Routines{count} on");
   });
 
   it("lets only the latest routine load decide what shows", async () => {
@@ -280,12 +249,12 @@ describe("bot profile", () => {
     await act(async () => loads[1]!.reject(new Error("offline")));
 
     expect(container.textContent).not.toContain("Try again.");
-    expect(button("Morning digest")).toBeTruthy();
+    expect(button("Routines").textContent).toBe("Routines{count} on");
   });
 });
 
 describe("bot profile notifications", () => {
-  const footer = "Get notified when this Bot finishes or needs input";
+  const footer = "Get notified when this Bot finishes or is waiting for you";
   const notificationsSwitch = () =>
     container.querySelector<HTMLInputElement>('input[aria-label="Notifications"]');
 
@@ -301,7 +270,7 @@ describe("bot profile notifications", () => {
   });
 
   it.each([true, false])(
-    "shows the bot's setting (%s) after the routines, with what it covers",
+    "shows the bot's setting (%s) after the rows, with what it covers",
     async (notifyOnFinish) => {
       profileRpc(async () => [routine("r1", "Morning digest")], {
         bot: async () => ({ ...fixtureBot, notifyOnFinish }),
@@ -310,7 +279,7 @@ describe("bot profile notifications", () => {
 
       expect(notificationsSwitch()?.checked).toBe(notifyOnFinish);
       const text = container.textContent ?? "";
-      expect(text.indexOf("Notifications")).toBeGreaterThan(text.indexOf("Morning digest"));
+      expect(text.indexOf("Notifications")).toBeGreaterThan(text.indexOf("Computer"));
       expect(text.indexOf(footer)).toBeGreaterThan(text.indexOf("Notifications"));
     },
   );
@@ -409,7 +378,7 @@ describe("bot profile notifications", () => {
       await act(async () => notificationsSwitch()!.click());
       if (when === "during") await refocus();
       await act(async () => save());
-      await act(async () => reads[1]!({ ...fixtureBot, title: "Reloaded" }));
+      await act(async () => reads[1]!({ ...fixtureBot, name: "Reloaded" }));
       expect(container.textContent).toContain("Reloaded");
       expect(notificationsSwitch()!.checked).toBe(false);
 
@@ -436,7 +405,7 @@ describe("bot profile notifications", () => {
 
     await act(async () => notificationsSwitch()!.click());
     await refocus();
-    await act(async () => reads[1]!({ ...fixtureBot, title: "Reloaded" }));
+    await act(async () => reads[1]!({ ...fixtureBot, name: "Reloaded" }));
     expect(container.textContent).toContain("Reloaded");
     expect(notificationsSwitch()!.checked).toBe(false);
     expect(notificationsSwitch()!.disabled).toBe(false);

@@ -14,13 +14,14 @@ import {
   resolvePersonaColorDef,
   resolvePersonaShape,
 } from "./bot-avatar.js";
+import { BotMotionProvider } from "./bot-motion.js";
 
 describe("BotAvatar", () => {
   it("renders distinct SVG gradient IDs for concurrent working avatars", () => {
     const html = renderToString(
       <div>
-        <BotAvatar color="#8B5CF6" status="running" variant="robot" />
-        <BotAvatar color="#10B981" status="running" variant="robot" />
+        <BotAvatar color="#8B5CF6" status="running" animated variant="robot" />
+        <BotAvatar color="#10B981" status="running" animated variant="robot" />
       </div>,
     );
 
@@ -34,7 +35,7 @@ describe("BotAvatar", () => {
   });
 
   it.each([...ACTIVE_RUN_STATUSES])("marks active run status %s as working", (status) => {
-    const html = renderToString(<BotAvatar color="#3B82F6" status={status} />);
+    const html = renderToString(<BotAvatar color="#3B82F6" status={status} animated />);
     expect(html).toContain("<svg");
     expect(html).toContain('data-working="true"');
   });
@@ -78,6 +79,7 @@ describe("BotAvatar", () => {
         size={28}
         variant="robot"
         status="running"
+        animated
       />,
     );
     expect(html).toContain("rakazo-bot-avatar-visor");
@@ -129,7 +131,13 @@ describe("BotAvatar", () => {
 
   it("keeps a working photo ring outside the clipped image and uses the status token", () => {
     const html = renderToString(
-      <BotAvatar color="data:image/png;base64,abc" identity="maya" size={32} status="running" />,
+      <BotAvatar
+        color="data:image/png;base64,abc"
+        identity="maya"
+        size={32}
+        status="running"
+        animated
+      />,
     );
     expect(html).toContain('class="rakazo-bot-avatar relative shrink-0 select-none"');
     expect(html).toContain("rakazo-bot-avatar-picture");
@@ -161,12 +169,97 @@ describe("BotAvatar", () => {
     expect(html).not.toContain("evil.example");
   });
 
-  it("honors reduced-motion for the working mascot pulse class", () => {
+  it("shows a working studio shape as a busy character instead of a glowing ring", () => {
     const html = renderToString(
-      <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status="running" />,
+      <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status="running" animated />,
     );
-    expect(html).toContain("animate-pulse");
-    expect(html).toContain("motion-reduce:animate-none");
+    expect(html).toContain('data-motion="busy"');
+    expect(html).not.toContain("rakazo-bot-avatar-ring");
+    expect(html).not.toContain("drop-shadow");
+  });
+
+  it("folds into Grok's morph figures for searching, writing, creating, messaging and waiting", () => {
+    for (const motion of ["searching", "writing", "creating", "messaging", "waiting"] as const) {
+      const html = renderToString(
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} motion={motion} />,
+      );
+      expect(html, motion).toContain(`data-motion="${motion}"`);
+      expect(html, motion).toContain("rakazo-character-glyph");
+      expect(html, motion).toContain("<animate");
+    }
+    const idle = renderToString(<BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} />);
+    expect(idle).not.toContain("rakazo-character-glyph");
+  });
+
+  it("looks blocked while its run waits on the user", () => {
+    for (const status of ["waiting_input", "waiting_takeover"]) {
+      const html = renderToString(
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status={status} animated />,
+      );
+      expect(html).toContain('data-motion="blocked"');
+      expect(html).toContain('data-face="confused"');
+    }
+  });
+
+  it("stays still unless animated, as Grok's header pill and panel avatars do", () => {
+    const live = new Map([["maya", "thinking" as const]]);
+    const html = renderToString(
+      <BotMotionProvider value={live}>
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status="running" />
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status="waiting_input" />
+      </BotMotionProvider>,
+    );
+    expect([...html.matchAll(/data-motion="(\w+)"/g)].map((m) => m[1])).toEqual(["idle", "idle"]);
+    expect(html).toContain('data-working="false"');
+  });
+
+  it("idles with Grok's loop only when lively, and lets live faces win", () => {
+    const live = new Map([["maya", "thinking" as const]]);
+    const faces = renderToString(
+      <BotMotionProvider value={live}>
+        <BotAvatar color="#8B5CF6::shape_0" identity="otto" size={32} animated lively />
+        <BotAvatar color="#8B5CF6::shape_0" identity="otto" size={32} animated />
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} animated lively />
+      </BotMotionProvider>,
+    );
+    expect([...faces.matchAll(/data-motion="([\w-]+)"/g)].map((m) => m[1])).toEqual([
+      "idle-loop",
+      "idle",
+      "thinking",
+    ]);
+  });
+
+  it("shows the in-call face the call sets, over live and working faces", () => {
+    const live = new Map([["maya", "busy" as const]]);
+    const faces = (["listening", "thinking", "speaking", "idle"] as const).map(
+      (call) =>
+        renderToString(
+          <BotMotionProvider value={live}>
+            <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} animated call={call} />
+          </BotMotionProvider>,
+        ).match(/data-motion="([\w-]+)"/)?.[1],
+    );
+    expect(faces).toEqual(["listening", "thinking", "speaking", "idle-loop"]);
+  });
+
+  it("takes the live motion of its bot, and an explicit motion over it", () => {
+    const live = new Map([["maya", "thinking" as const]]);
+    const html = renderToString(
+      <BotMotionProvider value={live}>
+        <BotAvatar color="#8B5CF6::shape_0" identity="maya" size={32} status="running" animated />
+        <BotAvatar color="#8B5CF6" identity="maya" size={32} animated />
+        <BotAvatar color="#8B5CF6" identity="maya" size={32} motion="done" />
+        <BotAvatar color="#8B5CF6" identity="otto" size={32} animated />
+      </BotMotionProvider>,
+    );
+    expect([...html.matchAll(/data-motion="(\w+)"/g)].map((m) => m[1])).toEqual([
+      "thinking",
+      "thinking",
+      "done",
+      "idle",
+    ]);
+    expect(html).toContain("rakazo-character-dots");
+    expect(html).toContain('data-face="happy"');
   });
 
   it("restores a plain color that renders the animated robot instead of a pinned shape", () => {
@@ -374,13 +467,13 @@ describe("botAvatarOutline", () => {
   const drawnPaths = (html: string) =>
     [...html.matchAll(/<path[^>]* d="([^"]+)"/g)].map((m) => m[1]);
 
-  it("matches the organic blob BotAvatar draws, with both ends of its idle morph", () => {
+  it("matches the organic blob BotAvatar draws, which holds still at rest", () => {
     const outline = botAvatarOutline("#14B8A6", "otto", "organic");
     const html = renderToString(<BotAvatar color="#14B8A6" identity="otto" variant="organic" />);
     expect(outline?.viewBox).toBe("-60 -60 120 120");
-    expect(outline?.paths).toHaveLength(2);
+    expect(outline?.paths).toHaveLength(1);
     expect(drawnPaths(html)).toContain(outline?.paths[0]);
-    expect(html).toContain(outline?.paths[1]);
+    expect(html).not.toContain("<animate");
   });
 
   it("matches a picked shape in either avatar style", () => {

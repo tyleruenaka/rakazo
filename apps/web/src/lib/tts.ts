@@ -34,6 +34,7 @@ export class Speaker {
   private objectUrl: string | null = null;
   private settlePlayback: ((finished: boolean) => void) | null = null;
   private request: AbortController | null = null;
+  private playing: MediaStream | null = null;
 
   subscribe(fn: (s: SpeechSnapshot) => void): () => void {
     this.watchers.add(fn);
@@ -45,6 +46,11 @@ export class Speaker {
 
   get state(): SpeechSnapshot {
     return this.snapshot;
+  }
+
+  /** The voice that is playing, for a level meter; null where the browser cannot tap it. */
+  get stream(): MediaStream | null {
+    return this.playing;
   }
 
   private set(next: SpeechSnapshot) {
@@ -67,6 +73,7 @@ export class Speaker {
   }
 
   private teardownAudio() {
+    this.playing = null;
     if (this.audio) {
       this.audio.pause();
       this.audio.src = "";
@@ -213,7 +220,15 @@ export class Speaker {
       this.settlePlayback = done;
       audio.onended = () => done(true);
       audio.onerror = () => done(false);
-      audio.play().catch(() => done(false));
+      audio
+        .play()
+        .then(() => {
+          if (settled) return;
+          const tap = audio as HTMLAudioElement & { captureStream?: () => MediaStream };
+          this.playing = tap.captureStream?.() ?? null;
+          if (this.playing) this.set({ ...this.snapshot });
+        })
+        .catch(() => done(false));
     });
   }
 }

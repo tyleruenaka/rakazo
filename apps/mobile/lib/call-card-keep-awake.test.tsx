@@ -130,7 +130,7 @@ describe("CallCard keep-awake lifetime", () => {
     await act(async () => {
       startCall({ botId: "bot-1", botName: "Ada" }, deps);
     });
-    expect(container.textContent).toContain("Ada");
+    expect(container.querySelector('button[aria-label="On a call with {name}"]')).not.toBeNull();
     expect(useKeepAwake).toHaveBeenCalledWith("rakazo-call");
     expect(activeTags.has("rakazo-call")).toBe(true);
 

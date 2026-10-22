@@ -204,6 +204,10 @@ app.post("/computers", async (c) => {
       botId: z.string().min(1),
       homePath: z.string().min(1),
       spaceId: z.string().min(1),
+      timeZone: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_+/-]{0,63}$/)
+        .optional(),
     })
     .parse(await c.req.json());
   try {
@@ -345,6 +349,8 @@ app.post("/computers", async (c) => {
               controlToken: randomUUID(),
               publishControlPort: controlViaLoopback,
               dns: computerDns,
+              // The requester's saved zone, else the Server's own TZ setting.
+              timeZone: body.timeZone ?? (process.env.TZ || undefined),
             }),
           );
           await container.start();
@@ -1179,6 +1185,15 @@ async function ensureComputerImage() {
             "fluxbox.init",
             "fluxbox.apps",
             "fluxbox.menu",
+            "menubar.tint2rc",
+            "dock.tint2rc",
+            "aiome-mark.svg",
+            "terminal-icon.svg",
+            "files-icon.svg",
+            "gtk-settings.ini",
+            "wallpaper.sh",
+            "fluxbox.style",
+            "window-buttons.sh",
           ],
         },
         { t: COMPUTER_IMAGE },

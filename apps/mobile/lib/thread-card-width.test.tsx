@@ -57,6 +57,8 @@ const scope = {
   React,
   memo: <T,>(component: T) => component,
   useState,
+  useContext: () => undefined,
+  UserBubbleColorContext: null,
   useResolvedAppearance: () => "light",
   mobileTokens: () => ({}),
   useI18n: () => ({ t: (text: string) => text }),

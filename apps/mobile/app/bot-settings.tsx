@@ -1,6 +1,5 @@
 import type { ComputerMode, ThinkingLevel } from "@rakazo/contracts";
 import {
-  BOT_AVATAR_SHAPE_COUNT,
   BOT_COLORS,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_INSTRUCTIONS_MAX_LENGTH,
@@ -20,24 +19,19 @@ import type { Voice } from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
+import { BotCard, BotCardLabel, BotCardRow } from "../components/bot-card";
 import { ComputerModePicker } from "../components/computer-mode-picker";
-import { glassHeaderOptions } from "../components/glass-title";
+import { floatingHeaderOptions } from "../components/glass-title";
 import { InfoButton } from "../components/info-button";
 import type { MenuPickerChoice } from "../components/menu-picker";
 import { MenuPicker, MenuPickerMenu } from "../components/menu-picker";
-import { NativeActionButton } from "../components/native-action-button";
 import { NativeSwitch } from "../components/native-switch";
 import { NativeSymbol } from "../components/native-symbol";
 import { Chevron } from "../components/row-accessories";
+import { trailingHeaderOptions } from "../components/sheet-header";
 import type { MobileBot, MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
 import { rpc } from "../lib/api";
-import {
-  avatarColor,
-  avatarShape,
-  isAvatarPhoto,
-  withAvatarColor,
-  withAvatarShape,
-} from "../lib/bot-avatar-edit";
+import { botSwitchTint } from "../lib/bot-avatar-edit";
 import { deviceVoices, setVoiceForBot, voiceForBot, voiceLabel } from "../lib/bot-voices";
 import { chatModelPickerChoices } from "../lib/chat-model";
 import { COMPUTER_LIFECYCLE_TIMEOUT_MS } from "../lib/computer";
@@ -54,10 +48,14 @@ type BotSettingsRecord = MobileBot & {
 
 export default function BotSettingsScreen() {
   const tokens = useMobileTokens();
-  const fieldStyle = [styles.field, { color: tokens.foreground, backgroundColor: native.fill }];
+  const fieldStyle = [styles.field, { color: native.label }];
   const { t } = useI18n();
   const router = useRouter();
-  const { botId, model: pickedModel } = useLocalSearchParams<{ botId: string; model?: string }>();
+  const {
+    botId,
+    model: pickedModel,
+    avatar: pickedAvatar,
+  } = useLocalSearchParams<{ botId: string; model?: string; avatar?: string }>();
   const [bot, setBot] = useState<BotSettingsRecord | null>(null);
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
@@ -195,6 +193,13 @@ export default function BotSettingsScreen() {
     router.setParams({ model: undefined });
     selectModel(pickedModel);
   }, [pickedModel]);
+
+  // The Avatar editor hands its pick back the same way; Done saves it with the rest.
+  useEffect(() => {
+    if (pickedAvatar === undefined) return;
+    router.setParams({ avatar: undefined });
+    setColor(pickedAvatar);
+  }, [pickedAvatar]);
 
   function applyVoices(available: Voice[], assigned: string | undefined) {
     setVoices(available);
@@ -358,7 +363,7 @@ export default function BotSettingsScreen() {
   const voiceValue = (
     <Text
       numberOfLines={1}
-      style={[styles.rowValue, { color: voiceError ? tokens.destructive : tokens.foreground }]}
+      style={[styles.rowValue, voiceError ? { color: tokens.destructive } : null]}
     >
       {voiceError ?? currentVoiceLabel}
     </Text>
@@ -370,22 +375,18 @@ export default function BotSettingsScreen() {
       accessibilityRole={hasVoiceMenu ? "button" : undefined}
       accessibilityValue={hasVoiceMenu ? { text: currentVoiceLabel } : undefined}
       accessible={hasVoiceMenu}
-      style={styles.row}
+      style={styles.cardRow}
     >
-      <Text style={[styles.rowLabel, { color: tokens.mutedForeground }]}>{t("Device voice")}</Text>
+      <Text style={styles.rowLabel}>{t("Device voice")}</Text>
+      {voiceValue}
       {hasVoiceMenu ? (
-        <View style={styles.voiceTrigger}>
-          {voiceValue}
-          <NativeSymbol
-            android="chevron-expand"
-            color={native.tertiaryLabel}
-            ios="chevron.up.chevron.down"
-            size={13}
-          />
-        </View>
-      ) : (
-        voiceValue
-      )}
+        <NativeSymbol
+          android="chevron-expand"
+          color={native.secondaryLabel}
+          ios="chevron.up.chevron.down"
+          size={14}
+        />
+      ) : null}
     </View>
   );
   const voiceRow = hasVoiceMenu ? (
@@ -404,167 +405,179 @@ export default function BotSettingsScreen() {
     voiceRowContent
   );
 
+  const editAvatar = () =>
+    router.push({ pathname: "/bot-avatar", params: { botId, value: color } });
+  const dirty =
+    !!bot &&
+    (name !== bot.name ||
+      title !== bot.title ||
+      description !== (bot.description ?? "") ||
+      instructions !== (bot.instructions ?? "") ||
+      color !== bot.color ||
+      computerMode !== bot.computerMode ||
+      autoSpeak !== bot.autoSpeak ||
+      fleetManagement !== bot.fleetManagement ||
+      thinkingLevel !== (bot.thinkingLevel ?? "") ||
+      (selectedModel?.provider ?? null) !== (bot.modelProvider ?? null) ||
+      (selectedModel?.modelId ?? null) !== (bot.modelId ?? null));
+
   return (
     <>
-      <Stack.Screen options={glassHeaderOptions(t("Chat settings"))} />
+      <Stack.Screen
+        options={{
+          ...floatingHeaderOptions(),
+          headerTitle: undefined,
+          title: t("Edit Bot"),
+          headerTitleStyle: { fontWeight: "400" },
+          ...trailingHeaderOptions(
+            pending ? t("Saving…") : t("Done"),
+            () => void save(),
+            !dirty || !name.trim() || pending,
+          ),
+        }}
+      />
       <ScrollView
-        style={{ flex: 1, backgroundColor: tokens.background }}
-        contentContainerStyle={{ padding: 24 }}
+        style={{ flex: 1, backgroundColor: tokens.card }}
+        contentContainerStyle={styles.content}
         automaticallyAdjustKeyboardInsets
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {bot ? (
-          <View style={{ alignItems: "center", marginBottom: 24 }}>
-            <BotAvatar color={color} identity={bot.id} size={64} status={bot.status} />
-            {isAvatarPhoto(color) ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setColor(avatarColor(bot.color))}
-                style={{ marginTop: 12 }}
+        <View style={styles.avatar}>
+          {bot ? (
+            <Pressable
+              accessibilityLabel={t("Avatar")}
+              accessibilityRole="button"
+              onPress={editAvatar}
+            >
+              <BotAvatar color={color} identity={bot.id} size={96} status={bot.status} />
+              <View
+                style={[
+                  styles.avatarBadge,
+                  { backgroundColor: tokens.card, borderColor: tokens.popoverBorder },
+                ]}
               >
-                <Text style={{ color: tokens.mutedForeground, fontSize: 15 }}>
-                  {t("Remove photo")}
-                </Text>
-              </Pressable>
-            ) : null}
+                <NativeSymbol android="pencil" color={native.label} ios="pencil" size={18} />
+              </View>
+            </Pressable>
+          ) : (
+            <View style={styles.avatarSpace} />
+          )}
+        </View>
+        <View style={styles.firstSection}>
+          <BotCardLabel>{t("Name")}</BotCardLabel>
+          <BotCard>
+            <TextInput
+              key="name"
+              accessibilityLabel={t("Name")}
+              value={name}
+              maxLength={BOT_NAME_MAX_LENGTH}
+              onChangeText={setName}
+              placeholder={t("Name this bot")}
+              placeholderTextColor={native.secondaryLabel}
+              style={fieldStyle}
+            />
+          </BotCard>
+        </View>
+        <View style={styles.section}>
+          <BotCardLabel>{t("Title")}</BotCardLabel>
+          <BotCard>
+            <TextInput
+              key="title"
+              accessibilityLabel={t("Title")}
+              value={title}
+              maxLength={BOT_TITLE_MAX_LENGTH}
+              onChangeText={setTitle}
+              placeholder={t("Describe what this bot does")}
+              placeholderTextColor={native.secondaryLabel}
+              style={fieldStyle}
+            />
+          </BotCard>
+        </View>
+        {bot ? (
+          <View style={styles.section}>
+            <BotCardLabel>{t("Appearance")}</BotCardLabel>
+            <BotCard>
+              <BotCardRow key="avatar" title={t("Avatar")} onPress={editAvatar} />
+            </BotCard>
           </View>
         ) : null}
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
-        <TextInput
-          value={name}
-          maxLength={BOT_NAME_MAX_LENGTH}
-          onChangeText={setName}
-          placeholder={t("Name this bot")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={fieldStyle}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Title")}
-        </Text>
-        <TextInput
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChangeText={setTitle}
-          placeholder={t("Describe what this bot does")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={fieldStyle}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Description")}
-        </Text>
-        <TextInput
-          value={description}
-          maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-          onChangeText={setDescription}
-          placeholder={t("What this bot is for")}
-          placeholderTextColor={tokens.mutedForeground}
-          multiline
-          style={[fieldStyle, styles.multilineField]}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Color")}
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, marginTop: 8 }}
-          accessibilityRole="radiogroup"
-        >
-          {BOT_COLORS.map((option, index) => (
-            <Pressable
-              key={option}
-              accessibilityRole="radio"
-              accessibilityLabel={t("Color {number}", { number: index + 1 })}
-              accessibilityState={{ checked: avatarColor(color) === option }}
-              onPress={() => setColor((current) => withAvatarColor(current, option))}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: option,
-                borderWidth: 3,
-                borderColor: avatarColor(color) === option ? tokens.foreground : "transparent",
-              }}
-            />
-          ))}
-        </ScrollView>
-        {bot && !isAvatarPhoto(color) ? (
-          <>
-            <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-              {t("Shape")}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, marginTop: 8 }}
-              accessibilityRole="radiogroup"
-            >
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityLabel={t("Default")}
-                accessibilityState={{ checked: avatarShape(color) === null }}
-                onPress={() => setColor((current) => avatarColor(current))}
-                style={{
-                  padding: 4,
-                  borderRadius: 14,
-                  borderWidth: 2,
-                  borderColor: avatarShape(color) === null ? tokens.foreground : "transparent",
-                }}
-              >
-                <BotAvatar color={avatarColor(color)} identity={bot.id} size={36} />
-              </Pressable>
-              {Array.from({ length: BOT_AVATAR_SHAPE_COUNT }, (_, shape) => (
+        <View style={styles.section}>
+          <BotCardLabel>{t("Voice")}</BotCardLabel>
+          <BotCard separatorInset={18}>
+            {deviceVoiceEnabled ? (
+              voiceError ? (
                 <Pressable
-                  key={shape}
-                  accessibilityRole="radio"
-                  accessibilityLabel={t("Shape {number}", { number: shape + 1 })}
-                  accessibilityState={{ checked: avatarShape(color) === shape }}
-                  onPress={() => setColor((current) => withAvatarShape(current, shape))}
-                  style={{
-                    padding: 4,
-                    borderRadius: 14,
-                    borderWidth: 2,
-                    borderColor: avatarShape(color) === shape ? tokens.foreground : "transparent",
-                  }}
+                  key="voice"
+                  accessibilityRole="button"
+                  accessibilityLabel={t("Device voice")}
+                  accessibilityValue={{ text: voiceError }}
+                  onPress={() => void retryDeviceVoices()}
                 >
-                  <BotAvatar color={withAvatarShape(color, shape)} identity={bot.id} size={36} />
+                  {voiceRow}
                 </Pressable>
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("Advanced")}
-          accessibilityState={{ expanded: advancedOpen }}
-          onPress={() => setAdvancedOpen((open) => !open)}
-          style={{
-            marginTop: 20,
-            minHeight: 44,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Advanced")}</Text>
-          <Chevron expanded={advancedOpen} />
-        </Pressable>
+              ) : (
+                <View key="voice">{voiceRow}</View>
+              )
+            ) : null}
+            <View key="speak" style={styles.cardRow}>
+              <Text style={styles.rowLabel}>{t("Read replies aloud")}</Text>
+              <NativeSwitch
+                accessibilityLabel={t("Read replies aloud")}
+                onValueChange={setAutoSpeak}
+                tintColor={botSwitchTint(color)}
+                value={autoSpeak}
+              />
+            </View>
+          </BotCard>
+        </View>
+        <View style={styles.section}>
+          <BotCard>
+            <Pressable
+              key="advanced"
+              accessibilityRole="button"
+              accessibilityLabel={t("Advanced")}
+              accessibilityState={{ expanded: advancedOpen }}
+              onPress={() => setAdvancedOpen((open) => !open)}
+              style={styles.cardRow}
+            >
+              <Text style={styles.rowLabel}>{t("Advanced")}</Text>
+              <Chevron expanded={advancedOpen} />
+            </Pressable>
+          </BotCard>
+        </View>
         {advancedOpen ? (
           <View style={{ gap: 16, paddingTop: 16 }}>
             <View>
-              <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>
-                {t("Instructions")}
-              </Text>
-              <TextInput
-                accessibilityLabel={t("Instructions")}
-                multiline
-                maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
-                value={instructions}
-                onChangeText={setInstructions}
-                style={[fieldStyle, styles.multilineField]}
-              />
+              <BotCardLabel>{t("Description")}</BotCardLabel>
+              <BotCard>
+                <TextInput
+                  key="description"
+                  accessibilityLabel={t("Description")}
+                  value={description}
+                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+                  onChangeText={setDescription}
+                  placeholder={t("What this bot is for")}
+                  placeholderTextColor={native.secondaryLabel}
+                  multiline
+                  style={[fieldStyle, styles.multilineField]}
+                />
+              </BotCard>
+            </View>
+            <View>
+              <BotCardLabel>{t("Instructions")}</BotCardLabel>
+              <BotCard>
+                <TextInput
+                  key="instructions"
+                  accessibilityLabel={t("Instructions")}
+                  multiline
+                  maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
+                  value={instructions}
+                  onChangeText={setInstructions}
+                  style={[fieldStyle, styles.multilineField]}
+                />
+              </BotCard>
               {bot?.instructionHistory?.length && instructions === bot.instructions ? (
                 <MenuPicker
                   plain
@@ -600,98 +613,76 @@ export default function BotSettingsScreen() {
                 />
               ) : null}
             </View>
-            <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
-            <View style={{ gap: 16 }}>
-              <MenuPicker
-                plain
-                choices={modelChoices}
-                label={t("Model")}
-                onChange={selectModel}
-                onPress={
-                  modelChoices.length > MODEL_SEARCH_THRESHOLD
-                    ? () =>
-                        router.push({
-                          pathname: "/bot-model",
-                          params: { botId, value: selectedModelKey },
-                        })
-                    : undefined
-                }
-                value={selectedModelKey}
-              />
-              {thinkingOptions.length ? (
+            <BotCard>
+              <View key="computer" style={[styles.advancedCard, styles.advancedComputer]}>
+                <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
+              </View>
+              <View key="model" style={styles.advancedCard}>
                 <MenuPicker
                   plain
-                  choices={thinkingChoices}
-                  label={t("Thinking")}
-                  onChange={setThinkingLevel}
-                  value={thinkingLevel}
+                  choices={modelChoices}
+                  label={t("Model")}
+                  onChange={selectModel}
+                  onPress={
+                    modelChoices.length > MODEL_SEARCH_THRESHOLD
+                      ? () =>
+                          router.push({
+                            pathname: "/bot-model",
+                            params: { botId, value: selectedModelKey },
+                          })
+                      : undefined
+                  }
+                  value={selectedModelKey}
                 />
+              </View>
+              {thinkingOptions.length ? (
+                <View key="thinking" style={styles.advancedCard}>
+                  <MenuPicker
+                    plain
+                    choices={thinkingChoices}
+                    label={t("Thinking")}
+                    onChange={setThinkingLevel}
+                    value={thinkingLevel}
+                  />
+                </View>
               ) : null}
-            </View>
-            {modelMetaError ? (
-              <Text style={{ color: tokens.mutedForeground, marginTop: 12, fontSize: 13 }}>
-                {modelMetaError}
-              </Text>
-            ) : null}
-            <View style={styles.row}>
-              <Text style={[styles.rowLabel, { color: tokens.mutedForeground }]}>
-                {t("Read replies aloud")}
-              </Text>
-              <NativeSwitch
-                accessibilityLabel={t("Read replies aloud")}
-                onValueChange={setAutoSpeak}
-                value={autoSpeak}
-              />
-            </View>
-            {deviceVoiceEnabled ? (
-              voiceError ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("Device voice")}
-                  accessibilityValue={{ text: voiceError }}
-                  onPress={() => void retryDeviceVoices()}
-                >
-                  {voiceRow}
-                </Pressable>
-              ) : (
-                voiceRow
-              )
-            ) : null}
-            <View style={styles.row}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+              {modelMetaError ? (
                 <Text
+                  key="modelError"
                   style={[
-                    styles.rowLabel,
-                    { color: tokens.mutedForeground, flex: 0, flexShrink: 1 },
+                    styles.advancedCard,
+                    { color: tokens.mutedForeground, paddingVertical: 12, fontSize: 13 },
                   ]}
                 >
-                  {t("Manage the bots it creates")}
+                  {modelMetaError}
                 </Text>
-                <InfoButton label={t("Manage the bots it creates")}>
-                  {t(
-                    "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.",
-                  )}
-                </InfoButton>
+              ) : null}
+              <View key="fleet" style={[styles.row, styles.advancedCard, { minHeight: 49 }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                  <Text style={[styles.fleetLabel, { color: tokens.mutedForeground }]}>
+                    {t("Manage the bots it creates")}
+                  </Text>
+                  <InfoButton label={t("Manage the bots it creates")}>
+                    {t(
+                      "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.",
+                    )}
+                  </InfoButton>
+                </View>
+                <NativeSwitch
+                  accessibilityLabel={t("Manage the bots it creates")}
+                  onValueChange={(value) => {
+                    if (!botId) return;
+                    setError(null);
+                    fleetSave.update(value);
+                  }}
+                  tintColor={botSwitchTint(color)}
+                  value={fleetManagement}
+                />
               </View>
-              <NativeSwitch
-                accessibilityLabel={t("Manage the bots it creates")}
-                onValueChange={(value) => {
-                  if (!botId) return;
-                  setError(null);
-                  fleetSave.update(value);
-                }}
-                value={fleetManagement}
-              />
-            </View>
+            </BotCard>
           </View>
         ) : null}
         {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
-        <NativeActionButton
-          disabled={!name.trim() || pending || !bot}
-          label={pending ? t("Saving…") : t("Save")}
-          onPress={() => void save()}
-          style={{ marginTop: 24 }}
-        />
       </ScrollView>
     </>
   );
@@ -708,12 +699,34 @@ function thinkingLevelLabel(level: ThinkingLevel, t: (message: string) => string
 }
 
 const styles = StyleSheet.create({
-  field: {
-    marginTop: 8,
-    borderRadius: 11,
-    padding: 16,
+  content: { paddingHorizontal: 24, paddingTop: 17, paddingBottom: 32 },
+  avatar: { alignItems: "center" },
+  avatarSpace: { width: 96, height: 96 },
+  avatarBadge: {
+    position: "absolute",
+    left: 64,
+    top: 59,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  firstSection: { marginTop: 19.5 },
+  section: { marginTop: 24 },
+  advancedCard: { paddingHorizontal: 19 },
+  advancedComputer: { paddingVertical: 14 },
+  field: { minHeight: 50, paddingHorizontal: 18, paddingVertical: 14, fontSize: 17 },
   multilineField: { minHeight: 120, textAlignVertical: "top" },
+  cardRow: {
+    minHeight: 49,
+    paddingStart: 19,
+    paddingEnd: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   row: {
     minHeight: 44,
     flexDirection: "row",
@@ -721,12 +734,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  rowLabel: { fontSize: 14, flex: 1 },
-  voiceTrigger: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  rowValue: { fontSize: 14, flexShrink: 1, textAlign: "right" },
+  rowLabel: { flex: 1, color: native.label, fontSize: 17 },
+  fleetLabel: { fontSize: 14, flexShrink: 1 },
+  rowValue: { flexShrink: 1, color: native.secondaryLabel, fontSize: 17, textAlign: "right" },
 });

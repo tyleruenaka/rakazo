@@ -1,6 +1,6 @@
 import type { Routine } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
-import { routineRowDetail, routineStatusLine, sortRoutinesByNextRun } from "./routine.js";
+import { routineRowDetail, routineSchedule, sortRoutinesByNextRun } from "./routine.js";
 
 function routine(partial: Partial<Routine>): Routine {
   return {
@@ -27,43 +27,34 @@ function routine(partial: Partial<Routine>): Routine {
   };
 }
 
-describe("routineStatusLine", () => {
+describe("routineSchedule", () => {
   it("names a change trigger", () => {
     expect(
-      routineStatusLine(
+      routineSchedule(
         routine({ watch: { kind: "files", paths: ["inbox"], everyMinutes: 15, loud: false } }),
+        "UTC",
       ),
-    ).toBe("Active · When something changes · UTC");
+    ).toBe("When something changes");
   });
 
   it("shows readable schedules instead of cron expressions", () => {
-    expect(routineStatusLine(routine({ crons: ["0 6 * * *"] }))).toBe(
-      "Active · Every day at 6:00 AM · UTC",
+    expect(routineSchedule(routine({ crons: ["0 6 * * *"] }), "UTC")).toBe("Every day at 6:00 AM");
+    expect(routineSchedule(routine({ crons: ["30 8 * * 1-5"] }), "UTC")).toBe(
+      "Weekdays at 8:30 AM",
     );
-    expect(routineStatusLine(routine({ crons: ["0 6 * * 0"] }))).toBe(
-      "Active · Every Sunday at 6:00 AM · UTC",
-    );
-    expect(routineStatusLine(routine({ crons: ["30 8 * * 1-5"] }))).toBe(
-      "Active · Weekdays at 8:30 AM · UTC",
-    );
-    expect(routineStatusLine(routine({ crons: ["0 * * * *"] }))).toBe("Active · Every hour · UTC");
   });
 
-  it("keeps the routine's time zone and other triggers", () => {
+  it("keeps another time zone and other triggers", () => {
     expect(
-      routineStatusLine(
-        routine({
-          active: false,
-          crons: ["0 9 * * 1"],
-          timezone: "Europe/Berlin",
-          webhookEnabled: true,
-        }),
+      routineSchedule(
+        routine({ crons: ["0 9 * * 1"], timezone: "Europe/Berlin", webhookEnabled: true }),
+        "UTC",
       ),
-    ).toBe("Paused · Every Monday at 9:00 AM, Webhook · Europe/Berlin");
+    ).toBe("Every Monday at 9:00 AM, Webhook · Europe/Berlin");
   });
 
-  it("omits the trigger segment when there are no triggers", () => {
-    expect(routineStatusLine(routine({}))).toBe("Active · UTC");
+  it("is empty when there are no triggers in the device's zone", () => {
+    expect(routineSchedule(routine({}), "UTC")).toBe("");
   });
 });
 

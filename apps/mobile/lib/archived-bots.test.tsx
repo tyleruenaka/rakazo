@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 
-import type { ComputerStatus } from "@rakazo/contracts";
 import type { ReactNode } from "react";
 import { act, createElement, useEffect } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArchivedBots from "../app/(settings)/archived-bots";
-import { ComputerMaintenanceActions } from "../components/computer-maintenance-actions";
 import type { MobileBot, MobileGroup } from "./api";
 import { onArchivedChatsChanged } from "./archived-chats";
 import { registerSettingsSheet } from "./settings-sheet";
@@ -637,19 +635,4 @@ describe("archived chat read failures", () => {
       expect(alert).toHaveBeenCalledTimes(alerts);
     },
   );
-
-  it("clears a computer's native header menu when its actions unmount", async () => {
-    await act(async () =>
-      root.render(
-        <ComputerMaintenanceActions
-          botId="bot-fixture"
-          computer={{ state: "running" } as ComputerStatus}
-          onChanged={async () => {}}
-        />,
-      ),
-    );
-    expect(navigation.setOptions.mock.lastCall![0].unstable_headerRightItems()).toHaveLength(1);
-    await act(async () => root.render(null));
-    expect(navigation.setOptions.mock.lastCall![0].unstable_headerRightItems()).toEqual([]);
-  });
 });

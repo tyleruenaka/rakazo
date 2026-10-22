@@ -678,7 +678,7 @@ export function PluginsOverlay({
           }}
         >
           <div className="mt-[48.5px] flex h-8 shrink-0 items-center justify-between gap-4">
-            <DialogTitle className="text-[17px] leading-none font-normal text-foreground">
+            <DialogTitle className="text-[17px] leading-none font-medium tracking-[-0.008em] text-foreground">
               <Trans>Integrations</Trans>
             </DialogTitle>
             {connectedApps.length ? (

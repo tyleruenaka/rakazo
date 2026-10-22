@@ -3,7 +3,7 @@ import type { Bot } from "@rakazo/contracts";
 import { BotAvatar, Button, defaultBotAvatarValue } from "@rakazo/ui-web";
 import { Phone, PhoneOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { startCall, useCallSession } from "../../lib/call-session";
+import { startCall, useCallBotId } from "../../lib/call-session";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
@@ -61,7 +61,7 @@ export function IncomingCall({
   onAnswered: (botId: string) => void;
 }) {
   const { t } = useLingui();
-  const onCall = useCallSession() !== null;
+  const onCall = useCallBotId() !== null;
   /** Calls this tab already acted on, so a stale roster poll cannot ring them again. */
   const [handled, setHandled] = useState<Set<string>>(() => new Set());
   const [now, setNow] = useState(() => Date.now());

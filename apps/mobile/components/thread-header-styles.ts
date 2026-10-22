@@ -10,10 +10,11 @@ export function createThreadHeaderStyles() {
     titleCapsule: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 11,
       maxWidth: 220,
       minHeight: HEADER_CONTROL_SIZE,
-      paddingHorizontal: 14,
+      paddingLeft: 9,
+      paddingRight: 11,
       borderRadius: 999,
     },
     titleCapsuleFill: {
@@ -23,8 +24,7 @@ export function createThreadHeaderStyles() {
     },
     title: {
       color: tokens.foreground,
-      fontSize: 18,
-      fontWeight: "600",
+      fontSize: 17,
     },
     headerActions: {
       flexDirection: "row",
@@ -42,20 +42,21 @@ export function createThreadHeaderStyles() {
       borderColor: tokens.glassStroke,
       backgroundColor: tokens.glassFill,
     },
+    // Messages stay visible under the header and fade out toward the top edge.
     headerFade: {
       position: "absolute",
       top: 0,
       left: 0,
       right: 0,
-      backgroundColor: tokens.background,
+      experimental_backgroundImage: `linear-gradient(to bottom, ${tokens.background}D9 0%, ${transparentBackground} 100%)`,
     },
-    headerFadeEdge: {
+    // Messages fade out over the bottom edge, behind a floating control such as a pill.
+    bottomFade: {
       position: "absolute",
-      top: "100%",
       left: 0,
       right: 0,
-      height: 16,
-      experimental_backgroundImage: `linear-gradient(to bottom, ${tokens.background} 0%, ${transparentBackground} 100%)`,
+      bottom: 0,
+      experimental_backgroundImage: `linear-gradient(to top, ${tokens.background} 0%, ${tokens.background} 20%, ${tokens.background}B3 55%, ${transparentBackground} 100%)`,
     },
     composerFade: {
       position: "absolute",

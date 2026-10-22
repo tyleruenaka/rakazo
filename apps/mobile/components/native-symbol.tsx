@@ -9,11 +9,13 @@ export function NativeSymbol({
   android,
   size = 18,
   color,
+  weight = "medium",
 }: {
   ios: string;
   android: ComponentProps<typeof Ionicons>["name"];
   size?: number;
   color?: ColorValue;
+  weight?: ComponentProps<typeof SymbolView>["weight"];
 }) {
   const tokens = useMobileTokens();
   const tint = color ?? tokens.foreground;
@@ -22,7 +24,7 @@ export function NativeSymbol({
       name={ios as never}
       size={size}
       tintColor={tint}
-      weight="medium"
+      weight={weight}
       resizeMode="scaleAspectFit"
       fallback={<Ionicons name={android} size={size} color={tint} />}
     />

@@ -14,6 +14,14 @@ export {
   resolvePersonaShape,
   Wordmark,
 } from "./bot-avatar.js";
+export {
+  type BotMotion,
+  BotMotionProvider,
+  type CallAvatarState,
+  SETTLED_MS,
+  useAvatarGaze,
+  useLiveBotMotion,
+} from "./bot-motion.js";
 export * from "./components/ui/alert-dialog.js";
 export * from "./components/ui/badge.js";
 export * from "./components/ui/button.js";

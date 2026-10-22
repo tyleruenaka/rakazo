@@ -7,7 +7,14 @@ import {
 } from "@rakazo/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pickUp } from "./call-pickup.js";
-import { ECHO_GUARD_MS, endCall, getSnapshot, startCall, toggleMute } from "./call-session";
+import {
+  ECHO_GUARD_MS,
+  endCall,
+  getEndingCall,
+  getSnapshot,
+  startCall,
+  toggleMute,
+} from "./call-session";
 import { dictation } from "./dictation.js";
 import { rpc } from "./rpc.js";
 import { reduceThreadSnapshot } from "./thread-events.js";
@@ -238,6 +245,29 @@ describe("call session", () => {
     expect(listen).not.toHaveBeenCalled();
   });
 
+  it("never answers the first turn with what the bot said before the call", async () => {
+    await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
+    const before = snapshot([botMessage("old-reply", "Doing good, thanks!")]);
+    getThread.mockResolvedValue(before as never);
+    const feed = vi.mocked(runThreadSubscription).mock.calls.at(-1)?.[0];
+    await feed?.loadInitial();
+    await heard("this is a test");
+    expect(speak).not.toHaveBeenCalled();
+    expect(getSnapshot()?.exchanges).toEqual([{ role: "user", text: "this is a test" }]);
+
+    getThread.mockResolvedValue(
+      snapshot([
+        botMessage("old-reply", "Doing good, thanks!"),
+        botMessage("reply", "Heard you."),
+      ]) as never,
+    );
+    await feed?.refresh?.();
+    expect(speak).toHaveBeenCalledWith(
+      "Heard you.",
+      expect.objectContaining({ messageId: "reply" }),
+    );
+  });
+
   it("waits out the echo guard when the mic was shut through playback", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     await Promise.resolve();
@@ -420,6 +450,31 @@ describe("call session", () => {
     expect(endCallRpc).toHaveBeenCalledWith(expect.objectContaining({ botId: "call-bot", callId }));
   });
 
+  it("keeps a hung-up call as ending until the server has closed it, as in Grok", async () => {
+    const closing = deferred<{ ok: boolean }>();
+    endCallRpc.mockReturnValueOnce(closing.promise as never);
+    await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
+
+    endCall();
+    expect(getSnapshot()).toBeNull();
+    expect(getEndingCall()).toMatchObject({ botId: "call-bot", botName: "Ada" });
+
+    closing.resolve({ ok: true });
+    await flushMicrotasks();
+    expect(getEndingCall()).toBeNull();
+  });
+
+  it("lets an ending call go after a second and a half without the server", async () => {
+    endCallRpc.mockReturnValueOnce(new Promise(() => undefined) as never);
+    await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
+
+    endCall();
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(getEndingCall()).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getEndingCall()).toBeNull();
+  });
+
   it("waits for an in-flight spoken turn before closing the call server-side", async () => {
     const pendingSend = deferred<{ runId: string; taskId: string }>();
     send.mockReturnValueOnce(pendingSend.promise as never);
@@ -468,6 +523,7 @@ describe("call session", () => {
 
     expect(getSnapshot()).toBeNull();
     expect(endCallRpc).not.toHaveBeenCalled();
+    expect(getEndingCall()).toBeNull();
   });
 
   it("tears the previous call down before opening the next call's feed", async () => {
@@ -989,7 +1045,7 @@ describe("answered incoming call", () => {
     vi.useRealTimers();
   });
 
-  it("skips the ringing, speaks the bot's opening, then listens", async () => {
+  it("connects, speaks the bot's opening, then listens", async () => {
     startCall({
       botId: "call-bot",
       botName: "Ada",
@@ -1000,7 +1056,7 @@ describe("answered incoming call", () => {
     await feed?.refresh();
     await flushMicrotasks();
 
-    expect(pickUp).toHaveBeenCalledWith(expect.anything(), { ring: false });
+    expect(pickUp).toHaveBeenCalledWith(expect.anything());
     expect(speak).toHaveBeenCalledOnce();
     expect(speak).toHaveBeenCalledWith("You missed my reminders, so I'm calling.", {
       botId: "call-bot",

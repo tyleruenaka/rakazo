@@ -18,8 +18,9 @@ function routineTriggers(routine: Routine): string {
   ].join(", ");
 }
 
-export function routineStatusLine(routine: Routine): string {
-  return [routine.active ? t("Active") : t("Paused"), routineTriggers(routine), routine.timezone]
+/** What starts the routine, with its zone only when it isn't the device's. */
+export function routineSchedule(routine: Routine, deviceTimeZone: string | undefined): string {
+  return [routineTriggers(routine), routine.timezone === deviceTimeZone ? "" : routine.timezone]
     .filter(Boolean)
     .join(" · ");
 }

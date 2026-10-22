@@ -982,10 +982,6 @@ msgstr ""
 msgid "Built-in"
 msgstr "Integrado"
 
-#: src/pages/Shell.tsx
-msgid "Call"
-msgstr ""
-
 #: src/components/call/VoiceChatCard.tsx
 msgid "Call back"
 msgstr ""
@@ -1146,6 +1142,10 @@ msgstr ""
 msgid "Checkout has local changes. Clean it before updating."
 msgstr ""
 
+#: src/lib/bot-activity.ts
+msgid "Chewing on it"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Choose a bot…"
 msgstr ""
@@ -1191,6 +1191,7 @@ msgid "Client secret"
 msgstr ""
 
 #: src/components/ArtifactPreviewPane.tsx
+#: src/components/call/VoiceChatCard.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -2207,10 +2208,6 @@ msgstr ""
 msgid "Disabled tools"
 msgstr ""
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Discard recording"
-msgstr ""
-
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/ModelSettingsOverlay.tsx
@@ -2319,9 +2316,17 @@ msgstr ""
 msgid "Draft skill"
 msgstr "Habilidade de rascunho"
 
+#: src/lib/bot-activity.ts
+msgid "Drafting"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Drag, drop, or paste an image"
 msgstr "Arraste, solte ou cole uma imagem"
+
+#: src/lib/bot-activity.ts
+msgid "Drawing it up"
+msgstr ""
 
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
@@ -2638,6 +2643,10 @@ msgstr "Baixar o aplicativo móvel"
 msgid "Getting ready"
 msgstr ""
 
+#: src/lib/bot-activity.ts
+msgid "Getting there"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr ""
@@ -2670,6 +2679,10 @@ msgstr ""
 
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Hanging tight"
 msgstr ""
 
 #: src/pages/RoutineEditor.tsx
@@ -2706,10 +2719,6 @@ msgstr ""
 msgid "Hide password"
 msgstr ""
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Hide transcript"
-msgstr "Ocultar transcrição"
-
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2719,14 +2728,6 @@ msgstr "Alto"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
-msgstr ""
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk"
-msgstr ""
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk, release to send"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
@@ -2873,6 +2874,10 @@ msgstr "Seus bots e grupos são mantidos e saem da seção."
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "Suas conversas, arquivos e rotinas serão excluídos permanentemente. Os bots criados ficam na sua lista."
 
+#: src/lib/bot-activity.ts
+msgid "Jogging its memory"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
 msgstr "Ir para a mensagem mais recente"
@@ -2948,12 +2953,11 @@ msgstr ""
 msgid "Listen"
 msgstr ""
 
-#: src/components/call/CallCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listening"
 msgstr ""
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/pages/Shell.tsx
 msgid "Listening…"
 msgstr ""
 
@@ -3041,6 +3045,14 @@ msgstr ""
 msgid "Log out"
 msgstr "Sair"
 
+#: src/lib/bot-activity.ts
+msgid "Looking it up"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Looping in a teammate"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3059,6 +3071,10 @@ msgstr ""
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Confirme que nada ainda está em execução neste computador."
+
+#: src/lib/bot-activity.ts
+msgid "Making headway"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
@@ -3250,10 +3266,6 @@ msgstr "Minimizar"
 msgid "Minimize bots"
 msgstr ""
 
-#: src/components/call/CallCard.tsx
-msgid "Minimize call"
-msgstr ""
-
 #: src/pages/RoutineSchedule.tsx
 msgid "minute"
 msgstr "minuto"
@@ -3349,10 +3361,6 @@ msgstr "Mover para"
 #: src/components/call/CallCard.tsx
 msgid "Mute"
 msgstr "Silenciar"
-
-#: src/components/call/CallCard.tsx
-msgid "Muted"
-msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/Auth.tsx
@@ -3536,6 +3544,10 @@ msgstr ""
 msgid "No skills yet"
 msgstr "Ainda não há habilidades"
 
+#: src/components/call/CallCard.tsx
+msgid "No speech transcribed yet"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No team conversations yet."
 msgstr ""
@@ -3629,6 +3641,10 @@ msgstr "OAuth expirado"
 msgid "On a schedule"
 msgstr ""
 
+#: src/lib/bot-activity.ts
+msgid "On it"
+msgstr ""
+
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
 msgid "on the 1st at {0}"
@@ -3663,10 +3679,6 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Open <0>{0}</0> to finish signing in."
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Open call"
 msgstr ""
 
 #. placeholder {0}: call.botName
@@ -3825,10 +3837,6 @@ msgstr "Cole sua chave de API e teste novamente."
 msgid "Paused"
 msgstr ""
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Phone call"
-msgstr ""
-
 #: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Photo"
@@ -3866,9 +3874,17 @@ msgstr "Reproduzir {name}"
 msgid "Playing…"
 msgstr "Reproduzindo"
 
+#: src/lib/bot-activity.ts
+msgid "Plugging away"
+msgstr ""
+
 #: src/pages/KnowledgeSection.tsx
 msgid "Plugin"
 msgstr "Plugin"
+
+#: src/lib/bot-activity.ts
+msgid "Poking around"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
@@ -3940,6 +3956,10 @@ msgstr "Reações"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Leia as respostas em voz alta"
+
+#: src/lib/bot-activity.ts
+msgid "Reading up"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4277,11 +4297,6 @@ msgstr "Nova tentativa agora"
 msgid "Retry screen"
 msgstr ""
 
-#. placeholder {0}: call.botName
-#: src/components/call/CallCard.tsx
-msgid "Return to call with {0}"
-msgstr ""
-
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Rakazo"
 msgstr "Retorno a Rakazo"
@@ -4353,6 +4368,10 @@ msgstr "Em execução"
 #: src/pages/RoutineEditor.tsx
 msgid "Running · Stop"
 msgstr "Em execução · Parar"
+
+#: src/lib/bot-activity.ts
+msgid "Running some code"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Running…"
@@ -4528,10 +4547,6 @@ msgstr "Enviar código de exclusão"
 msgid "Send it"
 msgstr "Enviar"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Send recording"
-msgstr ""
-
 #: src/pages/Auth.tsx
 msgid "Send reset link"
 msgstr "Enviar link de redefinição"
@@ -4642,10 +4657,6 @@ msgstr "Mostrar configurações"
 msgid "Show tool activity"
 msgstr ""
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Show transcript"
-msgstr "Mostrar transcrição"
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
 msgstr ""
@@ -4717,10 +4728,6 @@ msgstr ""
 msgid "Slack not enabled"
 msgstr ""
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Slide up to lock"
-msgstr ""
-
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Software update"
 msgstr ""
@@ -4751,10 +4758,6 @@ msgstr "Padrão do espaço"
 msgid "Spaces"
 msgstr ""
 
-#: src/pages/Shell.tsx
-msgid "Speak"
-msgstr "Falar"
-
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speak + transcribe"
 msgstr "Falar + transcrever"
@@ -4766,10 +4769,6 @@ msgstr "Falar apenas"
 #: src/pages/Shell.tsx
 msgid "Speak this reply"
 msgstr "Fale esta resposta"
-
-#: src/components/call/CallCard.tsx
-msgid "Speaking"
-msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speech model"
@@ -4786,6 +4785,10 @@ msgstr ""
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "Começar a gravar"
+
+#: src/components/composer/Dictation.tsx
+msgid "Start voice input"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -4810,6 +4813,10 @@ msgstr "Passos"
 #: src/pages/Shell.tsx
 msgid "Stop"
 msgstr "Parar"
+
+#: src/components/composer/Dictation.tsx
+msgid "Stop dictation"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Stop speaking"
@@ -4954,7 +4961,7 @@ msgstr "Tema"
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr ""
 
-#: src/components/call/CallCard.tsx
+#: src/lib/bot-activity.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
@@ -5112,7 +5119,8 @@ msgstr "Fontes de ferramentas"
 msgid "Tools"
 msgstr ""
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/components/composer/Dictation.tsx
+#: src/pages/Shell.tsx
 msgid "Transcribing…"
 msgstr ""
 
@@ -5148,6 +5156,10 @@ msgstr "Tentar novamente"
 #: src/lib/model-connection-preflight.ts
 msgid "Try the test again."
 msgstr "Tente o teste novamente."
+
+#: src/lib/bot-activity.ts
+msgid "Turning it over"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -5345,6 +5357,10 @@ msgstr ""
 msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
 msgstr "Usa as credenciais de {hostCredentialSource} próprias deste servidor para acessar {selectedProviderName}."
 
+#: src/lib/bot-activity.ts
+msgid "Using its computer"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
@@ -5370,11 +5386,17 @@ msgstr ""
 msgid "View chat"
 msgstr "Ver conversa"
 
+#: src/components/call/CallCard.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Voice"
 msgstr "Voz"
+
+#: src/components/call/VoiceChatCard.tsx
+msgid "Voice chat"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
@@ -5469,6 +5491,10 @@ msgstr "Onde os bots devem ser executados?"
 msgid "Won't do"
 msgstr ""
 
+#: src/lib/bot-activity.ts
+msgid "Working it out"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -5476,6 +5502,10 @@ msgstr "Trabalhando…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Writing back…"
 msgstr ""
 
 #: src/lib/billing.ts

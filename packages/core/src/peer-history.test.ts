@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "@rakazo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadPeerHistory } from "./peer-history";
+import { loadPeerHistory } from "./peer-history.js";
 
 function message(id: string, seq: number): ThreadMessage {
   return { id, seq } as ThreadMessage;

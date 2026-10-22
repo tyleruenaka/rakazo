@@ -56,7 +56,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("keep working until I stop you");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
+  await expect(page.getByTestId("composer-bar")).toHaveAttribute("data-running", "true", {
     timeout: 30_000,
   });
 
@@ -68,7 +68,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await page.reload();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
+  await expect(page.getByTestId("composer-bar")).toHaveAttribute("data-running", "true", {
     timeout: 30_000,
   });
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
@@ -126,8 +126,11 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await expect(filtersButton).toHaveAttribute("aria-expanded", "false");
   await expect(activityRow(page, "Chief")).toBeVisible();
 
-  await page.getByRole("button", { name: "Stop", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  // The composer has no stop button while a bot works, as in Grok; Escape stops the run.
+  await composer.press("Escape");
+  await expect(page.getByTestId("composer-bar")).not.toHaveAttribute("data-running", "true", {
+    timeout: 30_000,
+  });
 
   await page.reload();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");

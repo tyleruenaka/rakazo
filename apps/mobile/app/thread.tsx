@@ -8,15 +8,18 @@ import type {
   MessageReaction,
   Routine,
 } from "@rakazo/contracts";
-import {
-  attachmentMaxBytes,
-  canReactToThreadMessage,
-  isAttachmentAudioMimeType,
-  MESSAGE_REACTIONS,
-} from "@rakazo/contracts";
-import type { SlashActionId, ThreadItem } from "@rakazo/core";
+import { attachmentMaxBytes, canReactToThreadMessage, MESSAGE_REACTIONS } from "@rakazo/contracts";
+import type {
+  ActivityKind,
+  BotActivity,
+  PeerMarkerGroup,
+  PeerMarkerPeer,
+  SlashActionId,
+  ThreadItem,
+} from "@rakazo/core";
 import {
   abortableDelay,
+  activityMotion,
   answerableAskMessageIds,
   appendNewerThreadPage,
   attachmentsForThread,
@@ -25,8 +28,8 @@ import {
   dismissableAskMessageIds,
   expandPeerReplies,
   foldPeerReplies,
-  formatFileSize,
   forwardProbeAfterPage,
+  groupPeerMarkers,
   groupVoiceChats,
   isApprovalAskBlock,
   isPeerReceiptBlocks,
@@ -39,6 +42,7 @@ import {
   plainTextFromMarkdown,
   projectMessageReactions,
   reconcileThreadScrollState,
+  reduceBotActivity,
   replyAttachment,
   resolveComposerSendPlan,
   resolvePersonaColorDef,
@@ -59,8 +63,10 @@ import {
 } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import {
+  createContext,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -81,7 +87,6 @@ import {
   Alert,
   AppState,
   FlatList,
-  Image,
   Linking,
   Modal,
   Platform,
@@ -106,7 +111,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppConnectCard } from "../components/AppConnectCard";
 import { AskActions } from "../components/AskActions";
-import { AudioAttachment } from "../components/audio-attachment";
 import { BotAvatar } from "../components/bot-avatar";
 import { ChoiceCard } from "../components/ChoiceCard";
 import { ComputerCard } from "../components/ComputerCard";
@@ -114,16 +118,17 @@ import { ComposerReplyPreview } from "../components/composer-reply-preview";
 import { FailedSendBubble } from "../components/failed-send-bubble";
 import { GlassSurface } from "../components/glass-surface";
 import type { ImageArtifactPreviewTarget } from "../components/image-artifact-viewer";
-import { InlineImageAttachment } from "../components/inline-image-attachment";
 import { InstructionUndo } from "../components/instruction-undo";
 import { McpApprovalCard } from "../components/McpApprovalCard";
 import type { MarkdownArtifactPreviewTarget } from "../components/markdown-artifact-preview";
 import { MarkdownArtifactPreview } from "../components/markdown-artifact-preview";
 import { presentMessageMenu } from "../components/message-action-menu";
+import { MessageAttachments } from "../components/message-attachments";
 import { MessageCaption } from "../components/message-caption";
 import { MessageContextMenu } from "../components/message-context-menu";
 import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
+import { PeerMarker, PeerMarkerGroupRow } from "../components/peer-marker";
 import { ReplyDismissButton } from "../components/reply-dismiss-button";
 import { ReplyLine } from "../components/reply-line";
 import { RunErrorSheet, useRunError } from "../components/run-error-sheet";
@@ -139,6 +144,7 @@ import { ThreadScrollSurface } from "../components/thread-scroll-surface";
 import { TimeSeparator } from "../components/time-separator";
 import { VoiceChatCard } from "../components/VoiceChatCard";
 import { WorkingIndicator } from "../components/WorkingIndicator";
+import { WorkingStatusLine } from "../components/working-status-line";
 import { readableGutter } from "../lib/adaptive-layout";
 import type {
   MobileBot,
@@ -168,10 +174,10 @@ import { useAppForeground } from "../lib/app-foreground";
 import { mobileTokens } from "../lib/appearance";
 import { notifyArchivedChatsChanged } from "../lib/archived-chats";
 import type { MobileArtifactTarget } from "../lib/artifact-open";
-import { openMobileArtifact } from "../lib/artifact-open";
 import { plainAskTitle } from "../lib/ask-title";
 import { nextAutoSpeakAction } from "../lib/auto-speak";
 import { confirmDeleteBot, restoreArchivedBot } from "../lib/bot-lifecycle";
+import { BotMotionProvider } from "../lib/bot-motion";
 import { retainUnchangedBotRoster } from "../lib/bot-roster";
 import { findSwitchTarget, ringOnArrival, takeRingOnArrival } from "../lib/bot-switch";
 import { setCallProviderTranscribe, startCall, useCallSession } from "../lib/call-session";
@@ -179,7 +185,6 @@ import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
 import { t, useI18n } from "../lib/i18n";
-import { isInlineImageMimeType } from "../lib/inline-image";
 import { integrationsCacheScope, isIntegrationsScopeCurrent } from "../lib/integrations-cache";
 import { useKeyboardLayout } from "../lib/keyboard-layout";
 import { KeyboardScrollBack } from "../lib/keyboard-scroll-back";
@@ -190,7 +195,6 @@ import {
   setOpenNotificationThread,
 } from "../lib/live-notifications";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
-import { buildMessageContextMenu, messageMenuReaction } from "../lib/message-context-menu";
 import {
   applyLocalChoiceDismissals,
   hasVisibleMessagePresentation,
@@ -241,6 +245,7 @@ import type { ThreadScrollAction, ThreadScrollState } from "../lib/thread-scroll
 import { latestArrivalMessageId, ThreadScrollBehavior } from "../lib/thread-scroll";
 import { reconcileVisibleThreadSnapshot } from "../lib/thread-snapshot";
 import { prepareUnsentSends } from "../lib/unsent-sends";
+import { userBubbleColor } from "../lib/user-bubble-color";
 import { errorText } from "../lib/user-error";
 import { speakQueue, speakText } from "../lib/voice";
 import {
@@ -443,7 +448,6 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   const insets = useSafeAreaInsets();
   // An unfolded or tablet window keeps messages and the composer in a centred reading column.
   const columnInset = readableGutter(windowWidth, Math.max(insets.left, insets.right));
-  const columnWidth = windowWidth - columnInset * 2;
   // Frame by frame, including a swipe that drags the keyboard down.
   const keyboardProgress = useSharedValue(KeyboardController.isVisible() ? 1 : 0);
   useKeyboardHandler(
@@ -463,12 +467,21 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     },
     [],
   );
+  // iOS: the field sits 30 pt above the screen edge, just inside the home indicator's inset.
   const composerRestingPadding =
-    Platform.OS === "ios" ? insets.bottom : Math.max(insets.bottom + 12, 24);
+    Platform.OS === "ios" ? Math.max(insets.bottom - 4, 12) : Math.max(insets.bottom + 12, 24);
   // Hands the composer from the keyboard to the safe area as the keyboard moves, so it never
   // dips into the home indicator and then jumps back up.
+  // On a phone the composer sits 30 pt from the screen edges at rest and widens by 12 pt a
+  // side over the keyboard; the page is padded 20 plus the readable gutter.
+  const composerRestingMargin = Math.max(0, 10 - columnInset);
   const composerKeyboardPadding = useAnimatedStyle(() => ({
-    paddingBottom: interpolate(keyboardProgress.value, [0, 1], [composerRestingPadding, 12]),
+    paddingBottom: interpolate(keyboardProgress.value, [0, 1], [composerRestingPadding, 18]),
+    marginHorizontal: interpolate(
+      keyboardProgress.value,
+      [0, 1],
+      [composerRestingMargin, composerRestingMargin - 12],
+    ),
   }));
   const {
     botId,
@@ -492,7 +505,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   const call = useCallSession();
   const onCall = Boolean(botId) && call?.botId === botId;
   const voiceCallStarting = useRef(false);
-  const scroll = useRef<FlatList<ThreadItem<MobileMessage>>>(null);
+  const scroll = useRef<FlatList<ListItem>>(null);
   const pinnedScroll = useRef<ScrollView>(null);
   const scrollBehavior = useRef(new ThreadScrollBehavior());
   const liveScrollBack = useRef(new KeyboardScrollBack({ inverted: true }));
@@ -558,6 +571,16 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       : undefined;
   const [snap, setSnap] = useState<MobileSnapshot | null>(null);
   const snapRef = useRef<MobileSnapshot | null>(null);
+  // What the thread's bots are doing, from its live events; drives faces and the status line.
+  const [botActivity, setBotActivity] = useState<ReadonlyMap<string, BotActivity>>(() => new Map());
+  const botMotions = useMemo(
+    () => new Map([...botActivity].map(([id, activity]) => [id, activityMotion(activity)])),
+    [botActivity],
+  );
+  const botMotionsSince = useMemo(
+    () => new Map([...botActivity].map(([id, activity]) => [id, activity.at])),
+    [botActivity],
+  );
   // The copy saved on this device stays on screen until a live snapshot replaces it.
   const [showingSaved, setShowingSaved] = useState(false);
   const snapshotOrigin = useRef<SavedChatsScope | null>(null);
@@ -696,11 +719,10 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   );
   const currentBot = botId ? mentionBots.find((bot) => bot.id === botId) : undefined;
   const displayName = safeDisplayName(currentBot?.name ?? name, inGroup ? t("Group") : t("Bot"));
-  const composerPrompt = displayName ? t("Message {name}", { name: displayName }) : t("Message…");
+  const composerPrompt = displayName ? t("Ask {name}", { name: displayName }) : t("Message…");
   const notificationThreadId = snap?.threadId ?? requestedThreadId ?? currentBot?.threadId;
   activeThreadId.current = notificationThreadId;
   const currentBotStatus = snap ? snap.run?.status : currentBot?.status;
-  const hasLiveProgress = visibleMessages.some((message) => message.id.startsWith("progress:"));
   const activeGroupBots = useMemo(() => {
     if (!inGroup) return [];
     const seen = new Set<string>();
@@ -942,9 +964,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
                         type: "action" as const,
                         label: action.text,
                         destructive: action.destructive,
-                        ...(action.text === t("Open computer")
-                          ? { icon: { type: "sfSymbol" as const, name: "desktopcomputer" } }
-                          : {}),
+                        icon: { type: "sfSymbol" as const, name: action.icon },
                         onPress: action.onPress,
                       })),
                     },
@@ -1078,17 +1098,21 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   }
 
   const botActions = [
-    ...(!readOnly && botId ? [{ text: t("Open computer"), onPress: openBotComputer }] : []),
     {
-      text: t("Profile"),
+      text: t("View Profile"),
+      icon: "person.crop.circle",
       onPress: () =>
         router.push({
           pathname: "/bot-profile",
           params: { botId: botId ?? "", name: displayName ?? t("Bot") },
         }),
     },
+    ...(!readOnly && botId
+      ? [{ text: t("Open computer"), icon: "desktopcomputer", onPress: openBotComputer }]
+      : []),
     {
       text: t("Chat settings"),
+      icon: "gearshape",
       onPress: () =>
         router.push({
           pathname: "/bot-settings",
@@ -1097,6 +1121,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     },
     {
       text: t("Clear conversation"),
+      icon: "eraser",
       destructive: true,
       onPress: () =>
         Alert.alert(
@@ -1112,6 +1137,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     },
     {
       text: t("Archive"),
+      icon: "archivebox",
       onPress: () =>
         void rpc("bots/archive", { botId })
           .then(() => {
@@ -1124,6 +1150,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     },
     {
       text: t("Delete…"),
+      icon: "trash",
       destructive: true,
       onPress: () =>
         confirmDeleteBot({ id: botId ?? "", name: displayName || t("Bot") }, () => {
@@ -1473,6 +1500,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
 
   useEffect(() => {
     liveCursor.current = null;
+    setBotActivity(new Map());
   }, [botId, groupId, sessionEpoch]);
 
   useEffect(() => {
@@ -1514,6 +1542,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
             cursor,
             (event) => {
               if (abort.signal.aborted || sessionGeneration !== currentSessionGeneration()) return;
+              setBotActivity((prev) => reduceBotActivity(prev, event, Date.now()));
               cursor = Math.max(cursor, event.seq ?? -1);
               retryMs = 250;
               if (
@@ -1974,9 +2003,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   }, [botId]);
 
   const attachActions: MenuAction[] = [
-    { id: "library", title: t("Photo library"), image: "photo.on.rectangle" },
-    { id: "camera", title: t("Camera"), image: "camera" },
-    { id: "file", title: t("File"), image: "doc" },
+    // iOS lists a menu that opens upward from the bottom, so this order reads top to bottom
+    // as Photo or Video, Take Photo, Choose File.
+    { id: "file", title: t("Choose File"), image: "folder" },
+    { id: "camera", title: t("Take Photo"), image: "camera" },
+    { id: "library", title: t("Photo or Video"), image: "photo" },
   ];
 
   function attachFrom(source: string) {
@@ -2031,6 +2062,14 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     router.push({ pathname: "/bot-settings", params: { botId: snap?.run?.botId ?? botId ?? "" } });
   }
   const separatorIds = useMemo(() => timeSeparatorIds(visibleMessages), [visibleMessages]);
+  const bubbleJoins = useMemo(
+    () => joinedBubbles(groupVoiceChats(visibleMessages), separatorIds),
+    [visibleMessages, separatorIds],
+  );
+  const userBubble = useMemo(
+    () => (inGroup || !currentBot ? undefined : userBubbleColor(currentBot)),
+    [inGroup, currentBot],
+  );
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -2040,7 +2079,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     [],
   );
   // Group calls in reading order, then reverse for the inverted list.
-  const liveItems = useMemo(() => groupVoiceChats(visibleMessages).reverse(), [visibleMessages]);
+  // Consecutive bot-to-bot markers share one row, as on desktop.
+  const liveItems = useMemo(
+    () => groupPeerMarkers(groupVoiceChats(visibleMessages)).reverse(),
+    [visibleMessages],
+  );
   const messagesById = useMemo(
     () => new Map((snap?.messages ?? []).map((message) => [message.id, message])),
     [snap?.messages],
@@ -2189,11 +2232,24 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
         return next;
       });
     },
-    togglePeerReplies: (markerId) => {
-      setExpandedPeerMarkers((expanded) => {
-        const next = new Set(expanded);
-        if (!next.delete(markerId)) next.add(markerId);
-        return next;
+    openPeerChat: (ownerBotId, peer) => {
+      const colorOf = (id: string) =>
+        mentionBots.find((bot) => bot.id === id)?.color ??
+        snap?.members?.find((member) => member.botId === id)?.color ??
+        "";
+      router.push({
+        pathname: "/peer-thread",
+        params: {
+          botId: ownerBotId,
+          botName:
+            mentionBots.find((bot) => bot.id === ownerBotId)?.name ??
+            memberName(snap?.members, ownerBotId) ??
+            t("Bot"),
+          botColor: colorOf(ownerBotId),
+          peerBotId: peer.id,
+          peerBotName: peer.name,
+          peerBotColor: colorOf(peer.id),
+        },
       });
     },
     layout: (messageId, y, index) => {
@@ -2228,7 +2284,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       previewImage: (target) => rowActionsRef.current.previewImage(target),
       jump: (id) => rowActionsRef.current.jump(id),
       dismissChoice: (id, question) => rowActionsRef.current.dismissChoice(id, question),
-      togglePeerReplies: (id) => rowActionsRef.current.togglePeerReplies(id),
+      openPeerChat: (ownerBotId, peer) => rowActionsRef.current.openPeerChat(ownerBotId, peer),
       layout: (id, y, index) => rowActionsRef.current.layout(id, y, index),
     }),
     [],
@@ -2277,21 +2333,16 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           canDismiss={dismissableAskIds.has(message.id)}
           highlighted={highlightedMessageId === message.id}
           separator={separatorIds.has(message.id)}
+          joinedAbove={bubbleJoins.has(message.id)}
+          joinedBelow={bubbleJoins.has(`below:${message.id}`)}
+          userBubbleColor={userBubble}
           replyAuthor={replyAuthor}
           replyFallbackText={parent ? previewMessageText(parent) : undefined}
           messageReactions={messageReactions}
-          peerReplies={
-            peerTranscript.folded.has(message.id)
-              ? expandedPeerMarkers.has(message.id)
-                ? "expanded"
-                : "collapsed"
-              : undefined
-          }
           activityBotId={activityBotId}
           activityColor={activityBot?.color}
           activityStatus={activityStatus}
           inGroup={inGroup}
-          columnWidth={columnWidth}
           enableJump={options?.enableJump ?? false}
           index={options?.index ?? 0}
         />
@@ -2305,8 +2356,6 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       mentionBots,
       displayName,
       reactionView.reactions,
-      peerTranscript,
-      expandedPeerMarkers,
       inGroup,
       botId,
       groupId,
@@ -2319,24 +2368,79 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       dismissableAskIds,
       highlightedMessageId,
       separatorIds,
-      columnWidth,
+      bubbleJoins,
+      userBubble,
       t,
       locale,
     ],
   );
+  const voiceChatBot = groupId ? undefined : mentionBots.find((bot) => bot.id === botId);
+  const voiceChatUserBubble = voiceChatBot ? userBubbleColor(voiceChatBot) : undefined;
+  const peerColor = useCallback(
+    (id: string) =>
+      mentionBots.find((bot) => bot.id === id)?.color ??
+      snap?.members?.find((member) => member.botId === id)?.color ??
+      tokens.mutedForeground,
+    [mentionBots, snap?.members, tokens],
+  );
+  // One bot opens its chat; several first ask which one, like desktop's list.
+  const openPeerGroup = useCallback(
+    (group: PeerMarkerGroup<MobileMessage>, event: GestureResponderEvent) => {
+      const owner = group.messages[0]?.botId ?? botId ?? "";
+      const { peers } = group.summary;
+      const [only] = peers;
+      if (peers.length === 1 && only) {
+        rowActions.openPeerChat(owner, only);
+        return;
+      }
+      presentMessageMenu({
+        anchor: { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY },
+        reactions: [],
+        groups: [
+          peers.map((peer) => ({
+            name: peer.id,
+            text: peer.name,
+            icon: { botColor: peerColor(peer.id), botId: peer.id },
+            onPress: () => rowActions.openPeerChat(owner, peer),
+          })),
+        ],
+      });
+    },
+    [botId, peerColor, rowActions],
+  );
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<ThreadItem<MobileMessage>>) =>
-      item.kind === "voiceChat" ? (
+    ({ item }: ListRenderItemInfo<ListItem>) =>
+      item.kind === "peerMarkers" ? (
         <View style={messageListStyles.row}>
           {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
             <TimeSeparator createdAt={item.messages[0].createdAt} />
           ) : null}
-          <VoiceChatCard group={item} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={(event) => openPeerGroup(item, event)}
+            style={{ paddingVertical: 4 }}
+          >
+            <PeerMarkerGroupRow summary={item.summary} peerColor={peerColor} />
+          </Pressable>
+        </View>
+      ) : item.kind === "voiceChat" ? (
+        <View style={messageListStyles.row}>
+          {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
+            <>
+              <TimeSeparator createdAt={item.messages[0].createdAt} />
+              {/* The row's 44pt tap target pads its line; Grok's line sits 5pt closer. */}
+              <View style={{ marginTop: -5 }}>
+                <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
+              </View>
+            </>
+          ) : (
+            <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
+          )}
         </View>
       ) : (
         renderMessageRow(item.message)
       ),
-    [renderMessageRow, separatorIds],
+    [renderMessageRow, separatorIds, voiceChatUserBubble, peerColor, openPeerGroup],
   );
   const listContentStyle = useMemo(
     () => ({
@@ -2346,58 +2450,65 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     [headerHeight, readOnly, insets.bottom],
   );
 
-  const workingFooter =
-    !inGroup && currentBot && isRunWorking(currentBotStatus) && !hasLiveProgress ? (
-      <View
-        accessibilityLabel={t("{name} is working", { name: currentBot.name })}
-        accessibilityRole="text"
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 40,
-          marginTop: 12,
-        }}
-      >
-        <BotAvatar
-          color={currentBot.color}
-          identity={currentBot.id}
-          size={28}
-          status={currentBotStatus}
-        />
-        <WorkingIndicator />
+  const soloActivity = !inGroup && currentBot ? botActivity.get(currentBot.id) : undefined;
+  // A settled or blocked face belongs to the previous step: a new run starts unknown.
+  const soloStep =
+    soloActivity &&
+    soloActivity.kind !== "done" &&
+    soloActivity.kind !== "failed" &&
+    soloActivity.kind !== "blocked"
+      ? soloActivity
+      : undefined;
+  const workingFooter = !inGroup ? (
+    <WorkingStatusLine
+      // On a call with this bot the call bar shows it thinking, so the thread keeps its messages.
+      running={Boolean(currentBot && isRunWorking(currentBotStatus)) && !onCall}
+      bot={
+        currentBot
+          ? { botId: currentBot.id, color: currentBot.color, status: currentBotStatus }
+          : null
+      }
+      kind={(soloStep?.kind as ActivityKind | undefined) ?? "working"}
+      since={soloStep?.at}
+      label={t("{name} is working", { name: currentBot?.name ?? t("Agent") })}
+    />
+  ) : inGroup && workingGroupBots.length > 0 ? (
+    <View
+      accessibilityLabel={
+        workingGroupBots.length === 1
+          ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
+          : t("{count} agents working", { count: workingGroupBots.length })
+      }
+      accessibilityRole="text"
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        minHeight: 40,
+        marginTop: 12,
+      }}
+    >
+      <View style={{ flexDirection: "row", paddingRight: 8 }}>
+        {workingGroupBots.map((bot, index) => (
+          <View
+            key={bot.botId}
+            style={{
+              marginLeft: index === 0 ? 0 : -8,
+              zIndex: workingGroupBots.length - index,
+            }}
+          >
+            <BotAvatar
+              color={bot.color}
+              identity={bot.botId}
+              size={28}
+              status={bot.status}
+              animated
+            />
+          </View>
+        ))}
       </View>
-    ) : inGroup && workingGroupBots.length > 0 ? (
-      <View
-        accessibilityLabel={
-          workingGroupBots.length === 1
-            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
-            : t("{count} agents working", { count: workingGroupBots.length })
-        }
-        accessibilityRole="text"
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          minHeight: 40,
-          marginTop: 12,
-        }}
-      >
-        <View style={{ flexDirection: "row", paddingRight: 8 }}>
-          {workingGroupBots.map((bot, index) => (
-            <View
-              key={bot.botId}
-              style={{
-                marginLeft: index === 0 ? 0 : -8,
-                zIndex: workingGroupBots.length - index,
-              }}
-            >
-              <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
-            </View>
-          ))}
-        </View>
-        <WorkingIndicator />
-      </View>
-    ) : null;
+      <WorkingIndicator />
+    </View>
+  ) : null;
 
   const loadEarlierControl =
     snap?.olderCursor != null ? (
@@ -2450,434 +2561,390 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   ) : null;
 
   return (
-    <View ref={keyboardLayout.container} onLayout={keyboardLayout.onLayout} style={{ flex: 1 }}>
-      <KeyboardAvoidingView
-        // Padding always settles to zero. "height" stays shrunk when the keyboard hides without
-        // move frames, such as when a pushed screen closes with its own keyboard up.
-        behavior="padding"
-        keyboardVerticalOffset={keyboardLayout.offset}
-        style={{
-          flex: 1,
-          backgroundColor: tokens.background,
-          paddingHorizontal: 20 + columnInset,
-        }}
-      >
-        {/* The floor keeps a tall suggestion list from sliding under the transparent header. */}
-        <View style={{ flex: 1, minHeight: headerHeight, position: "relative" }}>
-          {showPinnedPage ? (
-            <ThreadScrollSurface
-              key={`pinned:${jumpScrollTarget.current ?? pinnedTarget?.messageId ?? threadKey}`}
-            >
-              <ScrollView
-                key={jumpScrollTarget.current ?? pinnedTarget?.messageId ?? threadKey}
-                ref={pinnedScroll}
-                style={{ flex: 1 }}
-                // A pinned page always shows the floating jump button (44pt, 12pt from the
-                // bottom), so its last message must be able to scroll clear of it.
-                contentContainerStyle={{
-                  paddingTop: headerHeight + 8,
-                  paddingBottom: 12 + 44 + 16,
-                }}
-                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-                maintainVisibleContentPosition={messageListPosition}
-                scrollEventThrottle={16}
-                onLayout={(event) => {
-                  pinnedScrollMetrics.current.viewport = event.nativeEvent.layout.height;
-                  loadNewerNearEnd();
-                }}
-                onContentSizeChange={(_, height) => {
-                  pinnedScrollMetrics.current.content = height;
-                  const jumpOffset = jumpAnchor.current.align(headerHeight + 24);
-                  if (jumpOffset != null) scrollPinnedTo(jumpOffset);
-                  const armedAt = joinPinnedAfterLayout.current;
-                  if (armedAt != null && height !== armedAt) {
-                    joinPinnedAfterLayout.current = null;
+    <BotMotionProvider value={botMotions} since={botMotionsSince}>
+      <View ref={keyboardLayout.container} onLayout={keyboardLayout.onLayout} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          // Padding always settles to zero. "height" stays shrunk when the keyboard hides without
+          // move frames, such as when a pushed screen closes with its own keyboard up.
+          behavior="padding"
+          keyboardVerticalOffset={keyboardLayout.offset}
+          style={{
+            flex: 1,
+            backgroundColor: tokens.background,
+            paddingHorizontal: 20 + columnInset,
+          }}
+        >
+          {/* The floor keeps a tall suggestion list from sliding under the transparent header. */}
+          {/* Messages sit 16pt from the edges, a little wider than the composer. */}
+          <View
+            style={{ flex: 1, minHeight: headerHeight, position: "relative", marginHorizontal: -4 }}
+          >
+            {showPinnedPage ? (
+              <ThreadScrollSurface
+                key={`pinned:${jumpScrollTarget.current ?? pinnedTarget?.messageId ?? threadKey}`}
+              >
+                <ScrollView
+                  key={jumpScrollTarget.current ?? pinnedTarget?.messageId ?? threadKey}
+                  ref={pinnedScroll}
+                  style={{ flex: 1 }}
+                  // A pinned page always shows the floating jump button (44pt, 12pt from the
+                  // bottom), so its last message must be able to scroll clear of it.
+                  contentContainerStyle={{
+                    paddingTop: headerHeight + 8,
+                    paddingBottom: 12 + 44 + 16,
+                  }}
+                  keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+                  maintainVisibleContentPosition={messageListPosition}
+                  scrollEventThrottle={16}
+                  onLayout={(event) => {
+                    pinnedScrollMetrics.current.viewport = event.nativeEvent.layout.height;
+                    loadNewerNearEnd();
+                  }}
+                  onContentSizeChange={(_, height) => {
+                    pinnedScrollMetrics.current.content = height;
+                    const jumpOffset = jumpAnchor.current.align(headerHeight + 24);
+                    if (jumpOffset != null) scrollPinnedTo(jumpOffset);
+                    const armedAt = joinPinnedAfterLayout.current;
+                    if (armedAt != null && height !== armedAt) {
+                      joinPinnedAfterLayout.current = null;
+                      if (
+                        !jumpAnchor.current.holds() &&
+                        pinnedAroundRef.current?.newerCursor == null &&
+                        pinnedNearEnd()
+                      ) {
+                        showLatest();
+                        return;
+                      }
+                    }
+                    loadNewerNearEnd();
+                  }}
+                  onScroll={(event) => {
+                    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                    pinnedScrollMetrics.current = {
+                      offset: contentOffset.y,
+                      viewport: layoutMeasurement.height,
+                      content: contentSize.height,
+                    };
                     if (
-                      !jumpAnchor.current.holds() &&
-                      pinnedAroundRef.current?.newerCursor == null &&
-                      pinnedNearEnd()
+                      pinnedScrollBack.current.onScroll(event.nativeEvent) &&
+                      Platform.OS === "ios"
                     ) {
+                      KeyboardController.dismiss();
+                    }
+                    loadNewerNearEnd();
+                  }}
+                  onScrollBeginDrag={(event) => {
+                    pinnedScrollBack.current.onDragStart(event.nativeEvent);
+                    newerLoadFailed.current = false;
+                    if (!jumpAnchor.current.holds()) return;
+                    jumpAnchor.current.release();
+                    jumpScrollTarget.current = null;
+                  }}
+                  onScrollEndDrag={(event) => {
+                    pinnedScrollBack.current.onDragEnd();
+                    updatePinnedScroll(event);
+                  }}
+                  onMomentumScrollEnd={updatePinnedScroll}
+                >
+                  {loadEarlierControl}
+                  {threadWindowMessages(visibleMessages, pinnedNewerCursor).map((message, index) =>
+                    renderMessageRow(message, { enableJump: true, index }),
+                  )}
+                  {pinnedNewerCursor === null ? failedSendBubbles : null}
+                  {errorNotice}
+                  {pinnedNewerCursor === null ? (
+                    workingFooter
+                  ) : loadingNewer ? (
+                    <ActivityIndicator
+                      color={tokens.mutedForeground}
+                      style={{ marginVertical: 12 }}
+                    />
+                  ) : null}
+                </ScrollView>
+              </ThreadScrollSurface>
+            ) : (
+              <ThreadScrollSurface key={`live:${threadKey}`}>
+                <FlatList
+                  key={threadKey}
+                  ref={scroll}
+                  data={liveItems}
+                  inverted
+                  keyExtractor={threadItemKey}
+                  // This callback tracks every row input, including reply, reaction and highlight state.
+                  extraData={renderMessageRow}
+                  style={messageListStyles.list}
+                  // Swiping down hides the keyboard; on iOS it follows the finger.
+                  keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+                  // Inverted, so the bottom padding is the visual top, clear of the transparent header.
+                  contentContainerStyle={listContentStyle}
+                  // Follow changes to the recovery card while already at the newest content.
+                  maintainVisibleContentPosition={liveMessageListPosition}
+                  scrollEventThrottle={16}
+                  onScrollBeginDrag={(event) => {
+                    clearTimeout(scrollIdleTimer.current);
+                    nativeMomentumActive.current = false;
+                    scrollBehavior.current.onUserDragStart();
+                    liveScrollBack.current.onDragStart(event.nativeEvent);
+                  }}
+                  onScroll={(event) => {
+                    if (
+                      liveScrollBack.current.onScroll(event.nativeEvent) &&
+                      Platform.OS === "ios"
+                    ) {
+                      KeyboardController.dismiss();
+                    }
+                    if (scrollBehavior.current.isTrackingUserScroll()) updateUserScroll(event);
+                  }}
+                  // Keep tracking after release: a fling can cross the threshold mid-momentum.
+                  onScrollEndDrag={(event) => {
+                    updateUserScroll(event);
+                    scrollBehavior.current.onUserDragEnd();
+                    liveScrollBack.current.onDragEnd();
+                    scheduleScrollIdle();
+                  }}
+                  onMomentumScrollBegin={() => {
+                    nativeMomentumActive.current = true;
+                    scheduleScrollIdle();
+                  }}
+                  onMomentumScrollEnd={(event) => {
+                    nativeMomentumActive.current = false;
+                    if (scrollBehavior.current.isTrackingUserScroll()) updateUserScroll(event);
+                    clearTimeout(scrollIdleTimer.current);
+                    performScroll(scrollBehavior.current.onUserMomentumEnd());
+                    publishThreadScrollState(scrollBehavior.current.state());
+                  }}
+                  onLayout={(event) => {
+                    performScroll(scrollBehavior.current.onLayout(event.nativeEvent.layout.height));
+                    publishThreadScrollState(scrollBehavior.current.state());
+                  }}
+                  onContentSizeChange={(_, height) => {
+                    publishThreadScrollState(scrollBehavior.current.onContentSizeChanged(height));
+                    if (loadingOlderContent.current) {
+                      loadingOlderContent.current = false;
+                      return;
+                    }
+                    const blocked = Boolean(
+                      jumpScrollTarget.current ||
+                        (pinnedAroundRef.current &&
+                          ((pinnedAroundRef.current.botId &&
+                            pinnedAroundRef.current.botId === botId) ||
+                            (pinnedAroundRef.current.groupId &&
+                              pinnedAroundRef.current.groupId === groupId))) ||
+                        expandedHistoryThread.current === snap?.threadId,
+                    );
+                    performScroll(
+                      scrollBehavior.current.onContentChanged(blocked, latestMessageId),
+                    );
+                    publishThreadScrollState(scrollBehavior.current.state());
+                  }}
+                  ListFooterComponent={loadEarlierControl}
+                  ListHeaderComponent={
+                    <View onLayout={() => performScroll(scrollBehavior.current.onLayout())}>
+                      {errorNotice}
+                      {failedSendBubbles}
+                      {workingFooter}
+                    </View>
+                  }
+                  renderItem={renderItem}
+                />
+              </ThreadScrollSurface>
+            )}
+            {showPinnedPage || threadScrollState.detached ? (
+              <View style={{ position: "absolute", end: 14, bottom: 8 }}>
+                <ScrollToBottomButton
+                  accessibilityLabel={
+                    threadScrollState.unread
+                      ? t("Jump to latest, new messages")
+                      : t("Jump to latest")
+                  }
+                  onPress={() => {
+                    if (showPinnedPage) {
                       showLatest();
                       return;
                     }
-                  }
-                  loadNewerNearEnd();
-                }}
-                onScroll={(event) => {
-                  const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-                  pinnedScrollMetrics.current = {
-                    offset: contentOffset.y,
-                    viewport: layoutMeasurement.height,
-                    content: contentSize.height,
-                  };
-                  if (
-                    pinnedScrollBack.current.onScroll(event.nativeEvent) &&
-                    Platform.OS === "ios"
-                  ) {
-                    KeyboardController.dismiss();
-                  }
-                  loadNewerNearEnd();
-                }}
-                onScrollBeginDrag={(event) => {
-                  pinnedScrollBack.current.onDragStart(event.nativeEvent);
-                  newerLoadFailed.current = false;
-                  if (!jumpAnchor.current.holds()) return;
-                  jumpAnchor.current.release();
-                  jumpScrollTarget.current = null;
-                }}
-                onScrollEndDrag={(event) => {
-                  pinnedScrollBack.current.onDragEnd();
-                  updatePinnedScroll(event);
-                }}
-                onMomentumScrollEnd={updatePinnedScroll}
-              >
-                {loadEarlierControl}
-                {threadWindowMessages(visibleMessages, pinnedNewerCursor).map((message, index) =>
-                  renderMessageRow(message, { enableJump: true, index }),
-                )}
-                {pinnedNewerCursor === null ? failedSendBubbles : null}
-                {errorNotice}
-                {pinnedNewerCursor === null ? (
-                  workingFooter
-                ) : loadingNewer ? (
-                  <ActivityIndicator
-                    color={tokens.mutedForeground}
-                    style={{ marginVertical: 12 }}
-                  />
-                ) : null}
-              </ScrollView>
-            </ThreadScrollSurface>
-          ) : (
-            <ThreadScrollSurface key={`live:${threadKey}`}>
-              <FlatList
-                key={threadKey}
-                ref={scroll}
-                data={liveItems}
-                inverted
-                keyExtractor={threadItemKey}
-                // This callback tracks every row input, including reply, reaction and highlight state.
-                extraData={renderMessageRow}
-                style={messageListStyles.list}
-                // Swiping down hides the keyboard; on iOS it follows the finger.
-                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-                // Inverted, so the bottom padding is the visual top, clear of the transparent header.
-                contentContainerStyle={listContentStyle}
-                // Follow changes to the recovery card while already at the newest content.
-                maintainVisibleContentPosition={liveMessageListPosition}
-                scrollEventThrottle={16}
-                onScrollBeginDrag={(event) => {
-                  clearTimeout(scrollIdleTimer.current);
-                  nativeMomentumActive.current = false;
-                  scrollBehavior.current.onUserDragStart();
-                  liveScrollBack.current.onDragStart(event.nativeEvent);
-                }}
-                onScroll={(event) => {
-                  if (liveScrollBack.current.onScroll(event.nativeEvent) && Platform.OS === "ios") {
-                    KeyboardController.dismiss();
-                  }
-                  if (scrollBehavior.current.isTrackingUserScroll()) updateUserScroll(event);
-                }}
-                // Keep tracking after release: a fling can cross the threshold mid-momentum.
-                onScrollEndDrag={(event) => {
-                  updateUserScroll(event);
-                  scrollBehavior.current.onUserDragEnd();
-                  liveScrollBack.current.onDragEnd();
-                  scheduleScrollIdle();
-                }}
-                onMomentumScrollBegin={() => {
-                  nativeMomentumActive.current = true;
-                  scheduleScrollIdle();
-                }}
-                onMomentumScrollEnd={(event) => {
-                  nativeMomentumActive.current = false;
-                  if (scrollBehavior.current.isTrackingUserScroll()) updateUserScroll(event);
-                  clearTimeout(scrollIdleTimer.current);
-                  performScroll(scrollBehavior.current.onUserMomentumEnd());
-                  publishThreadScrollState(scrollBehavior.current.state());
-                }}
-                onLayout={(event) => {
-                  performScroll(scrollBehavior.current.onLayout(event.nativeEvent.layout.height));
-                  publishThreadScrollState(scrollBehavior.current.state());
-                }}
-                onContentSizeChange={(_, height) => {
-                  publishThreadScrollState(scrollBehavior.current.onContentSizeChanged(height));
-                  if (loadingOlderContent.current) {
-                    loadingOlderContent.current = false;
-                    return;
-                  }
-                  const blocked = Boolean(
-                    jumpScrollTarget.current ||
-                      (pinnedAroundRef.current &&
-                        ((pinnedAroundRef.current.botId &&
-                          pinnedAroundRef.current.botId === botId) ||
-                          (pinnedAroundRef.current.groupId &&
-                            pinnedAroundRef.current.groupId === groupId))) ||
-                      expandedHistoryThread.current === snap?.threadId,
-                  );
-                  performScroll(scrollBehavior.current.onContentChanged(blocked, latestMessageId));
-                  publishThreadScrollState(scrollBehavior.current.state());
-                }}
-                ListFooterComponent={loadEarlierControl}
-                ListHeaderComponent={
-                  <View onLayout={() => performScroll(scrollBehavior.current.onLayout())}>
-                    {errorNotice}
-                    {failedSendBubbles}
-                    {workingFooter}
-                  </View>
-                }
-                renderItem={renderItem}
-              />
-            </ThreadScrollSurface>
-          )}
-          {showPinnedPage || threadScrollState.detached ? (
-            <View style={{ position: "absolute", end: 0, bottom: 12 }}>
-              <ScrollToBottomButton
-                accessibilityLabel={
-                  threadScrollState.unread ? t("Jump to latest, new messages") : t("Jump to latest")
-                }
-                onPress={() => {
-                  if (showPinnedPage) {
-                    showLatest();
-                    return;
-                  }
-                  performScroll(scrollBehavior.current.jumpToLatest());
-                  publishThreadScrollState(scrollBehavior.current.state());
-                }}
-              />
-              {threadScrollState.unread ? (
-                <View
-                  pointerEvents="none"
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    end: 3,
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: tokens.primary,
+                    performScroll(scrollBehavior.current.jumpToLatest());
+                    publishThreadScrollState(scrollBehavior.current.state());
                   }}
                 />
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-        {fetchErrorNotice}
-        {/* Shrinks (the suggestion lists scroll) so the input and Send stay above the keyboard. */}
-        <Animated.View
-          style={[{ display: readOnly ? "none" : "flex", flexShrink: 1 }, composerKeyboardPadding]}
-        >
-          {/* Fades messages out immediately above the composer. */}
-          <View pointerEvents="none" style={styles.composerFade} />
-          {replyTarget ? (
-            <GlassSurface
-              style={{
-                marginTop: 12,
-                borderRadius: 999,
-                paddingStart: 16,
-                paddingEnd: 10,
-                paddingVertical: 8,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-              fallbackStyle={{
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: tokens.glassStroke,
-                backgroundColor: tokens.glassFill,
-                paddingStart: 12,
-                paddingEnd: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <ComposerReplyPreview
-                author={
-                  replyTarget.role === "user"
-                    ? t("You")
-                    : (memberName(snap?.members, replyTarget.botId) ?? displayName ?? t("Bot"))
-                }
-                quote={replyQuote}
-                text={previewMessageText(replyTarget)}
-                attachment={replyAttachment(replyTarget.blocks)}
-                threadTarget={artifactTarget}
-              />
-              <ReplyDismissButton
-                onPress={() => {
-                  setReplyTarget(null);
-                  setReplyQuote(null);
-                }}
-              />
-            </GlassSurface>
-          ) : null}
-          {attachmentNotice ? (
-            <Text style={{ color: tokens.warning, marginTop: 12, fontSize: 13 }}>
-              {attachmentNotice}
-            </Text>
-          ) : null}
-          {activePendingAttachments.length ? (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                gap: 8,
-                marginTop: 12,
-              }}
-            >
-              {activePendingAttachments.map((attachment) => (
-                <View
-                  key={attachment.id}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: tokens.border,
-                    backgroundColor: tokens.card,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                  }}
-                >
-                  {attachment.previewUri ? (
-                    <Image
-                      source={{ uri: attachment.previewUri }}
-                      style={{ width: 28, height: 28, borderRadius: 6 }}
-                    />
-                  ) : (
-                    <NativeSymbol
-                      ios="paperclip"
-                      android="attach"
-                      size={16}
-                      color={tokens.mutedForeground}
-                    />
-                  )}
-                  <Text style={{ color: tokens.foreground, maxWidth: 140 }} numberOfLines={1}>
-                    {attachment.name}
-                  </Text>
-                  <Pressable
-                    accessibilityLabel={t("Remove {name}", { name: attachment.name })}
-                    onPress={() =>
-                      setPendingAttachments((current) =>
-                        current.filter((item) => item.id !== attachment.id),
-                      )
-                    }
-                  >
-                    <NativeSymbol
-                      ios="xmark"
-                      android="close"
-                      size={14}
-                      color={tokens.mutedForeground}
-                    />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <ThreadComposer
-            onFocus={keyboardLayout.onFocus}
-            key={threadKey}
-            ref={composerRef}
-            agentSkills={agentSkills}
-            composerMentionTargets={composerMentionTargets}
-            composerPrompt={composerPrompt}
-            replyTargetId={replyTarget?.id}
-            replyQuote={replyQuote}
-            attachmentIds={activePendingAttachments.map((attachment) => attachment.id)}
-            botId={botId}
-            onCall={onCall}
-            working={working}
-            sending={sending}
-            styles={styles}
-            attachActions={attachActions}
-            attachFrom={attachFrom}
-            send={send}
-            stop={stop}
-            startVoiceCall={startVoiceCall}
-            onSlashAction={runSlashAction}
-          />
-        </Animated.View>
-        {botActionsOpen ? (
-          <Modal
-            visible
-            transparent
-            animationType="fade"
-            onRequestClose={() => setBotActionsOpen(false)}
-          >
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                padding: 24,
-                backgroundColor: tokens.overlay,
-              }}
-            >
-              <Pressable
-                accessibilityLabel={t("Cancel")}
-                onPress={() => setBotActionsOpen(false)}
-                style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
-              />
-              <View
-                accessibilityViewIsModal
-                style={{ backgroundColor: tokens.popover, borderRadius: 24, paddingVertical: 12 }}
-              >
-                {botActions.map((action) => (
-                  <Pressable
-                    key={action.text}
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setBotActionsOpen(false);
-                      action.onPress();
+                {threadScrollState.unread ? (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      end: 3,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: tokens.primary,
                     }}
-                    style={{ minHeight: 56, justifyContent: "center", paddingHorizontal: 24 }}
-                  >
-                    <Text
-                      style={{
-                        color: action.destructive ? tokens.destructive : tokens.popoverForeground,
-                        fontSize: 16,
-                      }}
-                    >
-                      {action.text}
-                    </Text>
-                  </Pressable>
-                ))}
+                  />
+                ) : null}
               </View>
-            </View>
-          </Modal>
-        ) : null}
-        {selectableText !== null ? (
-          <SelectTextSheet text={selectableText} onClose={() => setSelectableText(null)} />
-        ) : null}
-        <RunErrorSheet
-          details={runErrorDetailsOpen ? runError : null}
-          onClose={() => setRunErrorDetailsOpen(false)}
-          onConnection={openErrorConnection}
-          onModel={(snap?.run?.botId ?? botId) ? openErrorModel : undefined}
-        />
-        {markdownPreview && artifactTarget ? (
-          <MarkdownArtifactPreview
-            threadTarget={artifactTarget}
-            target={markdownPreview}
-            onClose={() => setMarkdownPreview(null)}
-          />
-        ) : null}
-        {quoteTarget ? (
-          <QuoteSheet
-            message={quoteTarget}
-            onCancel={() => setQuoteTarget(null)}
-            onQuote={(excerpt) => {
-              setReplyTarget(quoteTarget);
-              setReplyQuote(excerpt);
-              setQuoteTarget(null);
-            }}
-          />
-        ) : null}
-        {headerHeight > 0 ? (
-          <View pointerEvents="none" style={[styles.headerFade, { height: headerHeight }]}>
-            <View style={styles.headerFadeEdge} />
+            ) : null}
           </View>
-        ) : null}
-      </KeyboardAvoidingView>
-    </View>
+          {fetchErrorNotice}
+          {/* Shrinks (the suggestion lists scroll) so the input and Send stay above the keyboard. */}
+          <Animated.View
+            style={[
+              { display: readOnly ? "none" : "flex", flexShrink: 1 },
+              composerKeyboardPadding,
+            ]}
+          >
+            {/* Fades messages out immediately above the composer. */}
+            <View pointerEvents="none" style={styles.composerFade} />
+            {replyTarget ? (
+              <GlassSurface
+                style={{
+                  marginTop: 12,
+                  borderRadius: 999,
+                  paddingStart: 16,
+                  paddingEnd: 10,
+                  paddingVertical: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+                fallbackStyle={{
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: tokens.glassStroke,
+                  backgroundColor: tokens.glassFill,
+                  paddingStart: 12,
+                  paddingEnd: 12,
+                  paddingVertical: 10,
+                }}
+              >
+                <ComposerReplyPreview
+                  author={
+                    replyTarget.role === "user"
+                      ? t("You")
+                      : (memberName(snap?.members, replyTarget.botId) ?? displayName ?? t("Bot"))
+                  }
+                  quote={replyQuote}
+                  text={previewMessageText(replyTarget)}
+                  attachment={replyAttachment(replyTarget.blocks)}
+                  threadTarget={artifactTarget}
+                />
+                <ReplyDismissButton
+                  onPress={() => {
+                    setReplyTarget(null);
+                    setReplyQuote(null);
+                  }}
+                />
+              </GlassSurface>
+            ) : null}
+            {attachmentNotice ? (
+              <Text style={{ color: tokens.warning, marginTop: 12, fontSize: 13 }}>
+                {attachmentNotice}
+              </Text>
+            ) : null}
+            <ThreadComposer
+              onFocus={keyboardLayout.onFocus}
+              key={threadKey}
+              ref={composerRef}
+              agentSkills={agentSkills}
+              composerMentionTargets={composerMentionTargets}
+              composerPrompt={composerPrompt}
+              replyTargetId={replyTarget?.id}
+              replyQuote={replyQuote}
+              attachments={activePendingAttachments}
+              removeAttachment={(id) =>
+                setPendingAttachments((current) => current.filter((item) => item.id !== id))
+              }
+              botId={botId}
+              onCall={onCall}
+              working={working}
+              sending={sending}
+              attachActions={attachActions}
+              attachFrom={attachFrom}
+              send={send}
+              stop={stop}
+              startVoiceCall={startVoiceCall}
+              onSlashAction={runSlashAction}
+            />
+          </Animated.View>
+          {botActionsOpen ? (
+            <Modal
+              visible
+              transparent
+              animationType="fade"
+              onRequestClose={() => setBotActionsOpen(false)}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  padding: 24,
+                  backgroundColor: tokens.overlay,
+                }}
+              >
+                <Pressable
+                  accessibilityLabel={t("Cancel")}
+                  onPress={() => setBotActionsOpen(false)}
+                  style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
+                />
+                <View
+                  accessibilityViewIsModal
+                  style={{ backgroundColor: tokens.popover, borderRadius: 24, paddingVertical: 12 }}
+                >
+                  {botActions.map((action) => (
+                    <Pressable
+                      key={action.text}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setBotActionsOpen(false);
+                        action.onPress();
+                      }}
+                      style={{ minHeight: 56, justifyContent: "center", paddingHorizontal: 24 }}
+                    >
+                      <Text
+                        style={{
+                          color: action.destructive ? tokens.destructive : tokens.popoverForeground,
+                          fontSize: 16,
+                        }}
+                      >
+                        {action.text}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </Modal>
+          ) : null}
+          {selectableText !== null ? (
+            <SelectTextSheet text={selectableText} onClose={() => setSelectableText(null)} />
+          ) : null}
+          <RunErrorSheet
+            details={runErrorDetailsOpen ? runError : null}
+            onClose={() => setRunErrorDetailsOpen(false)}
+            onConnection={openErrorConnection}
+            onModel={(snap?.run?.botId ?? botId) ? openErrorModel : undefined}
+          />
+          {markdownPreview && artifactTarget ? (
+            <MarkdownArtifactPreview
+              threadTarget={artifactTarget}
+              target={markdownPreview}
+              onClose={() => setMarkdownPreview(null)}
+            />
+          ) : null}
+          {quoteTarget ? (
+            <QuoteSheet
+              message={quoteTarget}
+              onCancel={() => setQuoteTarget(null)}
+              onQuote={(excerpt) => {
+                setReplyTarget(quoteTarget);
+                setReplyQuote(excerpt);
+                setQuoteTarget(null);
+              }}
+            />
+          ) : null}
+          {headerHeight > 0 ? (
+            <View pointerEvents="none" style={[styles.headerFade, { height: headerHeight + 44 }]} />
+          ) : null}
+        </KeyboardAvoidingView>
+      </View>
+    </BotMotionProvider>
   );
 }
 
@@ -3024,8 +3091,10 @@ const messageListStyles = StyleSheet.create({
 });
 const messageListPosition = { minIndexForVisible: 0 };
 const liveMessageListPosition = { ...messageListPosition, autoscrollToTopThreshold: 80 };
-function threadItemKey(item: ThreadItem<MobileMessage>) {
-  return item.kind === "voiceChat" ? item.key : item.message.id;
+type ListItem = ThreadItem<MobileMessage> | PeerMarkerGroup<MobileMessage>;
+
+function threadItemKey(item: ListItem) {
+  return item.kind === "message" ? item.message.id : item.key;
 }
 
 type MessageRowActions = {
@@ -3046,7 +3115,8 @@ type MessageRowActions = {
   previewImage: (target: ImageArtifactPreviewTarget) => void;
   jump: (messageId: string) => void;
   dismissChoice: (messageId: string, question: string) => void;
-  togglePeerReplies: (markerId: string) => void;
+  /** Opens the read-only chat between `ownerBotId` and `peer`. */
+  openPeerChat: (ownerBotId: string, peer: PeerMarkerPeer) => void;
   layout: (messageId: string, y: number, index: number) => void;
 };
 
@@ -3065,19 +3135,46 @@ type MessageRowProps = {
   canDismiss: boolean;
   highlighted: boolean;
   separator: boolean;
+  /** Continues a run of bubbles from the same sender, so the facing corners tighten. */
+  joinedAbove: boolean;
+  joinedBelow: boolean;
+  userBubbleColor?: string;
   replyAuthor: string;
   replyFallbackText?: string;
   messageReactions?: ReadonlyMap<MessageReaction, number>;
-  /** Set on a received marker whose peer run has folded replies. */
-  peerReplies?: "collapsed" | "expanded";
   activityBotId?: string;
   activityColor?: string;
   activityStatus?: MobileBot["status"];
   inGroup: boolean;
-  columnWidth: number;
   enableJump: boolean;
   index: number;
 };
+
+/** Ids of messages that follow a bubble from the same sender, and `below:<id>` for the one before. */
+function joinedBubbles(items: ThreadItem<MobileMessage>[], separatorIds: ReadonlySet<string>) {
+  const joined = new Set<string>();
+  for (let index = 1; index < items.length; index++) {
+    const previous = items[index - 1];
+    const item = items[index];
+    if (previous?.kind !== "message" || item?.kind !== "message") continue;
+    const above = previous.message;
+    const message = item.message;
+    if (
+      separatorIds.has(message.id) ||
+      above.role !== message.role ||
+      above.botId !== message.botId ||
+      isCenteredAgentEvent(above.blocks) ||
+      isCenteredAgentEvent(message.blocks)
+    ) {
+      continue;
+    }
+    joined.add(message.id);
+    joined.add(`below:${above.id}`);
+  }
+  return joined;
+}
+
+const UserBubbleColorContext = createContext<string | undefined>(undefined);
 
 function isWideAskBlock(blocks: MobileMessage["blocks"]) {
   return blocks.some(isSecretAskBlock);
@@ -3098,15 +3195,16 @@ const MessageRow = memo(function MessageRow({
   canDismiss,
   highlighted,
   separator,
+  joinedAbove,
+  joinedBelow,
+  userBubbleColor,
   replyAuthor,
   replyFallbackText,
   messageReactions,
-  peerReplies,
   activityBotId,
   activityColor,
   activityStatus,
   inGroup,
-  columnWidth,
   enableJump,
   index,
 }: MessageRowProps) {
@@ -3129,11 +3227,7 @@ const MessageRow = memo(function MessageRow({
         : undefined,
     [actions, message.id, enableJump, index],
   );
-  const { actionProps, menu, onMenuAction } = useMemo<{
-    actionProps: MessageActionProps;
-    menu: ReturnType<typeof buildMessageContextMenu>;
-    onMenuAction: (id: string) => void;
-  }>(() => {
+  const actionProps = useMemo<MessageActionProps>(() => {
     const messageText = selectableMobileMessageText(message);
     const includeQuote =
       !readOnly &&
@@ -3182,35 +3276,21 @@ const MessageRow = memo(function MessageRow({
           ]
         : []),
       ...(includeSpeak ? [{ name: "speak", text: t("Speak message"), onPress: speakMessage }] : []),
-      ...(includeSelect ? [{ name: "select", text: t("Select text"), onPress: select }] : []),
+      ...(includeSelect ? [{ name: "select", text: t("Select Text"), onPress: select }] : []),
       { name: "copy", text: t("Copy"), onPress: copy },
       ...(codeBlocks.length === 1
         ? [{ name: "copyCode", text: t("Copy code"), onPress: copyCode }]
         : []),
     ];
-    const menu = buildMessageContextMenu({
-      labels: {
-        reply: t("Reply"),
-        copy: t("Copy"),
-        react: t("React"),
-        quote: t("Quote"),
-        speak: t("Speak message"),
-        select: t("Select text"),
-      },
-      reactions: MESSAGE_REACTIONS,
-      include: {
-        reply: !readOnly,
-        quote: includeQuote,
-        react: includeReact,
-        speak: includeSpeak,
-        select: includeSelect,
-      },
-    });
     const openSheet = (event: GestureResponderEvent) =>
       presentMessageMenu({
         anchor: { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY },
         reactions: includeReact
-          ? MESSAGE_REACTIONS.map((emoji) => ({ emoji, onPress: () => react(emoji) }))
+          ? MESSAGE_REACTIONS.map((emoji) => ({
+              emoji,
+              selected: messageReactions?.has(emoji),
+              onPress: () => react(emoji),
+            }))
           : [],
         groups: [
           [
@@ -3219,7 +3299,7 @@ const MessageRow = memo(function MessageRow({
                   {
                     name: "reply",
                     text: t("Reply"),
-                    icon: "arrow-undo-outline" as const,
+                    icon: { ios: "arrow.uturn.backward", android: "arrow-undo-outline" as const },
                     onPress: reply,
                   },
                 ]
@@ -3229,21 +3309,39 @@ const MessageRow = memo(function MessageRow({
                   {
                     name: "quote",
                     text: t("Quote"),
-                    icon: "chatbox-ellipses-outline" as const,
+                    icon: { ios: "text.quote", android: "chatbox-ellipses-outline" as const },
                     onPress: quote,
                   },
                 ]
               : []),
           ],
           [
-            { name: "copy", text: t("Copy"), icon: "copy-outline" as const, onPress: copy },
+            {
+              name: "copy",
+              text: t("Copy"),
+              icon: { ios: "square.on.square", android: "copy-outline" as const },
+              onPress: copy,
+            },
             ...(includeSelect
               ? [
                   {
                     name: "select",
-                    text: t("Select text"),
-                    icon: "text-outline" as const,
+                    text: t("Select Text"),
+                    icon: { ios: "character.cursor.ibeam", android: "text-outline" as const },
                     onPress: select,
+                  },
+                ]
+              : []),
+            ...(codeBlocks.length === 1
+              ? [
+                  {
+                    name: "copyCode",
+                    text: t("Copy code"),
+                    icon: {
+                      ios: "chevron.left.forwardslash.chevron.right",
+                      android: "code-slash-outline" as const,
+                    },
+                    onPress: copyCode,
                   },
                 ]
               : []),
@@ -3252,7 +3350,7 @@ const MessageRow = memo(function MessageRow({
                   {
                     name: "speak",
                     text: t("Speak message"),
-                    icon: "volume-high-outline" as const,
+                    icon: { ios: "speaker.wave.2", android: "volume-high-outline" as const },
                     onPress: speakMessage,
                   },
                 ]
@@ -3261,38 +3359,23 @@ const MessageRow = memo(function MessageRow({
         ],
       });
     return {
-      menu,
-      onMenuAction: (id) => {
-        const reaction = messageMenuReaction(id);
-        if (reaction && (MESSAGE_REACTIONS as readonly string[]).includes(reaction)) {
-          react(reaction as MessageReaction);
-          return;
-        }
-        if (id === "reply") reply();
-        if (id === "copy") copy();
-        if (id === "quote") quote();
-        if (id === "speak") speakMessage();
-        if (id === "select") select();
-      },
-      actionProps: {
-        onLongPress: Platform.OS === "ios" ? undefined : openSheet,
-        accessibilityActions: menuActions.map((action) => ({
-          name: action.name,
-          label: action.text,
-        })),
-        onAccessibilityAction: (event) => {
-          menuActions.find((action) => action.name === event.nativeEvent.actionName)?.onPress();
-        },
+      onLongPress: openSheet,
+      accessibilityActions: menuActions.map((action) => ({
+        name: action.name,
+        label: action.text,
+      })),
+      onAccessibilityAction: (event) => {
+        menuActions.find((action) => action.name === event.nativeEvent.actionName)?.onPress();
       },
     };
-  }, [message, actions, readOnly, onCall, colorScheme, t, locale]);
+  }, [message, actions, readOnly, onCall, colorScheme, messageReactions, t, locale]);
   return (
     <View
       key={message.id}
       onLayout={onLayout}
       style={{
         backgroundColor: highlighted ? tokens.muted : undefined,
-        marginTop: 12,
+        marginTop: joinedAbove ? 8 : 12,
         width: "100%",
       }}
     >
@@ -3327,7 +3410,7 @@ const MessageRow = memo(function MessageRow({
                 ? "100%"
                 : activityBotId
                   ? undefined
-                  : "90%",
+                  : "88%",
             flex: activityBotId ? 1 : undefined,
             flexShrink: 1,
           }}
@@ -3344,41 +3427,32 @@ const MessageRow = memo(function MessageRow({
             />
           )}
           <MessageContextMenu
-            actions={menu}
-            fullWidth={isWideAskBlock(message.blocks)}
-            maxWidth={
-              isWideAskBlock(message.blocks)
-                ? columnWidth - 40 - (activityBotId ? (inGroup ? 28 : 36) : 0)
-                : isCenteredAgentEvent(message.blocks)
-                  ? columnWidth - 40
-                  : activityBotId
-                    ? columnWidth - 40 - (inGroup ? 28 : 36)
-                    : (columnWidth - 40) * 0.9
-            }
-            colorScheme={colorScheme}
-            onAction={onMenuAction}
+            fullWidth={isWideAskBlock(message.blocks) || isCenteredAgentEvent(message.blocks)}
             onLongPress={actionProps.onLongPress}
           >
             <ThreadReadOnlyContext.Provider value={readOnly}>
-              <MessageBubble
-                botId={bubbleBotId}
-                groupId={groupId}
-                message={message}
-                botName={botName}
-                bots={bots}
-                members={members}
-                canAnswer={canAnswer}
-                canDismiss={canDismiss}
-                onAnswer={actions.answer}
-                onOpenBot={actions.openBot}
-                onOpenComputer={actions.openComputer}
-                onChoiceDismissed={onChoiceDismissed}
-                onPreviewMarkdown={actions.previewMarkdown}
-                onPreviewImage={actions.previewImage}
-                peerReplies={peerReplies}
-                onTogglePeerReplies={actions.togglePeerReplies}
-                actionProps={actionProps}
-              />
+              <UserBubbleColorContext.Provider value={userBubbleColor}>
+                <MessageBubble
+                  botId={bubbleBotId}
+                  groupId={groupId}
+                  message={message}
+                  botName={botName}
+                  bots={bots}
+                  members={members}
+                  canAnswer={canAnswer}
+                  canDismiss={canDismiss}
+                  onAnswer={actions.answer}
+                  onOpenBot={actions.openBot}
+                  onOpenComputer={actions.openComputer}
+                  onChoiceDismissed={onChoiceDismissed}
+                  onPreviewMarkdown={actions.previewMarkdown}
+                  onPreviewImage={actions.previewImage}
+                  onOpenPeerChat={actions.openPeerChat}
+                  actionProps={actionProps}
+                  joinedAbove={joinedAbove}
+                  joinedBelow={joinedBelow}
+                />
+              </UserBubbleColorContext.Provider>
             </ThreadReadOnlyContext.Provider>
           </MessageContextMenu>
           {messageReactions ? (
@@ -3387,7 +3461,9 @@ const MessageRow = memo(function MessageRow({
                 flexDirection: "row",
                 flexWrap: "wrap",
                 gap: 4,
-                marginTop: 4,
+                // Sits 2pt under the bubble, like Grok's chip.
+                marginTop: -1,
+                marginHorizontal: 10,
                 justifyContent: message.role === "user" ? "flex-end" : "flex-start",
               }}
             >
@@ -3396,11 +3472,15 @@ const MessageRow = memo(function MessageRow({
                   key={emoji}
                   style={{
                     color: tokens.foreground,
-                    backgroundColor: tokens.muted,
-                    borderRadius: 16,
+                    backgroundColor: tokens.chatReaction,
+                    borderRadius: 13,
+                    overflow: "hidden",
+                    minWidth: 32,
+                    height: 26,
                     paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    fontSize: 13,
+                    fontSize: 12,
+                    lineHeight: 26,
+                    textAlign: "center",
                   }}
                 >
                   {emoji}
@@ -3430,9 +3510,10 @@ const MessageBubble = memo(function MessageBubble({
   onChoiceDismissed,
   onPreviewMarkdown,
   onPreviewImage,
-  peerReplies,
-  onTogglePeerReplies,
+  onOpenPeerChat,
   actionProps,
+  joinedAbove,
+  joinedBelow,
 }: {
   botId: string;
   botName?: string;
@@ -3453,11 +3534,13 @@ const MessageBubble = memo(function MessageBubble({
   onChoiceDismissed?: (question: string) => void;
   onPreviewMarkdown: (target: MarkdownArtifactPreviewTarget) => void;
   onPreviewImage: (target: ImageArtifactPreviewTarget) => void;
-  peerReplies?: "collapsed" | "expanded";
-  onTogglePeerReplies: (markerId: string) => void;
+  onOpenPeerChat: (ownerBotId: string, peer: PeerMarkerPeer) => void;
   actionProps: MessageActionProps;
+  joinedAbove: boolean;
+  joinedBelow: boolean;
 }) {
   const colorScheme = useResolvedAppearance();
+  const userBubbleColor = useContext(UserBubbleColorContext);
   const tokens = mobileTokens();
   const { t } = useI18n();
   const [peerExpanded, setPeerExpanded] = useState(false);
@@ -3544,56 +3627,23 @@ const MessageBubble = memo(function MessageBubble({
   );
   if (peerMessage) {
     const sent = peerMessage.kind === "bot_message_sent";
-    const peer = sent ? peerMessage.toBotName : peerMessage.fromBotName;
+    const peer = (sent ? peerMessage.toBotName : peerMessage.fromBotName) ?? t("Bot");
     const peerBotId = sent ? peerMessage.toBotId : peerMessage.fromBotId;
-    const label = sent
-      ? t("Messaged {peer}", { peer: peer ?? t("Bot") })
-      : t("Message from {peer}", { peer: peer ?? t("Bot") });
+    const label = sent ? t("Messaged {peer}", { peer }) : t("Message from {peer}", { peer });
     const peerColor =
       bots.find((bot) => bot.id === peerBotId)?.color ??
       members?.find((member) => member.botId === peerBotId)?.color ??
       tokens.mutedForeground;
-    // Full view-only peer chat is web-first; on mobile a received chip expands the peer run's
-    // folded replies, which the thread draws as ordinary rows right after it.
-    const replies = sent ? undefined : peerReplies;
     return (
       <Pressable
         {...actionProps}
         accessible
-        onPress={replies ? () => onTogglePeerReplies(message.id) : undefined}
-        accessibilityRole={replies ? "button" : undefined}
-        accessibilityState={replies ? { expanded: replies === "expanded" } : undefined}
-        accessibilityLabel={
-          replies === "expanded"
-            ? t("Hide {label}", { label })
-            : replies === "collapsed"
-              ? t("Show {label}", { label })
-              : label
-        }
-        style={{
-          width: "100%",
-          paddingVertical: 4,
-          alignItems: "center",
-          justifyContent: "flex-start",
-          flexDirection: "row",
-          gap: 6,
-        }}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={() => onOpenPeerChat(message.botId ?? botId, { id: peerBotId, name: peer })}
+        style={{ width: "100%", paddingVertical: 4 }}
       >
-        <BotAvatar color={peerColor} identity={peerBotId} size={16} />
-        <Text
-          numberOfLines={1}
-          style={{ color: tokens.mutedForeground, fontSize: 13.5, flexShrink: 1 }}
-        >
-          {label}
-        </Text>
-        {replies ? (
-          <NativeSymbol
-            ios={replies === "expanded" ? "chevron.down" : "chevron.right"}
-            android={replies === "expanded" ? "chevron-down" : "chevron-forward"}
-            size={12}
-            color={tokens.mutedForeground}
-          />
-        ) : null}
+        <PeerMarker sent={sent} peer={{ id: peerBotId, name: peer }} color={peerColor} />
       </Pressable>
     );
   }
@@ -3926,15 +3976,18 @@ const MessageBubble = memo(function MessageBubble({
     .join("\n");
   if (attachments.length > 0) {
     const speaker =
-      message.role === "bot" ? (memberName(members, message.botId) ?? botName) : undefined;
+      message.role === "bot" && groupId
+        ? (memberName(members, message.botId) ?? botName)
+        : undefined;
     const speakerColor =
       message.role === "bot" ? speakerColorFor(bots, members, message.botId) : undefined;
     return (
       <View
         style={{
           maxWidth: "100%",
-          borderRadius: 20,
-          backgroundColor: message.role === "user" ? tokens.chatUser : tokens.muted,
+          ...bubbleCorners(message.role, joinedAbove, joinedBelow),
+          backgroundColor:
+            message.role === "user" ? (userBubbleColor ?? tokens.chatUser) : tokens.chatBot,
           paddingHorizontal: 14,
           paddingVertical: 12,
           gap: 8,
@@ -3954,108 +4007,14 @@ const MessageBubble = memo(function MessageBubble({
             streaming={message.id.startsWith("progress:")}
           />
         ) : null}
-        {attachments.map((attachment, index) =>
-          attachment.kind === "image" ? (
-            attachment.artifactId && isInlineImageMimeType(attachment.mimeType) ? (
-              <InlineImageAttachment
-                key={`${attachment.artifactId}-${index}`}
-                threadTarget={artifactTarget}
-                artifactId={attachment.artifactId}
-                name={attachment.name ?? t("Image")}
-                mimeType={attachment.mimeType ?? "image/png"}
-                labelColor={message.role === "user" ? tokens.chatUserForeground : tokens.foreground}
-                pressableProps={actionProps}
-                onOpen={() =>
-                  onPreviewImage({
-                    artifactId: attachment.artifactId!,
-                    name: attachment.name ?? t("Image"),
-                    mimeType: attachment.mimeType ?? "image/png",
-                  })
-                }
-              />
-            ) : (
-              <Pressable
-                {...actionProps}
-                key={`${attachment.artifactId ?? attachment.name ?? "image"}-${index}`}
-                onPress={() =>
-                  attachment.artifactId
-                    ? void openMobileArtifact(
-                        artifactTarget,
-                        attachment.artifactId,
-                        attachment.name ?? t("Image"),
-                        attachment.mimeType ?? "image/png",
-                      ).catch((err) =>
-                        Alert.alert(t("Could not open image"), errorText(err, t("Try again."))),
-                      )
-                    : undefined
-                }
-              >
-                <Text
-                  style={{
-                    color: message.role === "user" ? tokens.chatUserForeground : tokens.foreground,
-                    fontSize: 15,
-                  }}
-                >
-                  🖼 {attachment.name ?? t("Image")}
-                </Text>
-              </Pressable>
-            )
-          ) : attachment.artifactId && isAttachmentAudioMimeType(attachment.mimeType ?? "") ? (
-            <AudioAttachment
-              pressableProps={actionProps}
-              key={`${attachment.artifactId}-${index}`}
-              target={artifactTarget}
-              artifactId={attachment.artifactId}
-              name={attachment.name ?? t("File")}
-              mimeType={attachment.mimeType!}
-              labelColor={message.role === "user" ? tokens.chatUserForeground : undefined}
-            />
-          ) : (
-            <Pressable
-              {...actionProps}
-              key={`${attachment.artifactId ?? attachment.name ?? "file"}-${index}`}
-              onPress={() =>
-                attachment.artifactId
-                  ? attachment.mimeType === "text/markdown"
-                    ? onPreviewMarkdown({
-                        artifactId: attachment.artifactId,
-                        name: attachment.name ?? t("Markdown file"),
-                        mimeType: attachment.mimeType,
-                      })
-                    : void openMobileArtifact(
-                        artifactTarget,
-                        attachment.artifactId,
-                        attachment.name ?? t("File"),
-                        attachment.mimeType ?? "text/plain",
-                      ).catch((err) =>
-                        Alert.alert(t("Could not open file"), errorText(err, t("Try again."))),
-                      )
-                  : undefined
-              }
-            >
-              <Text
-                style={{
-                  color: message.role === "user" ? tokens.chatUserForeground : tokens.foreground,
-                  fontSize: 15,
-                }}
-              >
-                📎 {attachment.name ?? t("File")}
-              </Text>
-              {formatFileSize(attachment.size) ? (
-                <Text
-                  style={{
-                    color:
-                      message.role === "user" ? tokens.chatUserForeground : tokens.mutedForeground,
-                    marginTop: 4,
-                    fontSize: 13,
-                  }}
-                >
-                  {formatFileSize(attachment.size)}
-                </Text>
-              ) : null}
-            </Pressable>
-          ),
-        )}
+        <MessageAttachments
+          attachments={attachments}
+          role={message.role}
+          target={artifactTarget}
+          actionProps={actionProps}
+          onPreviewImage={onPreviewImage}
+          onPreviewMarkdown={onPreviewMarkdown}
+        />
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
             key={`${block.provider}-${index}`}
@@ -4080,10 +4039,11 @@ const MessageBubble = memo(function MessageBubble({
   }
   const segments = messagePresentationSegments(message.blocks);
   const speaker =
-    message.role === "bot" ? (memberName(members, message.botId) ?? botName) : undefined;
+    message.role === "bot" && groupId ? (memberName(members, message.botId) ?? botName) : undefined;
   const speakerColor =
     message.role === "bot" ? speakerColorFor(bots, members, message.botId) : undefined;
   const firstContent = segments.findIndex((segment) => segment.kind === "content");
+  const lastContent = segments.findLastIndex((segment) => segment.kind === "content");
   const choiceBlocks = message.blocks.filter(
     (block): block is Extract<MessageBlock, { kind: "choice" }> => block.kind === "choice",
   );
@@ -4099,6 +4059,8 @@ const MessageBubble = memo(function MessageBubble({
           speaker={index === firstContent ? speaker : undefined}
           speakerColor={index === firstContent ? speakerColor : undefined}
           actionProps={actionProps}
+          tightTop={index > firstContent || joinedAbove}
+          tightBottom={index < lastContent || joinedBelow}
         />
       ))}
       {choiceBlocks.map((block, index) => (
@@ -4135,19 +4097,45 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+/** Round bubbles; the sender-side corners tighten where a run of bubbles continues. */
+function bubbleCorners(role: MobileMessage["role"], tightTop: boolean, tightBottom: boolean) {
+  const top = tightTop ? 8 : 24;
+  const bottom = tightBottom ? 8 : 24;
+  return role === "user"
+    ? {
+        borderTopLeftRadius: 24,
+        borderBottomLeftRadius: 24,
+        borderTopRightRadius: top,
+        borderBottomRightRadius: bottom,
+        borderCurve: "continuous" as const,
+      }
+    : {
+        borderTopLeftRadius: top,
+        borderBottomLeftRadius: bottom,
+        borderTopRightRadius: 24,
+        borderBottomRightRadius: 24,
+        borderCurve: "continuous" as const,
+      };
+}
+
 function MessageTextCard({
   message,
   speaker,
   speakerColor,
   actionProps,
+  tightTop,
+  tightBottom,
 }: {
   message: MobileMessage;
   speaker?: string;
   speakerColor?: string;
   actionProps: MessageActionProps;
+  tightTop: boolean;
+  tightBottom: boolean;
 }) {
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
+  const userBubbleColor = useContext(UserBubbleColorContext);
   const contentText = blockText(message);
   if (!contentText) return null;
   return (
@@ -4157,10 +4145,11 @@ function MessageTextCard({
         flexShrink: 1,
         minWidth: 0,
         maxWidth: "100%",
-        backgroundColor: message.role === "user" ? tokens.chatUser : tokens.muted,
+        backgroundColor:
+          message.role === "user" ? (userBubbleColor ?? tokens.chatUser) : tokens.chatBot,
         paddingHorizontal: 14,
         paddingVertical: 9,
-        borderRadius: 20,
+        ...bubbleCorners(message.role, tightTop, tightBottom),
       }}
     >
       {speaker ? (

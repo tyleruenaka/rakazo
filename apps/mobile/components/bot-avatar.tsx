@@ -1,31 +1,34 @@
 import type { AvatarStyle } from "@rakazo/contracts";
+import type { BotMotion, CallAvatarState } from "@rakazo/core";
 import {
   ACTIVE_RUN_STATUSES,
   avatarIdentitySeed,
+  CALL_MOTIONS,
+  eyeOrigin,
+  ORGANIC_FRAME,
   organicAvatarPath,
-  SHIPPED_BOT_AVATAR_CENTER,
-  SHIPPED_BOT_AVATAR_VIEWBOX,
+  SHAPE_FRAME,
+  SHIPPED_BOT_AVATAR_SHAPE_KEYS,
+  WAITING_ON_USER_RUN_STATUSES,
 } from "@rakazo/core";
-import { memo, useEffect } from "react";
+import { memo } from "react";
 import { Image, View } from "react-native";
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import Svg, { Ellipse, G, Path, Rect } from "react-native-svg";
-import { workingAvatarDuration, workingAvatarFrame } from "../lib/avatar-motion";
 import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
+import { useLiveBotMotion } from "../lib/bot-motion";
 import { useI18n } from "../lib/i18n";
+import { useMobileTokens } from "../lib/native";
 import { useAvatarStyle } from "./avatar-style";
+import { BotCharacter } from "./bot-character";
 import { NativeSymbol } from "./native-symbol";
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
+/** Grok's white and grey swatches follow the theme: white draws black in light mode. */
+function useAvatarFill(color: string): string {
+  const tokens = useMobileTokens();
+  const lower = color.toLowerCase();
+  if (lower === "#fff" || lower === "#ffffff") return tokens.avatarWhite;
+  if (lower === "#777777") return tokens.avatarGrey;
+  return color;
+}
 
 export const BotAvatar = memo(function BotAvatar({
   color,
@@ -34,6 +37,10 @@ export const BotAvatar = memo(function BotAvatar({
   identity,
   variant,
   muted = false,
+  animated = false,
+  lively = false,
+  motion: motionOverride,
+  call,
 }: {
   color: string;
   size?: number;
@@ -41,12 +48,33 @@ export const BotAvatar = memo(function BotAvatar({
   identity?: string;
   variant?: AvatarStyle;
   muted?: boolean;
+  /**
+   * Shows the bot's live working faces (from the motion provider, else `status`). As in Grok,
+   * only roster rows and the thread's status line animate; other avatars stay still.
+   */
+  animated?: boolean;
+  /** At rest, plays Grok's idle loop (glances and a blink every 2s), as the open chat does. */
+  lively?: boolean;
+  /** Overrides the live motion and the working fallback. */
+  motion?: BotMotion;
+  /** The in-call face, set by the call bar; it wins over everything else. */
+  call?: CallAvatarState;
 }) {
   const { t } = useI18n();
   const isWorking = ACTIVE_RUN_STATUSES.some((activeStatus) => activeStatus === status);
   const { avatarStyle } = useAvatarStyle();
+  const liveMotion = useLiveBotMotion(animated ? identity : undefined);
+  const isBlocked = WAITING_ON_USER_RUN_STATUSES.some((s) => s === status);
+  const settled = call
+    ? CALL_MOTIONS[call]
+    : (motionOverride ??
+      liveMotion ??
+      (animated && isBlocked ? "blocked" : animated && isWorking ? "busy" : "idle"));
+  const motion: BotMotion = lively && settled === "idle" ? "idle-loop" : settled;
   const parsed = mobileBotAvatarPresentation(color);
-  const fillColor = parsed.kind === "shape" || parsed.kind === "color" ? parsed.color : color;
+  const fillColor = useAvatarFill(
+    parsed.kind === "shape" || parsed.kind === "color" ? parsed.color : color,
+  );
   const visorW = Math.round(size * 0.68);
   const visorH = Math.round(size * 0.44);
   const eyeW = Math.max(3, Math.round(size * 0.11));
@@ -65,14 +93,26 @@ export const BotAvatar = memo(function BotAvatar({
         <Image source={{ uri: parsed.imageUrl }} style={{ width: size, height: size }} />
       </View>
     ) : parsed.kind === "shape" ? (
-      <ShippedShapeAvatar
-        color={parsed.color}
-        eyeColor={parsed.eyeColor}
-        shapePath={parsed.shapePath}
+      <BotCharacter
+        path={parsed.shapePath}
+        fill={fillColor}
         size={size}
+        min={SHAPE_FRAME.min}
+        unit={SHAPE_FRAME.unit}
+        eyes={{
+          ...eyeOrigin(
+            SHAPE_FRAME.min,
+            SHAPE_FRAME.unit,
+            SHIPPED_BOT_AVATAR_SHAPE_KEYS[parsed.shapeIndex % SHIPPED_BOT_AVATAR_SHAPE_KEYS.length],
+          ),
+          rotate: 0,
+        }}
+        motion={motion}
+        organic={false}
+        seed={avatarIdentitySeed(identity || parsed.color || "agent")}
       />
     ) : (variant ?? avatarStyle) === "organic" ? (
-      <OrganicAvatar color={fillColor} identity={identity} size={size} isWorking={isWorking} />
+      <OrganicAvatar color={fillColor} identity={identity} size={size} motion={motion} />
     ) : (
       <View
         style={{
@@ -113,7 +153,7 @@ export const BotAvatar = memo(function BotAvatar({
   return (
     <View style={{ width: size, height: size }}>
       {picture}
-      {isWorking ? (
+      {isWorking && !animated ? (
         <View
           accessibilityLabel={t("Working")}
           style={{
@@ -158,103 +198,30 @@ export const BotAvatar = memo(function BotAvatar({
   );
 });
 
-function ShippedShapeAvatar({
-  color,
-  eyeColor,
-  shapePath,
-  size,
-}: {
-  color: string;
-  eyeColor: string;
-  shapePath: string;
-  size: number;
-}) {
-  const center = SHIPPED_BOT_AVATAR_CENTER;
-  return (
-    <Svg width={size} height={size} viewBox={SHIPPED_BOT_AVATAR_VIEWBOX}>
-      <Path d={shapePath} fill={color} />
-      <G fill={eyeColor}>
-        <Ellipse cx={center - 29} cy={center - 8} rx={10} ry={7} />
-        <Ellipse cx={center + 29} cy={center - 8} rx={10} ry={7} />
-      </G>
-    </Svg>
-  );
-}
-
+/** The organic blob: the same character, in its own viewBox, its eyes tilted a few degrees. */
 function OrganicAvatar({
   color,
   identity,
   size,
-  isWorking,
+  motion,
 }: {
   color: string;
   identity?: string;
   size: number;
-  isWorking: boolean;
+  motion: BotMotion;
 }) {
   const seed = avatarIdentitySeed(identity || color || "#8B5CF6");
-  const progress = useSharedValue(0);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    cancelAnimation(progress);
-    progress.value = 0;
-    if (isWorking && !reducedMotion) {
-      progress.value = withRepeat(
-        withTiming(1, {
-          duration: workingAvatarDuration(seed),
-          easing: Easing.linear,
-        }),
-        -1,
-      );
-    }
-    return () => cancelAnimation(progress);
-  }, [isWorking, progress, reducedMotion, seed]);
-
-  const bodyStyle = useAnimatedStyle(() => {
-    const frame = workingAvatarFrame(seed, progress.value);
-    return {
-      transform: [
-        { translateX: (frame.translationX * size) / 120 },
-        { translateY: (frame.translationY * size) / 120 },
-        { rotate: `${frame.rotation}deg` },
-        { scaleX: frame.scaleX },
-        { scaleY: frame.scaleY },
-      ],
-    };
-  });
-  const leftEyeProps = useAnimatedProps(() => {
-    const frame = workingAvatarFrame(seed, progress.value);
-    return { x: -14 + frame.eyeOffsetX, y: -12 + frame.eyeOffsetY };
-  });
-  const rightEyeProps = useAnimatedProps(() => {
-    const frame = workingAvatarFrame(seed, progress.value);
-    return { x: 7 + frame.eyeOffsetX, y: -12 + frame.eyeOffsetY };
-  });
-
   return (
-    <View style={{ width: size, height: size }}>
-      <Animated.View style={[{ width: size, height: size }, bodyStyle]}>
-        <Svg width={size} height={size} viewBox="-60 -60 120 120">
-          <Path d={organicAvatarPath(seed)} fill={color} />
-          <G transform={`rotate(${(seed % 9) - 4})`}>
-            <AnimatedRect
-              animatedProps={leftEyeProps}
-              width={7}
-              height={24}
-              rx={3.5}
-              fill="#101014"
-            />
-            <AnimatedRect
-              animatedProps={rightEyeProps}
-              width={7}
-              height={24}
-              rx={3.5}
-              fill="#101014"
-            />
-          </G>
-        </Svg>
-      </Animated.View>
-    </View>
+    <BotCharacter
+      path={organicAvatarPath(seed)}
+      fill={color}
+      size={size}
+      min={ORGANIC_FRAME.min}
+      unit={ORGANIC_FRAME.unit}
+      eyes={{ ...eyeOrigin(ORGANIC_FRAME.min, ORGANIC_FRAME.unit), rotate: (seed % 9) - 4 }}
+      motion={motion}
+      organic
+      seed={seed}
+    />
   );
 }

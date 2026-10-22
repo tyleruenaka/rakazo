@@ -32,9 +32,6 @@ export interface CallState {
   connectedAt: number | null;
   phase: CallPhase;
   muted: boolean;
-  /** The call window is tucked away; the call keeps running. */
-  minimized: boolean;
-  transcriptOpen: boolean;
   caption: string;
   heard: string;
   exchanges: CallExchange[];
@@ -50,6 +47,10 @@ const FAREWELL_TIMEOUT = 20_000;
  */
 export const ECHO_GUARD_MS = 600;
 let state: CallState | null = null;
+/** A call the caller hung up, which the bar shows as ending until the server has closed it. */
+let ending: CallState | null = null;
+/** As in Grok, the bar waits this long at most for the hang-up before it leaves. */
+const ENDING_MAX_MS = 1_500;
 /** Shared by every message this call sends, so the thread can group one call's exchange. */
 let callId = "";
 /** Cancels the ringing of a call that is hung up before it picks up. */
@@ -96,6 +97,27 @@ export function useCallSession(): CallState | null {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+export function getEndingCall(): CallState | null {
+  return ending;
+}
+
+/** The call that was just hung up, until the server confirms it ended; null otherwise. */
+export function useEndingCall(): CallState | null {
+  return useSyncExternalStore(subscribe, getEndingCall, getEndingCall);
+}
+
+function getCallBotId(): string | null {
+  return state?.botId ?? null;
+}
+
+/**
+ * The bot on the call, or null. Changes only when a call starts or ends, so a whole screen
+ * can follow it without re-rendering on every phase, caption or level change.
+ */
+export function useCallBotId(): string | null {
+  return useSyncExternalStore(subscribe, getCallBotId, getCallBotId);
+}
+
 function emit() {
   for (const watcher of [...watchers]) watcher();
 }
@@ -115,6 +137,7 @@ export function startCall(call: {
   answered?: { callId: string; opening: string };
 }): void {
   endCall();
+  ending = null;
   callId = call.answered?.callId ?? randomId();
   transcribe = call.transcribe;
   spokenMemory.clear();
@@ -129,8 +152,6 @@ export function startCall(call: {
     connectedAt: null,
     phase: "ringing",
     muted: false,
-    minimized: false,
-    transcriptOpen: false,
     caption: "",
     heard: "",
     exchanges: [],
@@ -166,7 +187,7 @@ export function startCall(call: {
   pickup = ringing;
   const ringingCallId = callId;
   const opening = call.answered?.opening.trim() ?? "";
-  void pickUp(ringing.signal, { ring: !call.answered }).then(() => {
+  void pickUp(ringing.signal).then(() => {
     if (ringing.signal.aborted || !state || callId !== ringingCallId) return;
     pickup = null;
     if (!opening) {
@@ -193,6 +214,7 @@ export function startCall(call: {
 export function endCall(): void {
   // A caller hang-up closes the call server-side, which files the marker and the wrap-up
   // run. The bot's own end_call already did that, so only tell the server when it did not.
+  let closed: Promise<unknown> | null = null;
   if (state && !botEndedCall) {
     const { botId, connectedAt } = state;
     const closingCallId = callId;
@@ -206,11 +228,11 @@ export function endCall(): void {
       });
     const pendingSends = [...(pendingCallSends.get(closingCallId) ?? [])];
     // The server checks durable user messages, so its close must follow an in-flight write.
-    if (pendingSends.length === 0) void closeServerCall().catch(() => undefined);
-    else
-      void Promise.allSettled(pendingSends)
-        .then(closeServerCall)
-        .catch(() => undefined);
+    closed =
+      pendingSends.length === 0
+        ? closeServerCall()
+        : Promise.allSettled(pendingSends).then(closeServerCall);
+    void closed.catch(() => undefined);
   }
   pickup?.abort();
   pickup = null;
@@ -237,8 +259,20 @@ export function endCall(): void {
   spokenMessageIds.clear();
   spokenMemory.clear();
   if (!state) return;
+  if (closed) showEnding(state, closed);
   state = null;
   emit();
+}
+
+function showEnding(call: CallState, closed: Promise<unknown>) {
+  ending = call;
+  const done = () => {
+    if (ending !== call) return;
+    ending = null;
+    emit();
+  };
+  void closed.then(done, done);
+  setTimeout(done, ENDING_MAX_MS);
 }
 
 export function toggleMute(): void {
@@ -255,16 +289,6 @@ export function toggleMute(): void {
   else if (state.phase === "speaking") void openMic();
 }
 
-export function toggleTranscript(): void {
-  if (!state) return;
-  set({ transcriptOpen: !state.transcriptOpen });
-}
-
-export function setCallMinimized(minimized: boolean): void {
-  if (!state) return;
-  set({ minimized });
-}
-
 /** Live feed for the bot on the call, independent of whichever thread is on screen. */
 function watchThread(botId: string) {
   const controller = new AbortController();
@@ -272,7 +296,15 @@ function watchThread(botId: string) {
   const load = async () => commit(await rpc.threads.get({ botId }, { signal: controller.signal }));
   void runThreadSubscription({
     signal: controller.signal,
-    loadInitial: load,
+    loadInitial: async () => {
+      const initial = await rpc.threads.get({ botId }, { signal: controller.signal });
+      // What the bot said before the call is history, never this call's reply: the first
+      // turn would otherwise answer with the chat's last bot message before the real one lands.
+      for (const message of initial?.messages ?? []) {
+        if (message.role === "bot") spokenMessageIds.add(message.id);
+      }
+      return commit(initial);
+    },
     loadHead: () => rpc.threads.head({ botId }, { signal: controller.signal }),
     refresh: load,
     currentSnapshot: () => thread,
@@ -361,6 +393,7 @@ async function openMic() {
     await dictation.listen({
       mode: "endpoint",
       transcribe,
+      meter: true,
       onFinal: (text) => void handleTranscript(text),
     });
   } catch (error) {

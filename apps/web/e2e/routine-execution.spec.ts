@@ -136,7 +136,9 @@ test("routine test-run completes and survives reload", async ({ page }, testInfo
   await routine.click();
   await page.getByRole("button", { name: "Test run" }).click();
   await expect(page.getByText(/routine-run-now-ok/i).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 30_000,
+  });
   await captureScreenshot(page, testInfo, "34-routine-run-completed");
 
   await page.reload();

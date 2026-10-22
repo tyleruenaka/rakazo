@@ -52,6 +52,10 @@ export const native = {
   get tertiaryLabel() {
     return mobileTokens().faintForeground;
   },
+  /** iOS tertiaryLabel: dimmer than `tertiaryLabel`, for inbox times. */
+  get dimLabel() {
+    return systemColor("tertiaryLabel", mobileTokens().faintForeground);
+  },
   // Grouped colours always come from the tokens: settings sit on the page colour with
   // grey cells in both themes, and in dark iOS lifts the system ones inside sheets and with
   // Increase Contrast until destructive text drops below 4.5:1.

@@ -29,18 +29,19 @@ export function InboxChatPreview({ title, message, avatar }: InboxChatPreviewPro
       spacing={0}
       modifiers={[frame({ width: 320 }), background(native.page)]}
     >
-      <HStack spacing={10} modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+      <HStack spacing={12} modifiers={[frame({ height: 56 }), padding({ horizontal: 17 })]}>
         <RNHostView matchContents>{avatar}</RNHostView>
-        <Text modifiers={[font({ textStyle: "headline" }), lineLimit(1)]}>{title}</Text>
+        <Text modifiers={[font({ size: 18, weight: "semibold" }), lineLimit(1)]}>{title}</Text>
         <Spacer />
       </HStack>
       <Divider />
       {text ? (
         <Text
           modifiers={[
+            font({ size: 18 }),
             lineLimit(8),
-            padding({ horizontal: 12, vertical: 8 }),
-            background(native.fill, shapes.roundedRectangle({ cornerRadius: 18 })),
+            padding({ horizontal: 15, vertical: 8 }),
+            background(native.quietFill, shapes.roundedRectangle({ cornerRadius: 19.5 })),
             padding({ all: 16 }),
           ]}
         >

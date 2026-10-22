@@ -1,36 +1,32 @@
-import type { Routine } from "@rakazo/contracts";
+import type { ComputerStatus, Routine } from "@rakazo/contracts";
 import { displayName } from "@rakazo/core";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
+import { BotCard, BotCardRow, botHintColor } from "../components/bot-card";
 import { glassHeaderOptions } from "../components/glass-title";
-import {
-  SettingsGroup,
-  SettingsRow,
-  SettingsSwitch,
-  useStackedSettings,
-} from "../components/settings-group";
+import { NativeSwitch } from "../components/native-switch";
 import type { MobileBot } from "../lib/api";
 import { currentApiBase, loadSessionToken, rpc, selectedSpaceId } from "../lib/api";
+import { mobileTokens } from "../lib/appearance";
+import { botSwitchTint } from "../lib/bot-avatar-edit";
 import { useI18n } from "../lib/i18n";
 import { afterChatNotifyChange } from "../lib/live-notifications";
 import { native, useThemedStyles } from "../lib/native";
 import { createQueuedSave } from "../lib/queued-save";
-import { deviceTimeZone, routineRowDetail, sortRoutinesByNextRun } from "../lib/routine";
 import { errorText } from "../lib/user-error";
 
 export default function BotProfile() {
   const { t } = useI18n();
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const stacked = useStackedSettings();
   const { botId = "", name: nameParam } = useLocalSearchParams<{ botId?: string; name?: string }>();
   const [bot, setBot] = useState<MobileBot | null>(null);
   const [routines, setRoutines] = useState<Routine[] | null>(null);
   const [routinesError, setRoutinesError] = useState<string | null>(null);
   const name = displayName(bot?.name ?? nameParam, t("Bot"));
-  const timeZone = deviceTimeZone();
+  const [computerState, setComputerState] = useState<ComputerStatus["state"] | null>(null);
   // Counts switch saves as they start and end, so a reload can tell it overlapped one.
   const notifySaves = useRef(0);
   const notifyQueue = useRef<ReturnType<typeof createQueuedSave<boolean>> | null>(null);
@@ -66,7 +62,7 @@ export default function BotProfile() {
     void rpc<Routine[]>("routines/list", { botId })
       .then((next) => {
         if (request !== routinesRequest.current) return;
-        setRoutines(sortRoutinesByNextRun(next));
+        setRoutines(next);
         setRoutinesError(null);
       })
       .catch((error) => {
@@ -79,6 +75,21 @@ export default function BotProfile() {
     };
   }, [botId, t]);
   useFocusEffect(loadRoutines);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!botId) return;
+      let current = true;
+      void rpc<ComputerStatus>("computer/status", { botId })
+        .then((status) => {
+          if (current) setComputerState(status.state);
+        })
+        .catch(() => undefined);
+      return () => {
+        current = false;
+      };
+    }, [botId]),
+  );
 
   // The chat list's Silence notifications saves the same setting. The switch moves
   // first and moves back if the save fails.
@@ -110,10 +121,14 @@ export default function BotProfile() {
     notifyQueue.current.update(notifyOnFinish);
   };
 
+  const activeRoutines = routines?.filter((routine) => routine.active).length;
+  const computerValue =
+    computerState === "running" ? t("Running") : computerState === "suspended" ? t("Asleep") : "";
+
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.content, stacked && styles.compactContent]}
+      contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Stack.Screen
@@ -125,88 +140,116 @@ export default function BotProfile() {
       />
       <View style={styles.identity}>
         {bot ? (
-          <BotAvatar color={bot.color} identity={bot.id} size={96} status={bot.status} />
+          <BotAvatar color={bot.color} identity={bot.id} size={104} status={bot.status} />
         ) : (
           <View style={styles.avatarSpace} />
         )}
         <Text accessibilityRole="header" style={styles.name}>
           {name}
         </Text>
-        {bot?.title ? <Text style={styles.title}>{bot.title}</Text> : null}
-      </View>
-      <SettingsGroup>
-        <SettingsRow
-          key="settings"
+        <Pressable
           accessibilityRole="button"
-          chevron="right"
-          title={t("Chat settings")}
           onPress={() => router.push({ pathname: "/bot-settings", params: { botId } })}
+          style={({ pressed }) => [styles.edit, pressed && styles.editPressed]}
+        >
+          <Text style={styles.editLabel}>{t("Edit")}</Text>
+        </Pressable>
+      </View>
+      <BotCard separatorInset={52}>
+        <BotCardRow
+          key="routines"
+          icon={{ ios: "clock", android: "time-outline" }}
+          title={routinesError ?? t("Routines")}
+          value={
+            routinesError
+              ? t("Try again.")
+              : activeRoutines === undefined
+                ? undefined
+                : t("{count} on", { count: activeRoutines })
+          }
+          onPress={() =>
+            routinesError
+              ? void loadRoutines()
+              : router.push({ pathname: "/routine", params: { botId, botName: name } })
+          }
         />
-        <SettingsRow
-          key="artifacts"
-          accessibilityRole="button"
-          chevron="right"
-          title={t("Artifacts")}
+        <BotCardRow
+          key="library"
+          icon={{ ios: "folder", android: "folder-outline" }}
+          title={t("Library")}
           onPress={() => router.push({ pathname: "/artifacts", params: { botId } })}
         />
-        <SettingsRow
+        <BotCardRow
           key="computer"
-          accessibilityRole="button"
-          chevron="right"
+          icon={{ ios: "desktopcomputer", android: "desktop-outline" }}
           title={t("Computer")}
+          value={computerValue}
           onPress={() => router.push({ pathname: "/computer", params: { botId, name } })}
         />
-      </SettingsGroup>
-      {/* Routines show only once there is something to list, or a load to retry. */}
-      <SettingsGroup label={t("Routines")}>
-        {routinesError ? (
-          <SettingsRow
-            key="error"
-            accessibilityRole="button"
-            title={routinesError}
-            detail={t("Try again.")}
-            onPress={() => void loadRoutines()}
-          />
-        ) : (
-          routines?.map((routine) => (
-            <SettingsRow
-              key={routine.id}
-              accessibilityRole="button"
-              chevron="right"
-              title={routine.name}
-              detail={routineRowDetail(routine, timeZone)}
-              onPress={() =>
-                router.push({
-                  pathname: "/routine",
-                  params: { botId, botName: name, routineId: routine.id, origin: "profile" },
-                })
-              }
-            />
-          ))
-        )}
-      </SettingsGroup>
+      </BotCard>
       {bot ? (
-        <SettingsGroup footer={t("Get notified when this Bot finishes or needs input")}>
-          <SettingsSwitch
-            key="notifications"
-            label={t("Notifications")}
-            value={bot.notifyOnFinish}
-            onChange={setNotifyOnFinish}
-          />
-        </SettingsGroup>
+        <View>
+          <BotCard>
+            <View key="notifications" style={styles.switchRow}>
+              <Text style={styles.switchLabel}>{t("Notifications")}</Text>
+              <NativeSwitch
+                accessibilityLabel={t("Notifications")}
+                onValueChange={setNotifyOnFinish}
+                tintColor={botSwitchTint(bot.color)}
+                value={bot.notifyOnFinish}
+              />
+            </View>
+          </BotCard>
+          <Text style={styles.footer}>
+            {t("Get notified when this Bot finishes or is waiting for you")}
+          </Text>
+        </View>
       ) : null}
     </ScrollView>
   );
 }
 
 function createStyles() {
+  const tokens = mobileTokens();
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: native.groupedPage },
-    content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32, gap: 28 },
-    compactContent: { paddingHorizontal: 8 },
-    identity: { alignItems: "center", gap: 8 },
-    avatarSpace: { width: 96, height: 96 },
-    name: { color: native.label, fontSize: 22, fontWeight: "600", textAlign: "center" },
-    title: { color: native.secondaryLabel, fontSize: 15, textAlign: "center" },
+    screen: { flex: 1, backgroundColor: tokens.card },
+    content: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 13, paddingBottom: 32, gap: 24 },
+    identity: { alignItems: "center" },
+    avatarSpace: { width: 104, height: 104 },
+    name: {
+      marginTop: 3,
+      color: native.label,
+      fontSize: 22,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    edit: {
+      marginTop: 12,
+      minWidth: 52,
+      height: 37,
+      paddingHorizontal: 13,
+      borderRadius: 18.5,
+      backgroundColor: tokens.popoverBorder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    editPressed: { opacity: 0.7 },
+    editLabel: { color: native.label, fontSize: 15, fontWeight: "500" },
+    switchRow: {
+      minHeight: 55,
+      paddingStart: 19,
+      paddingEnd: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    switchLabel: { flex: 1, color: native.label, fontSize: 17 },
+    footer: {
+      marginTop: 12,
+      paddingHorizontal: 18,
+      color: botHintColor(),
+      fontSize: 14,
+      lineHeight: 19,
+    },
   });
 }

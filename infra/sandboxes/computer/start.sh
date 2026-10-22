@@ -83,7 +83,11 @@ xsetroot -solid "#111113"
 exec fluxbox -rc /tmp/fluxbox-home/.fluxbox/init
 EOF
 chmod +x /tmp/fluxbox-home/.fluxbox/startup
-HOME=/tmp/fluxbox-home /tmp/fluxbox-home/.fluxbox/startup >/tmp/rakazo/fluxbox.log 2>&1 &
+# As on Team desktops, apps opened from the desktop get the agent's HOME. Fluxbox reads apps
+# from $HOME/.fluxbox unless told otherwise, and replaces the -rc file when that directory is missing.
+printf '\nsession.appsFile: %s\n' /tmp/fluxbox-home/.fluxbox/apps >>/tmp/fluxbox-home/.fluxbox/init
+mkdir -p "$AGENT_HOME/.fluxbox"
+/tmp/fluxbox-home/.fluxbox/startup >/tmp/rakazo/fluxbox.log 2>&1 &
 
 register_browser_handler() {
   local mime="$1"

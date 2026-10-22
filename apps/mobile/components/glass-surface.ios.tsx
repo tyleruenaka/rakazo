@@ -26,7 +26,13 @@ export function GlassSurface({
   ];
   return (
     <View style={style}>
-      <Host colorScheme={scheme} pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {/* A background fills its view even where it overlaps the safe area (e.g. a bottom bar). */}
+      <Host
+        colorScheme={scheme}
+        pointerEvents="none"
+        ignoreSafeArea="all"
+        style={StyleSheet.absoluteFill}
+      >
         {shape === "circle" ? (
           <Circle modifiers={modifiers} />
         ) : shape === "roundedRectangle" ? (

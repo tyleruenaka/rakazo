@@ -73,6 +73,39 @@ describe("VoiceChatCard", () => {
     expect(opened.querySelector('[data-message-id="user-1"]')).not.toBeNull();
   });
 
+  it("is one small row titled like Grok's, with the call's length", () => {
+    const untitled = {
+      id: "marker-2",
+      role: "bot",
+      blocks: [{ kind: "voice_call" as const, title: "", farewell: "Bye", durationSeconds: 6 }],
+    };
+    const plain: VoiceChatGroup = {
+      ...group,
+      marker: untitled,
+      messages: [...group.messages.slice(0, 2), untitled],
+    };
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root?.render(<VoiceChatCard group={plain} />));
+    const toggle = container.querySelector<HTMLButtonElement>("button[aria-expanded]");
+    expect(toggle?.getAttribute("aria-label")).toBe("Voice chat · 00:06");
+    expect(container.querySelector('button[aria-label="Close"]')).toBeNull();
+    act(() => toggle?.click());
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+    const close = container.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+    act(() => close?.click());
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("titles the row with the call's own title when it has one", () => {
+    render();
+    expect(container?.querySelector("button[aria-expanded]")?.getAttribute("aria-label")).toMatch(
+      /^Booked a flight · /,
+    );
+  });
+
   it("shows the bot's missed call with a way to call back", () => {
     const onCallBack = vi.fn();
     const missed: VoiceChatGroup = {
@@ -142,7 +175,7 @@ describe("VoiceChatCard", () => {
     act(() => root?.render(<VoiceChatCard group={answered} />));
 
     expect(container.textContent).toContain("Incoming call");
-    expect(container.textContent).toContain("0:42");
+    expect(container.textContent).toContain("00:42");
     act(() => container?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
     expect(container.textContent).toContain("Hi, it's about the report.");
     expect(container.textContent).toContain("On it");

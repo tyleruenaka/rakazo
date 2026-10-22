@@ -982,10 +982,6 @@ msgstr "Parcourir les serveurs MCP"
 msgid "Built-in"
 msgstr "Intégré"
 
-#: src/pages/Shell.tsx
-msgid "Call"
-msgstr "Appeler"
-
 #: src/components/call/VoiceChatCard.tsx
 msgid "Call back"
 msgstr "Rappeler"
@@ -1146,6 +1142,10 @@ msgstr "Vérification en cours…"
 msgid "Checkout has local changes. Clean it before updating."
 msgstr "La copie de travail a des modifications locales. Nettoyez-la avant de mettre à jour."
 
+#: src/lib/bot-activity.ts
+msgid "Chewing on it"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Choose a bot…"
 msgstr "Choisissez un bot…"
@@ -1191,6 +1191,7 @@ msgid "Client secret"
 msgstr "Secret client"
 
 #: src/components/ArtifactPreviewPane.tsx
+#: src/components/call/VoiceChatCard.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -2207,10 +2208,6 @@ msgstr "MCP direct"
 msgid "Disabled tools"
 msgstr ""
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Discard recording"
-msgstr "Supprimer l’enregistrement"
-
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/ModelSettingsOverlay.tsx
@@ -2319,9 +2316,17 @@ msgstr "Téléchargement en cours…"
 msgid "Draft skill"
 msgstr "Compétence en brouillon"
 
+#: src/lib/bot-activity.ts
+msgid "Drafting"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Drag, drop, or paste an image"
 msgstr "Glissez, déposez ou collez une image"
+
+#: src/lib/bot-activity.ts
+msgid "Drawing it up"
+msgstr ""
 
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
@@ -2638,6 +2643,10 @@ msgstr "Obtenir l’application mobile"
 msgid "Getting ready"
 msgstr "Préparation en cours"
 
+#: src/lib/bot-activity.ts
+msgid "Getting there"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr "Événement Git"
@@ -2671,6 +2680,10 @@ msgstr "Raccrochez d'abord, puis saisissez le code à l'écran."
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "Raccrochez, puis saisissez le code à l'écran."
+
+#: src/lib/bot-activity.ts
+msgid "Hanging tight"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -2706,10 +2719,6 @@ msgstr "Masquer les bots"
 msgid "Hide password"
 msgstr "Masquer le mot de passe"
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Hide transcript"
-msgstr "Masquer la transcription"
-
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2720,14 +2729,6 @@ msgstr "Élevé"
 #: src/lib/model-catalog.ts
 msgid "High"
 msgstr ""
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk"
-msgstr "Maintenir pour parler"
-
-#: src/components/composer/HoldToTalk.tsx
-msgid "Hold to talk, release to send"
-msgstr "Maintenir pour parler, relâcher pour envoyer"
 
 #: src/pages/RoutineSchedule.tsx
 msgid "hour"
@@ -2873,6 +2874,10 @@ msgstr "Ses bots et groupes sont conservés et quittent la section."
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "Sa conversation, ses fichiers et ses routines seront définitivement supprimés. Les bots qu'il a créés restent dans votre liste."
 
+#: src/lib/bot-activity.ts
+msgid "Jogging its memory"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
 msgstr "Aller au plus récent"
@@ -2948,12 +2953,11 @@ msgstr "Vue en liste"
 msgid "Listen"
 msgstr "Écouter"
 
-#: src/components/call/CallCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listening"
 msgstr "Écoute"
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/pages/Shell.tsx
 msgid "Listening…"
 msgstr "À l’écoute…"
 
@@ -3041,6 +3045,14 @@ msgstr "Paramètres du serveur local"
 msgid "Log out"
 msgstr "Se déconnecter"
 
+#: src/lib/bot-activity.ts
+msgid "Looking it up"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Looping in a teammate"
+msgstr ""
+
 #: src/lib/ticket-priority.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3059,6 +3071,10 @@ msgstr ""
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Assurez-vous qu'aucun processus ne tourne encore sur cet ordinateur."
+
+#: src/lib/bot-activity.ts
+msgid "Making headway"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/BillingSettingsPanel.tsx
@@ -3250,10 +3266,6 @@ msgstr "Réduire"
 msgid "Minimize bots"
 msgstr "Réduire les bots"
 
-#: src/components/call/CallCard.tsx
-msgid "Minimize call"
-msgstr "Réduire l’appel"
-
 #: src/pages/RoutineSchedule.tsx
 msgid "minute"
 msgstr "minute"
@@ -3349,10 +3361,6 @@ msgstr "Déplacer vers"
 #: src/components/call/CallCard.tsx
 msgid "Mute"
 msgstr "Couper le micro"
-
-#: src/components/call/CallCard.tsx
-msgid "Muted"
-msgstr "Micro coupé"
 
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/Auth.tsx
@@ -3536,6 +3544,10 @@ msgstr "Aucune exécution pour le moment"
 msgid "No skills yet"
 msgstr "Aucune compétence pour le moment"
 
+#: src/components/call/CallCard.tsx
+msgid "No speech transcribed yet"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No team conversations yet."
 msgstr "Aucune conversation d'équipe pour le moment."
@@ -3629,6 +3641,10 @@ msgstr "OAuth expiré"
 msgid "On a schedule"
 msgstr "Sur planification"
 
+#: src/lib/bot-activity.ts
+msgid "On it"
+msgstr ""
+
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
 msgid "on the 1st at {0}"
@@ -3664,10 +3680,6 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "Open <0>{0}</0> to finish signing in."
 msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Open call"
-msgstr "Ouvrir l’appel"
 
 #. placeholder {0}: call.botName
 #: src/components/call/CallCard.tsx
@@ -3825,10 +3837,6 @@ msgstr "Collez votre clé API, puis testez à nouveau."
 msgid "Paused"
 msgstr "En pause"
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Phone call"
-msgstr "Appel téléphonique"
-
 #: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
 msgid "Photo"
@@ -3866,9 +3874,17 @@ msgstr "Lire {name}"
 msgid "Playing…"
 msgstr "Lecture en cours…"
 
+#: src/lib/bot-activity.ts
+msgid "Plugging away"
+msgstr ""
+
 #: src/pages/KnowledgeSection.tsx
 msgid "Plugin"
 msgstr "Plugin"
+
+#: src/lib/bot-activity.ts
+msgid "Poking around"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Post \"No changes\" in chat"
@@ -3940,6 +3956,10 @@ msgstr "Réactions"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Lire les réponses à voix haute"
+
+#: src/lib/bot-activity.ts
+msgid "Reading up"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4277,11 +4297,6 @@ msgstr "Réessayer maintenant"
 msgid "Retry screen"
 msgstr "Réessayer l'écran"
 
-#. placeholder {0}: call.botName
-#: src/components/call/CallCard.tsx
-msgid "Return to call with {0}"
-msgstr "Revenir à l’appel avec {0}"
-
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Rakazo"
 msgstr "Retour à Rakazo"
@@ -4353,6 +4368,10 @@ msgstr "En cours"
 #: src/pages/RoutineEditor.tsx
 msgid "Running · Stop"
 msgstr "En cours · Arrêter"
+
+#: src/lib/bot-activity.ts
+msgid "Running some code"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Running…"
@@ -4528,10 +4547,6 @@ msgstr "Envoyer le code de suppression"
 msgid "Send it"
 msgstr "L'envoyer"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Send recording"
-msgstr "Envoyer l’enregistrement"
-
 #: src/pages/Auth.tsx
 msgid "Send reset link"
 msgstr "Envoyer le lien de réinitialisation"
@@ -4642,10 +4657,6 @@ msgstr "Afficher les paramètres"
 msgid "Show tool activity"
 msgstr ""
 
-#: src/components/call/VoiceChatCard.tsx
-msgid "Show transcript"
-msgstr "Afficher la transcription"
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
 msgstr ""
@@ -4717,10 +4728,6 @@ msgstr "Message Slack"
 msgid "Slack not enabled"
 msgstr "Slack non activé"
 
-#: src/components/composer/HoldToTalk.tsx
-msgid "Slide up to lock"
-msgstr "Glisser vers le haut pour verrouiller"
-
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Software update"
 msgstr "Mise à jour logicielle"
@@ -4751,10 +4758,6 @@ msgstr "Défaut de l'espace"
 msgid "Spaces"
 msgstr "Espaces"
 
-#: src/pages/Shell.tsx
-msgid "Speak"
-msgstr "Parler"
-
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speak + transcribe"
 msgstr "Parler + transcrire"
@@ -4766,10 +4769,6 @@ msgstr "Parler uniquement"
 #: src/pages/Shell.tsx
 msgid "Speak this reply"
 msgstr "Lire cette réponse à voix haute"
-
-#: src/components/call/CallCard.tsx
-msgid "Speaking"
-msgstr "Parle"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Speech model"
@@ -4786,6 +4785,10 @@ msgstr ""
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
 msgstr "Démarrer l'enregistrement"
+
+#: src/components/composer/Dictation.tsx
+msgid "Start voice input"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Starting"
@@ -4810,6 +4813,10 @@ msgstr "Étapes"
 #: src/pages/Shell.tsx
 msgid "Stop"
 msgstr "Arrêter"
+
+#: src/components/composer/Dictation.tsx
+msgid "Stop dictation"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Stop speaking"
@@ -4954,7 +4961,7 @@ msgstr "Thème"
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr ""
 
-#: src/components/call/CallCard.tsx
+#: src/lib/bot-activity.ts
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/RoutineEditor.tsx
@@ -5112,7 +5119,8 @@ msgstr "Sources d'outils"
 msgid "Tools"
 msgstr "Outils"
 
-#: src/components/composer/HoldToTalk.tsx
+#: src/components/composer/Dictation.tsx
+#: src/pages/Shell.tsx
 msgid "Transcribing…"
 msgstr "Transcription…"
 
@@ -5148,6 +5156,10 @@ msgstr "Réessayer"
 #: src/lib/model-connection-preflight.ts
 msgid "Try the test again."
 msgstr "Relancez le test."
+
+#: src/lib/bot-activity.ts
+msgid "Turning it over"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -5345,6 +5357,10 @@ msgstr ""
 msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
 msgstr "Utilise les identifiants {hostCredentialSource} propres à ce serveur pour accéder à {selectedProviderName}."
 
+#: src/lib/bot-activity.ts
+msgid "Using its computer"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
@@ -5370,11 +5386,17 @@ msgstr "Version"
 msgid "View chat"
 msgstr "Voir la conversation"
 
+#: src/components/call/CallCard.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Voice"
 msgstr "Voix"
+
+#: src/components/call/VoiceChatCard.tsx
+msgid "Voice chat"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Wait a moment and test again."
@@ -5469,6 +5491,10 @@ msgstr "Où les bots doivent-ils s'exécuter ?"
 msgid "Won't do"
 msgstr ""
 
+#: src/lib/bot-activity.ts
+msgid "Working it out"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -5476,6 +5502,10 @@ msgstr "En cours…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/lib/bot-activity.ts
+msgid "Writing back…"
 msgstr ""
 
 #: src/lib/billing.ts

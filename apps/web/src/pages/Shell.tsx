@@ -76,6 +76,7 @@ import {
   AvatarStyleProvider,
   BotAvatar,
   BotGlyph,
+  BotMotionProvider,
   Button,
   buttonVariants,
   Collapsible,
@@ -104,6 +105,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  useAvatarGaze,
 } from "@rakazo/ui-web";
 import {
   ArrowDown,
@@ -124,7 +126,6 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   Pencil,
-  Phone,
   Plus,
   Puzzle,
   Reply,
@@ -134,6 +135,7 @@ import {
   Smile,
   Square,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
 import type {
@@ -164,11 +166,11 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import {
-  ActiveBotGlyph,
   CollaborationMarker,
   CollaborationMarkerGroup,
 } from "../components/ai/CollaborationMarker";
 import { Shimmer } from "../components/ai/primitives";
+import { WorkingStatusLine } from "../components/ai/WorkingStatusLine";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
 import {
@@ -176,14 +178,15 @@ import {
   computersAreUnavailable,
 } from "../components/ComputersUnavailableHint";
 import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
-import { CallCard, CallReturnBar } from "../components/call/CallCard";
+import { CallBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
 import { VoiceChatCard } from "../components/call/VoiceChatCard";
 import {
-  HoldToTalkControls,
-  HoldToTalkStrip,
-  useHoldToTalk,
-} from "../components/composer/HoldToTalk";
+  DictationChip,
+  DictationMic,
+  DictationTranscribing,
+  useDictation,
+} from "../components/composer/Dictation";
 import { lazyOverlay } from "../components/ErrorBoundary";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
 import { PasskeyOffer } from "../components/PasskeyOffer";
@@ -199,6 +202,7 @@ import { SkillDraftCard } from "../components/teach/SkillDraftCard";
 import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../components/teach/TeachComputerOverlay";
 import { TeachRecordingChrome, TeachStopButton } from "../components/teach/TeachRecordingChrome";
+import { VoiceWaveIcon } from "../components/VoiceWaveIcon";
 import type { ActivityListFilters } from "../lib/activity-list-filters";
 import { emptyActivityFilters } from "../lib/activity-list-filters";
 import { readActivityMode, writeActivityMode } from "../lib/activity-mode";
@@ -210,6 +214,8 @@ import {
   takeInitialBootstrap,
 } from "../lib/bootstrap";
 import { initialBootstrapTarget } from "../lib/bootstrap-target";
+import type { ActivityKind, BotActivity } from "../lib/bot-activity";
+import { activityMotion, reduceBotActivity } from "../lib/bot-activity";
 import {
   getBotsSidebarDensity,
   subscribeBotsSidebarDensity,
@@ -224,12 +230,7 @@ import {
   requestBrowserNotificationPermission,
   shouldNotifyBrowser,
 } from "../lib/browser-notifications";
-import {
-  getSnapshot as getCallSnapshot,
-  setCallMinimized,
-  startCall,
-  useCallSession,
-} from "../lib/call-session";
+import { getSnapshot as getCallSnapshot, startCall, useCallBotId } from "../lib/call-session";
 import { newClientId } from "../lib/client-id";
 import {
   beginComposerDraftSubmission,
@@ -491,6 +492,14 @@ function readCollapsedRosterParents(userId: string | null | undefined): Set<stri
   return readCollapsedIdSet(collapsedRosterParentsStorageKey(userId));
 }
 
+/**
+ * The chat's working line. On a call with the thread's bot the call bar shows it thinking,
+ * so the chat keeps only its messages.
+ */
+export function showsWorkingLine(working: boolean, onCallWithThreadBot: boolean): boolean {
+  return working && !onCallWithThreadBot;
+}
+
 export function ShellPage() {
   // A new key per space switch, so nothing from the previous space survives it.
   const spaceEpoch = useSpaceEpoch();
@@ -555,6 +564,21 @@ function SpaceShell() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<ThreadSnapshot | null>(null);
   const snapshotRef = useRef<ThreadSnapshot | null>(null);
+  // What the open thread's bots are doing, from its live events; drives faces and the status line.
+  const [botActivity, setBotActivity] = useState<ReadonlyMap<string, BotActivity>>(() => new Map());
+  const trackBotActivity = useCallback((event: ProductEvent) => {
+    setBotActivity((prev) => reduceBotActivity(prev, event, Date.now()));
+  }, []);
+  const botMotions = useMemo(
+    () => new Map([...botActivity].map(([botId, activity]) => [botId, activityMotion(activity)])),
+    [botActivity],
+  );
+  // The avatars end a done or failed face themselves (SETTLED_MS), without re-rendering the page.
+  const botMotionsSince = useMemo(
+    () => new Map([...botActivity].map(([botId, activity]) => [botId, activity.at])),
+    [botActivity],
+  );
+  useAvatarGaze();
   const streamResponses = useSyncExternalStore(
     subscribeResponseStreaming,
     getResponseStreamingEnabled,
@@ -583,6 +607,8 @@ function SpaceShell() {
   const [replyQuote, setReplyQuote] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  /** Stop is in flight; messages wait only until the run shows as stopped, not for the request. */
+  const [stopping, setStopping] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [logOutError, setLogOutError] = useState<string | null>(null);
   const { signingOut, logOut } = useSignOut(() => {
@@ -733,7 +759,9 @@ function SpaceShell() {
     SpaceMemoryConfig | null | undefined
   >(undefined);
   const memoryProviderConfigRevision = useRef(0);
-  const call = useCallSession();
+  // Only who is on a call: the call bar follows the rest, so this screen does not re-render
+  // on every phase or caption change.
+  const callBotId = useCallBotId();
   /** Calls a bot, or opens voice settings first when no voice is connected. */
   const callBot = (bot: Bot) => {
     if (!bootstrapMe?.phoneCallsEnabled) return;
@@ -1014,6 +1042,8 @@ function SpaceShell() {
 
   const inGroup = Boolean(groupId);
   const active = inGroup ? undefined : (bots.find((b) => b.id === botId) ?? bots[0]);
+  /** The call bar carries this bot's avatar, so the name pill drops it. */
+  const inCallWithActive = Boolean(active && callBotId === active.id);
   const computerBot =
     (computerBotId ? bots.find((bot) => bot.id === computerBotId) : undefined) ?? active;
   computerOpenRef.current = computerOpen;
@@ -1184,11 +1214,13 @@ function SpaceShell() {
           botOrderEpoch === botOrderEpochRef.current &&
           (replaceBotOrder || (!preserveBotOrder && !savingBotOrderRef.current))
         ) {
-          setBots(list);
+          setBots((current) => sameData(current, list));
         }
-        setBotSections(sections);
-        setGroups(groupList);
-        setSpaces(navigation.spaces);
+        // The 3s poll mostly returns what is already shown; keeping the same state then saves a
+        // full re-render, which would stall every animation on the page.
+        setBotSections((current) => sameData(current, sections));
+        setGroups((current) => sameData(current, groupList));
+        setSpaces((current) => sameData(current, navigation.spaces));
         setInitialBotsLoaded(true);
         botsRefreshApplied.current = request;
         if (
@@ -1538,7 +1570,7 @@ function SpaceShell() {
       autoSpoken.current = lastBot?.id ?? null;
       return;
     }
-    if (call?.botId === active.id || !active.autoSpeak) {
+    if (callBotId === active.id || !active.autoSpeak) {
       autoSpoken.current = lastBot?.id ?? null;
       return;
     }
@@ -1555,7 +1587,7 @@ function SpaceShell() {
     staleThreadBotId,
     active?.autoSpeak,
     active?.id,
-    call?.botId,
+    callBotId,
   ]);
 
   useEffect(() => {
@@ -1601,6 +1633,7 @@ function SpaceShell() {
         : threadCacheRef.current.get(active.id);
     if (cachedThread) commitSnapshot(cachedThread);
     setThreadStale(cachedThread ? active.id : null);
+    setBotActivity(new Map());
     const abort = new AbortController();
     void runThreadSubscription({
       signal: abort.signal,
@@ -1630,8 +1663,10 @@ function SpaceShell() {
           }
         }
       },
-      applyEvent: (event) =>
-        applyThreadEvent(event, commitSnapshot, commitComputer, snapshotRef, computerRef),
+      applyEvent: (event) => {
+        trackBotActivity(event);
+        applyThreadEvent(event, commitSnapshot, commitComputer, snapshotRef, computerRef);
+      },
       onEvent: (event, initial) => {
         const currentBot = botsRef.current.find((bot) => bot.id === active.id);
         notifyBrowserForEvent(
@@ -1683,7 +1718,7 @@ function SpaceShell() {
     return () => {
       abort.abort();
     };
-  }, [active?.id, markBotReadIfVisible, notifyBrowserForEvent]);
+  }, [active?.id, markBotReadIfVisible, notifyBrowserForEvent, trackBotActivity]);
 
   useEffect(() => {
     if (!groupId || !activeGroup) return;
@@ -1721,6 +1756,7 @@ function SpaceShell() {
       expandedHistoryThread.current = null;
     }
     historyEpoch.current += 1;
+    setBotActivity(new Map());
     const abort = new AbortController();
     void runThreadSubscription({
       signal: abort.signal,
@@ -1732,7 +1768,8 @@ function SpaceShell() {
       refresh: () => refreshGroupThread(groupId, threadSnapshotSignal(abort.signal)),
       currentSnapshot: () => snapshotRef.current,
       subscribe: (cursor, signal) => rpc.threads.subscribe({ groupId, cursor }, { signal }),
-      applyEvent: (event) =>
+      applyEvent: (event) => {
+        trackBotActivity(event);
         applyThreadEvent(
           event,
           commitSnapshot,
@@ -1742,7 +1779,8 @@ function SpaceShell() {
           },
           snapshotRef,
           computerRef,
-        ),
+        );
+      },
       onEvent: (event, initial) => {
         const eventBot = botsRef.current.find((bot) => bot.id === event.botId);
         notifyBrowserForEvent(
@@ -1777,7 +1815,7 @@ function SpaceShell() {
       document.removeEventListener("visibilitychange", markVisibleGroupRead);
       abort.abort();
     };
-  }, [activeGroup?.id, groupId, notifyBrowserForEvent]);
+  }, [activeGroup?.id, groupId, notifyBrowserForEvent, trackBotActivity]);
 
   const sidebarSpaces = useMemo(
     () =>
@@ -2227,6 +2265,18 @@ function SpaceShell() {
       status: run.status,
     };
   });
+  const soloWorkingActivity =
+    workingBots.length === 1 ? botActivity.get(workingBots[0]?.botId ?? "") : undefined;
+  // A settled or blocked face belongs to the previous step: the new run starts unknown.
+  const soloStep =
+    soloWorkingActivity &&
+    soloWorkingActivity.kind !== "done" &&
+    soloWorkingActivity.kind !== "failed" &&
+    soloWorkingActivity.kind !== "blocked"
+      ? { kind: soloWorkingActivity.kind, at: soloWorkingActivity.at }
+      : undefined;
+  const workingKind: ActivityKind = soloStep?.kind ?? "working";
+  const workingSince = soloStep?.at;
   const resolveTranscriptMemberName = useCallback(
     (botId: string | undefined) => memberName(transcriptMembers, botId),
     [transcriptMembers],
@@ -2662,9 +2712,8 @@ function SpaceShell() {
     ],
   );
   const stopRun = useCallback(async () => {
-    if (sending) return;
-    sendingRef.current = true;
-    setSending(true);
+    if (stopping) return;
+    setStopping(true);
     try {
       const botTarget = activeBotId.current;
       const groupTarget = activeGroupId.current;
@@ -2684,7 +2733,8 @@ function SpaceShell() {
             prev && prev.groupId === groupTarget ? clearActiveThreadRuns(prev) : prev,
           );
         }
-        await refreshGroupThreadRef.current(groupTarget).catch(() => undefined);
+        // The run is already stopped: the next message must not wait for this refresh.
+        void refreshGroupThreadRef.current(groupTarget).catch(() => undefined);
         return;
       }
       if (!botTarget) return;
@@ -2709,12 +2759,12 @@ function SpaceShell() {
           commitComputer({ ...currentComputer, busyBotName: null });
         }
       }
-      await refreshThreadRef.current(botTarget).catch(() => undefined);
+      // The run is already stopped: the next message must not wait for this refresh.
+      void refreshThreadRef.current(botTarget).catch(() => undefined);
     } finally {
-      sendingRef.current = false;
-      setSending(false);
+      setStopping(false);
     }
-  }, [sending, t]);
+  }, [stopping, t]);
   const stopTeaching = useCallback(async () => {
     const id = activeBotId.current;
     if (!id || teachBusy) return;
@@ -3270,16 +3320,20 @@ function SpaceShell() {
   const rosterChatSelected = (item: RosterChat) =>
     (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
     (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
-  const rosterAvatar = (item: RosterChat, size: number) =>
+  // Like Grok, the open chat's avatar idles with life (lively); the card's small copy stays still.
+  const rosterAvatar = (item: RosterChat, size: number, lively = false) =>
     item.kind === "bot" ? (
       <BotAvatar
         color={item.chat.color}
         identity={item.chat.id}
         size={size}
         status={item.chat.status}
+        animated
+        lively={lively}
       />
     ) : (
       <GroupAvatar
+        animated
         members={
           item.chat.id === activeSnapshot?.groupId
             ? (activeSnapshot.members ?? item.chat.members)
@@ -3831,6 +3885,7 @@ function SpaceShell() {
                     rosterParent.get(draggedBotId ?? "") === parentId;
                   const rowDropKey = `row:${item.kind}:${item.chat.id}`;
                   const rosterButtonProps = {
+                    "data-avatar-gaze": "",
                     draggable: item.kind === "bot",
                     "data-roster-bot-id": item.kind === "bot" ? item.chat.id : undefined,
                     "data-roster-unread": item.chat.unread ? "true" : undefined,
@@ -3893,7 +3948,7 @@ function SpaceShell() {
                         {...rosterButtonProps}
                         name={item.chat.name}
                         label={item.kind === "bot" ? item.chat.title : null}
-                        avatar={rosterAvatar(item, 72)}
+                        avatar={rosterAvatar(item, 72, selected)}
                         cardAvatar={rosterAvatar(item, 16)}
                         cardLine={rosterCardLine(item)}
                         unread={item.chat.unread}
@@ -3964,9 +4019,12 @@ function SpaceShell() {
                             identity={item.chat.id}
                             size={compact ? 28 : 40}
                             status={item.chat.status}
+                            animated
+                            lively={selected}
                           />
                         ) : (
                           <GroupAvatar
+                            animated
                             members={
                               item.chat.id === activeSnapshot?.groupId
                                 ? (activeSnapshot.members ?? item.chat.members)
@@ -4308,10 +4366,11 @@ function SpaceShell() {
               <RailItem
                 key={`${item.kind}:${item.chat.id}`}
                 data-rail-chat-id={item.chat.id}
+                data-avatar-gaze=""
                 name={item.chat.name}
                 unread={Boolean(item.chat.unread)}
                 selected={rosterChatSelected(item)}
-                avatar={rosterAvatar(item, 40)}
+                avatar={rosterAvatar(item, 40, rosterChatSelected(item))}
                 cardAvatar={rosterAvatar(item, 16)}
                 cardLine={rosterCardLine(item)}
                 onClick={() => openRosterChat(item)}
@@ -4425,7 +4484,10 @@ function SpaceShell() {
               onClick={() =>
                 setPanel(panel ? null : inGroup ? "group-settings" : lastPanelTab.current)
               }
-              className="app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card ps-[9.5px] pe-[15px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] dark:shadow-none rtl:translate-x-1/2"
+              className={cn(
+                "app-no-drag absolute start-1/2 top-2.5 flex h-10 max-w-[calc(100%-200px)] -translate-x-1/2 items-center gap-2.5 rounded-full border-[0.5px] border-pill-border bg-card pe-[15px] shadow-[0_2px_12px_rgb(0_0_0/0.06)] transition-[padding] duration-[130ms] ease-in-out motion-reduce:transition-none dark:shadow-none rtl:translate-x-1/2",
+                inCallWithActive ? "ps-[15px]" : "ps-[9.5px]",
+              )}
             >
               {inGroup ? (
                 <GroupAvatar
@@ -4433,12 +4495,29 @@ function SpaceShell() {
                   size={24}
                 />
               ) : active ? (
-                <BotAvatar
-                  color={active.color}
-                  identity={active.id}
-                  size={24}
-                  status={active.status}
-                />
+                // In a call the bot lives in the call bar: like Grok, its pill avatar turns edge-on
+                // and folds away to the left (130ms), and turns back in when the call ends.
+                <span
+                  aria-hidden={inCallWithActive || undefined}
+                  className={cn(
+                    "-me-2.5 flex shrink-0 justify-start overflow-hidden transition-[width,margin] duration-[130ms] ease-in-out motion-reduce:transition-none",
+                    inCallWithActive ? "w-0" : "me-0 w-6",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "origin-left transition-transform duration-[130ms] ease-in-out motion-reduce:transition-none",
+                      inCallWithActive && "scale-x-0",
+                    )}
+                  >
+                    <BotAvatar
+                      color={active.color}
+                      identity={active.id}
+                      size={24}
+                      status={active.status}
+                    />
+                  </span>
+                </span>
               ) : null}
               <span className="min-w-0">
                 <span className="block truncate text-[12.5px] text-foreground" dir="auto">
@@ -4450,33 +4529,6 @@ function SpaceShell() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            {bootstrapMe?.phoneCallsEnabled && !inGroup && active ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      data-testid="call-button"
-                      aria-label={call?.botId === active.id ? t`Open call` : t`Call`}
-                      onClick={() => {
-                        if (call?.botId === active.id) {
-                          setCallMinimized(false);
-                          return;
-                        }
-                        callBot(active);
-                      }}
-                      data-active={call?.botId === active.id ? "" : undefined}
-                      className="app-no-drag grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-accent data-active:bg-accent"
-                    />
-                  }
-                >
-                  <Phone size={17} strokeWidth={1.6} />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {call?.botId === active.id ? t`Open call` : t`Call`}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
             {!inGroup && active ? (
               <Tooltip>
                 <TooltipTrigger
@@ -4505,7 +4557,7 @@ function SpaceShell() {
             ) : null}
           </div>
         </div>
-        <CallReturnBar />
+        <CallBar />
         {!active && !activeGroup && initialBotsLoaded ? (
           <div className="grid flex-1 place-items-center">
             <Button onClick={() => setPanel("create")}>
@@ -4527,8 +4579,10 @@ function SpaceShell() {
             loadingOlder={loadingOlder}
             answerableAskIds={answerableAskIds}
             dismissableAskIds={dismissableAskIds}
-            running={transcriptRunning}
+            running={showsWorkingLine(transcriptRunning, inCallWithActive)}
             workingBots={workingBots}
+            workingKind={workingKind}
+            workingSince={workingSince}
             onCallBack={
               bootstrapMe?.phoneCallsEnabled && !inGroup && active
                 ? () => callBot(active)
@@ -4584,11 +4638,17 @@ function SpaceShell() {
               onRunErrorPresented={handleRunErrorPresented}
               onDismissError={dismissComposerError}
               sending={sending}
+              stopping={stopping}
               fileInputRef={fileInputRef}
               onAttachmentPick={onAttachmentPick}
               onRemoveAttachment={removeAttachment}
               onSend={sendMessage}
               onStop={stopRun}
+              onVoice={
+                bootstrapMe?.phoneCallsEnabled && !inGroup && active
+                  ? () => callBot(active)
+                  : undefined
+              }
               phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
               dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
               artifactTarget={transcriptArtifactTarget}
@@ -4634,7 +4694,6 @@ function SpaceShell() {
         ) : null}
       </main>
 
-      <CallCard onSettings={() => openSettings("voice")} />
       <IncomingCall
         bots={bootstrapMe?.phoneCallsEnabled ? bots : []}
         transcribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
@@ -4647,7 +4706,10 @@ function SpaceShell() {
         panel={panel ?? "closed"}
       >
         {panel && (active || activeGroup || panel === "create") ? (
-          <div className="rk-scroll h-full w-full overflow-y-auto px-4 pb-4 pt-3">
+          <div
+            data-avatar-gaze=""
+            className="rk-scroll h-full w-full overflow-y-auto px-4 pb-4 pt-3"
+          >
             {panel !== "routine" &&
             panel !== "create" &&
             panel !== "create-group" &&
@@ -5607,7 +5669,7 @@ function SpaceShell() {
                               aria-label={t`Stop`}
                               data-testid="computer-overlay-stop"
                               onClick={() => void stopRun()}
-                              disabled={sending}
+                              disabled={stopping}
                             />
                           }
                         >
@@ -5646,7 +5708,11 @@ function SpaceShell() {
   );
 
   return (
-    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>{shell}</AvatarStyleProvider>
+    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>
+      <BotMotionProvider value={botMotions} since={botMotionsSince}>
+        {shell}
+      </BotMotionProvider>
+    </AvatarStyleProvider>
   );
 }
 
@@ -5708,6 +5774,8 @@ const Transcript = memo(function Transcript({
   dismissableAskIds,
   running,
   workingBots,
+  workingKind,
+  workingSince,
   onCallBack,
   onLoadOlder,
   onOpenBot,
@@ -5741,6 +5809,9 @@ const Transcript = memo(function Transcript({
   dismissableAskIds: Set<string>;
   running: boolean;
   workingBots: GroupAvatarMember[];
+  workingKind: ActivityKind;
+  /** When the current step started, if this thread saw it start. */
+  workingSince?: number;
   /** Calls the bot back from a missed call in the transcript. */
   onCallBack?: () => void;
   onLoadOlder: () => void | Promise<void>;
@@ -5769,6 +5840,7 @@ const Transcript = memo(function Transcript({
   const { t } = useLingui();
   const [atEnd, setAtEnd] = useState(true);
   const following = useRef(true);
+  const columnRef = useRef<HTMLDivElement>(null);
   const autoScrolling = useRef(false);
   const lastScrollTop = useRef<number | null>(null);
   const autoScrollTimer = useRef<number | undefined>(undefined);
@@ -5803,6 +5875,16 @@ const Transcript = memo(function Transcript({
     [messages],
   );
   const reactionView = useMemo(() => projectMessageReactions(messages), [messages]);
+  const items = groupPeerMarkers(
+    groupVoiceChats(reactionView.visibleMessages).filter(
+      (item) =>
+        item.kind !== "message" || messageHasVisibleBlocks(item.message.blocks, showToolActivity),
+    ),
+    // A marker whose folded replies expand right below it keeps its own row.
+    (message) => transcript.folded.has(message.id),
+  );
+  const newestItem = items.at(-1);
+  const newestCall = newestItem?.kind === "voiceChat" ? newestItem.key : null;
   const separatorIds = timeSeparatorIds(
     reactionView.visibleMessages.filter((message) =>
       messageHasVisibleBlocks(message.blocks, showToolActivity),
@@ -6007,6 +6089,25 @@ const Transcript = memo(function Transcript({
     if (following.current) snapToEnd();
   }, [messages, running, snapToEnd]);
 
+  // A call's row landing at the end of a followed chat eases the chat up to it, like the call
+  // bar's tray, instead of jumping it there in one frame.
+  const settledCall = useRef(newestCall);
+  useLayoutEffect(() => {
+    if (newestCall === settledCall.current) return;
+    settledCall.current = newestCall;
+    const column = columnRef.current;
+    const row = column?.querySelector<HTMLElement>(
+      `[data-call-row="${CSS.escape(newestCall ?? "")}"]`,
+    );
+    if (!newestCall || !column || !row || !following.current) return;
+    const rise = row.offsetHeight + Number.parseFloat(getComputedStyle(column).rowGap || "0");
+    column.style.transition = "none";
+    column.style.transform = `translateY(${rise}px)`;
+    void column.offsetHeight;
+    column.style.transition = "";
+    column.style.transform = "";
+  }, [newestCall]);
+
   useLayoutEffect(() => {
     const button = jumpButtonRef.current;
     if (atEnd && button && document.activeElement === button) {
@@ -6090,7 +6191,10 @@ const Transcript = memo(function Transcript({
         className="rk-scroll rk-transcript-fade flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ps-4 pe-2 pt-[60px] [scrollbar-gutter:stable]"
       >
         {/* Grok's column: min(960, chat area - 32), centered. */}
-        <div className="mx-auto flex w-full max-w-[960px] flex-col gap-4">
+        <div
+          ref={columnRef}
+          className="rk-call-tray mx-auto flex w-full max-w-[960px] flex-col gap-4 transition-transform duration-300 motion-reduce:transition-none"
+        >
           {olderCursor != null ? (
             <button
               type="button"
@@ -6101,15 +6205,7 @@ const Transcript = memo(function Transcript({
               {loadingOlder ? t`Loading…` : t`Load earlier messages`}
             </button>
           ) : null}
-          {groupPeerMarkers(
-            groupVoiceChats(reactionView.visibleMessages).filter(
-              (item) =>
-                item.kind !== "message" ||
-                messageHasVisibleBlocks(item.message.blocks, showToolActivity),
-            ),
-            // A marker whose folded replies expand right below it keeps its own row.
-            (message) => transcript.folded.has(message.id),
-          ).map((item) => {
+          {items.map((item) => {
             if (item.kind === "peerMarkers") {
               const [first, ...rest] = item.messages;
               return (
@@ -6134,7 +6230,8 @@ const Transcript = memo(function Transcript({
             }
             if (item.kind === "voiceChat") {
               return (
-                <div key={item.key}>
+                // The time stamp keeps the same gap above the call as above a message.
+                <div key={item.key} data-call-row={item.key} className="flex flex-col gap-4">
                   {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
                     <TimeSeparator
                       createdAt={item.messages[0].createdAt}
@@ -6261,17 +6358,13 @@ const Transcript = memo(function Transcript({
               </Fragment>
             );
           })}
-          {running &&
-          !messages.some(
-            (message) =>
-              message.id.startsWith("progress:") &&
-              message.blocks.some(
-                (block) =>
-                  block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-              ),
-          ) ? (
-            <ActiveBotGlyph bots={workingBots} label={workingLabel} />
-          ) : null}
+          <WorkingStatusLine
+            running={running}
+            bots={workingBots}
+            kind={workingKind}
+            since={workingSince}
+            label={workingLabel}
+          />
         </div>
       </div>
       {quoteDraft ? <QuoteSelectionButton range={quoteDraft.range} onQuote={addQuote} /> : null}
@@ -6399,6 +6492,8 @@ export const Composer = memo(function Composer({
   onRemoveAttachment,
   onSend,
   onStop,
+  stopping,
+  onVoice,
   phoneCallsEnabled,
   dictationTranscribe,
   replyTarget,
@@ -6430,6 +6525,10 @@ export const Composer = memo(function Composer({
   onRemoveAttachment: (attachment: PendingAttachment) => void;
   onSend: (text: string, mentions: ComposerMention[], clientNonce: string) => Promise<boolean>;
   onStop: () => Promise<void>;
+  /** Stop is in flight; Send waits only while the run still shows as working. */
+  stopping?: boolean;
+  /** Starts voice mode; shown in the send button's place while there is nothing to send. */
+  onVoice?: () => void;
   phoneCallsEnabled?: boolean;
   /** Hold-to-talk falls back to the voice provider's transcription; undefined while unknown. */
   dictationTranscribe?: boolean;
@@ -6457,18 +6556,11 @@ export const Composer = memo(function Composer({
     const slashMatch = /^\/([^\n]*)$/.exec(draft);
     return slashMatch ? (slashMatch[1] ?? "") : null;
   });
-  const onCall = useCallSession() !== null;
-  const talk = useHoldToTalk({
+  const onCall = useCallBotId() !== null;
+  const talk = useDictation({
     transcribe: dictationTranscribe,
     disabled: disabled || onCall || !phoneCallsEnabled,
-    onText: (text) => {
-      // A refused send keeps the words: they land in the field to edit or retry.
-      void onSend(text, [], newClientNonce())
-        .then((accepted) => {
-          if (accepted === false) setDraft((current) => (current ? `${current} ${text}` : text));
-        })
-        .catch(() => setDraft((current) => (current ? `${current} ${text}` : text)));
-    },
+    onText: (text) => insertDictatedText(text),
   });
   const [selectedSkill, setSelectedSkill] = useState<AgentSkillCatalogEntry | null>(null);
   const [selectedMentions, setSelectedMentions] = useState<ComposerMention[]>([]);
@@ -6519,6 +6611,25 @@ export const Composer = memo(function Composer({
     selectedSkill !== null ||
     selectedMentions.length > 0 ||
     pendingAttachments.length > 0;
+
+  // Voice and send share one button; the glyphs cross-fade and scale like Grok's.
+  const recording = talk.phase === "recording";
+  const sendBlocked = sending || (Boolean(stopping) && running);
+  const showVoice = Boolean(onVoice) && !canSend && !recording;
+  const sendOrVoiceButton = (
+    <Button
+      size="icon"
+      aria-label={showVoice ? t`Voice` : t`Send`}
+      disabled={
+        recording ? disabled : showVoice ? disabled || onCall : sendBlocked || !canSend || disabled
+      }
+      onClick={recording ? () => talk.stop(true) : showVoice ? onVoice : send}
+      className={cn(sendButtonClass, "relative")}
+    >
+      <VoiceWaveIcon className={composerGlyphClass(showVoice)} />
+      <ArrowUp size={20} strokeWidth={2} className={composerGlyphClass(!showVoice)} />
+    </Button>
+  );
 
   useEffect(() => {
     if (!runError || !runErrorId) return;
@@ -6614,6 +6725,46 @@ export const Composer = memo(function Composer({
   function pickAttachments(files: FileList | null) {
     if (!files?.length) return;
     if (onAttachmentPick(files)) markEdited();
+  }
+
+  // Enter while a send is in flight, or while a stopped run still shows as working, sends as
+  // soon as that clears: one Enter is always enough, as in Grok, and nothing joins the run
+  // being stopped.
+  const [queuedSend, setQueuedSend] = useState(false);
+  useEffect(() => {
+    if (!queuedSend || sendBlocked) return;
+    setQueuedSend(false);
+    void send();
+  });
+
+  // The mic gives way to the recording chip; keep focus in the field, as Grok does, so
+  // Escape there discards the take and Enter sends it.
+  const wasRecording = useRef(false);
+  useEffect(() => {
+    const ended = wasRecording.current && !recording;
+    wasRecording.current = recording;
+    // Stopping by the chip removes the focused control; hand focus back to the field.
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (recording || (ended && lost)) textareaRef.current?.focus();
+  }, [recording]);
+
+  // Sending while dictating waits for the words to land in the field, then sends it all.
+  useEffect(() => {
+    if (!talk.sendPending || talk.phase !== "idle") return;
+    talk.clearSendPending();
+    void send();
+  });
+
+  /** Dictated words go in at the caret, spaced from the text around them. */
+  function insertDictatedText(text: string) {
+    const field = textareaRef.current;
+    const start = field?.selectionStart ?? draft.length;
+    const end = field?.selectionEnd ?? draft.length;
+    const before = draft.slice(0, start);
+    const after = draft.slice(end);
+    const lead = before && !/\s$/.test(before) ? " " : "";
+    const trail = after && !/^\s/.test(after) ? " " : "";
+    updateDraft(`${before}${lead}${text}${trail}${after}`);
   }
 
   function updateDraft(value: string) {
@@ -7019,6 +7170,7 @@ export const Composer = memo(function Composer({
         ref={composerBarRef}
         data-testid="composer-bar"
         data-expanded={expanded}
+        data-running={running || undefined}
         className={`relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center gap-x-2 rounded-[22px] border-[0.5px] border-popover-border bg-card px-2 shadow-[0_2px_8px_rgb(0_0_0/0.06)] focus-within:border-input-focus dark:shadow-[0_0_0_1px_rgb(255_255_255/0.03)] ${
           expanded
             ? // The reply pill sits 8 below the top edge; a lone quote chip lines up with the text.
@@ -7227,14 +7379,17 @@ export const Composer = memo(function Composer({
               </button>
             </span>
           ))}
-          <HoldToTalkStrip talk={talk} />
           <textarea
             ref={textareaRef}
-            hidden={talk.recording !== null}
             value={draft}
             onChange={(event) => updateDraft(event.target.value)}
             onPaste={handlePaste}
             onKeyDown={(event) => {
+              if (event.key === "Escape" && recording) {
+                event.preventDefault();
+                talk.cancel();
+                return;
+              }
               if (
                 event.key === "Backspace" &&
                 draft.length === 0 &&
@@ -7287,20 +7442,32 @@ export const Composer = memo(function Composer({
               }
               if (action.type === "send") {
                 event.preventDefault();
-                void send();
+                if (recording) talk.stop(true);
+                else if (sendBlocked) setQueuedSend(true);
+                else void send();
+                return;
+              }
+              // Escape stops the run too, like the Stop button.
+              if (event.key === "Escape" && running) {
+                event.preventDefault();
+                void onStop();
               }
             }}
             disabled={disabled}
             placeholder={
-              showComposerPlaceholder
-                ? replyTarget
-                  ? replyPlaceholder
-                  : pendingAttachments.length
-                    ? t`Add a message, or hit send`
-                    : activeName
-                      ? t`Message ${activeName}`
-                      : t`Message…`
-                : undefined
+              recording
+                ? t`Listening…`
+                : talk.phase === "transcribing"
+                  ? t`Transcribing…`
+                  : showComposerPlaceholder
+                    ? replyTarget
+                      ? replyPlaceholder
+                      : pendingAttachments.length
+                        ? t`Add a message, or hit send`
+                        : activeName
+                          ? t`Message ${activeName}`
+                          : t`Message…`
+                    : undefined
             }
             aria-label={activeName ? t`Message ${activeName}` : t`Message`}
             role="combobox"
@@ -7322,47 +7489,28 @@ export const Composer = memo(function Composer({
             expanded ? "row-start-2" : ""
           }`}
         >
-          {talk.recording?.locked ? (
-            <HoldToTalkControls talk={talk} />
-          ) : running ? (
-            <>
-              {phoneCallsEnabled && draft.trim().length === 0 ? (
-                <HoldToTalkControls talk={talk} disabled={disabled || onCall} />
-              ) : null}
-              <Button
-                size="icon"
-                aria-label={t`Send`}
-                disabled={sending || !canSend || disabled}
-                onClick={send}
-                className={sendButtonClass}
-              >
-                <ArrowUp size={20} strokeWidth={2} className="size-5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label={t`Stop`}
-                disabled={sending}
-                onClick={() => void onStop()}
-                className="size-7 rounded-full border-[0.5px] border-composer-control-border bg-control text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Square size={11} strokeWidth={0} fill="currentColor" />
-              </Button>
-            </>
+          {talk.phase === "transcribing" ? (
+            <DictationTranscribing />
           ) : (
             <>
-              {phoneCallsEnabled && draft.trim().length === 0 ? (
-                <HoldToTalkControls talk={talk} disabled={disabled || onCall} />
+              {recording ? (
+                <DictationChip talk={talk} />
+              ) : phoneCallsEnabled ? (
+                <DictationMic talk={talk} disabled={disabled || onCall} />
               ) : null}
-              <Button
-                size="icon"
-                aria-label={t`Send`}
-                disabled={sending || !canSend || disabled}
-                onClick={send}
-                className={sendButtonClass}
-              >
-                <ArrowUp size={20} strokeWidth={2} className="size-5" />
-              </Button>
+              {sendOrVoiceButton}
+              {running ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t`Stop`}
+                  disabled={stopping}
+                  onClick={() => void onStop()}
+                  className="size-7 shrink-0 rounded-full border-[0.5px] border-composer-control-border bg-control text-composer-icon transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <span aria-hidden="true" className="size-2.5 rounded-[2px] bg-current" />
+                </Button>
+              ) : null}
             </>
           )}
         </div>
@@ -7370,6 +7518,13 @@ export const Composer = memo(function Composer({
     </fieldset>
   );
 });
+
+function composerGlyphClass(shown: boolean) {
+  return cn(
+    "absolute inset-0 m-auto size-5 transition-[opacity,transform] duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
+    shown ? "scale-100 opacity-100" : "scale-50 opacity-0",
+  );
+}
 
 type ComposerLayout = { barHeight: number; fieldX: number; fieldY: number };
 
@@ -7501,12 +7656,15 @@ function MessageHoverActions({
   reacted,
   onReply,
   onReact,
+  speech,
 }: {
   message: ThreadMessage;
   side: "start" | "end";
   reacted: boolean;
   onReply: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
+  /** Read the reply aloud; while it plays the row stays up so it can be stopped. */
+  speech?: { speaking: boolean; onSpeak: () => void };
 }) {
   const { t } = useLingui();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -7525,7 +7683,11 @@ function MessageHoverActions({
     "grid h-11 w-11 place-items-center rounded-[8px] text-muted-foreground hover:bg-muted [@media(hover:hover)_and_(pointer:fine)]:h-6 [@media(hover:hover)_and_(pointer:fine)]:w-6";
 
   return (
-    <MessageHoverMetadata pinned={moreOpen || reactionsOpen} side={side} reacted={reacted}>
+    <MessageHoverMetadata
+      pinned={moreOpen || reactionsOpen || Boolean(speech?.speaking)}
+      side={side}
+      reacted={reacted}
+    >
       <div
         data-testid="message-hover-actions"
         className={cn("flex items-center gap-0.5", side === "start" && "flex-row-reverse")}
@@ -7569,6 +7731,25 @@ function MessageHoverActions({
             className={side === "start" ? "-scale-x-100" : undefined}
           />
         </button>
+        {speech ? (
+          <button
+            type="button"
+            aria-label={speech.speaking ? t`Stop speaking` : t`Speak this reply`}
+            onClick={(event) => {
+              speech.onSpeak();
+              // A mouse click must not keep the row up by focus once reading ends; reading
+              // pins it meanwhile. A key press keeps focus where the keyboard user left it.
+              if (event.detail > 0) event.currentTarget.blur();
+            }}
+            className={iconButtonClass}
+          >
+            {speech.speaking ? (
+              <Square size={11} strokeWidth={0} fill="currentColor" aria-hidden="true" />
+            ) : (
+              <Volume2 size={16} strokeWidth={1.5} aria-hidden="true" />
+            )}
+          </button>
+        ) : null}
         <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
           <DropdownMenuTrigger aria-label={t`More`} className={iconButtonClass}>
             <MoreHorizontal size={16} strokeWidth={1.5} />
@@ -7583,6 +7764,11 @@ function MessageHoverActions({
       </div>
     </MessageHoverMetadata>
   );
+}
+
+/** `current` when `next` holds the same data, so a no-op refresh doesn't re-render. */
+function sameData<T>(current: T, next: T): T {
+  return JSON.stringify(current) === JSON.stringify(next) ? current : next;
 }
 
 function firstThreadRoute(
@@ -7832,6 +8018,14 @@ export const MessageView = memo(function MessageView({
       reacted={reacted}
       onReply={onReply}
       onReact={onReact}
+      speech={
+        !isLive &&
+        voiceReady &&
+        message.role !== "user" &&
+        message.blocks.some((block) => block.kind === "text")
+          ? { speaking, onSpeak }
+          : undefined
+      }
     />
   );
   if (isNarration) {
@@ -7889,16 +8083,6 @@ export const MessageView = memo(function MessageView({
                 }
                 return null;
               })}
-              {!isLive && voiceReady && message.blocks.some((block) => block.kind === "text") ? (
-                <button
-                  type="button"
-                  aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
-                  onClick={onSpeak}
-                  className="text-[12px] text-muted-foreground hover:text-foreground"
-                >
-                  {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
-                </button>
-              ) : null}
             </div>
           </div>
           {hoverActions}
@@ -8174,16 +8358,6 @@ export const MessageView = memo(function MessageView({
                   <div data-quote-message-id={quoteMessageId}>
                     <ChatMarkdown>{block.text}</ChatMarkdown>
                   </div>
-                  {voiceReady ? (
-                    <button
-                      type="button"
-                      aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
-                      onClick={onSpeak}
-                      className="mb-0.5 mt-1 block text-[12px] text-muted-foreground hover:text-foreground"
-                    >
-                      {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
-                    </button>
-                  ) : null}
                 </div>
                 {i === hoverAnchorIndex ? hoverActions : null}
               </div>

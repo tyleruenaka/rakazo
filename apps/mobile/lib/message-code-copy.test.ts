@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 const source = readFileSync(new URL("../app/thread.tsx", import.meta.url), "utf8");
 const start = source.indexOf("    const messageText = selectableMobileMessageText(message);");
 const end = source.indexOf(
-  "  }, [message, actions, readOnly, onCall, colorScheme, t, locale]);",
+  "  }, [message, actions, readOnly, onCall, colorScheme, messageReactions, t, locale]);",
   start,
 );
 const menuSource = ts.transpileModule(source.slice(start, end), {
@@ -32,16 +32,12 @@ function messageMenu(role: "bot" | "user", blocks: string[]) {
     markdownCodeBlocks,
     Clipboard: { setStringAsync },
     MESSAGE_REACTIONS: [],
-    buildMessageContextMenu: () => [],
-    Platform: { OS: "ios" },
   };
-  const menu = new Function(...Object.keys(scope), menuSource)(...Object.values(scope)) as {
-    actionProps: {
-      accessibilityActions: { name: string; label: string }[];
-      onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => void;
-    };
+  const actionProps = new Function(...Object.keys(scope), menuSource)(...Object.values(scope)) as {
+    accessibilityActions: { name: string; label: string }[];
+    onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => void;
   };
-  return { ...menu.actionProps, setStringAsync, markdownCodeBlocks, text };
+  return { ...actionProps, setStringAsync, markdownCodeBlocks, text };
 }
 
 describe("MessageRow code copy accessibility action", () => {

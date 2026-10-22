@@ -1,115 +1,152 @@
 import type { VoiceChatGroup } from "@rakazo/core";
-import { speechFromBlocks, voiceChatDuration, voiceChatSummary } from "@rakazo/core";
+import { speechFromBlocks, voiceChatDuration } from "@rakazo/core";
 import { typeScale } from "@rakazo/ui-tokens";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MobileMessage } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import { native, useMobileTokens } from "../lib/native";
+import { useMobileTokens } from "../lib/native";
 import { NativeSymbol } from "./native-symbol";
 
 function clock(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** One call's exchange, collapsed to a card; expanding it shows the transcript. */
-export function VoiceChatCard({ group }: { group: VoiceChatGroup<MobileMessage> }) {
+/** One call's exchange, collapsed to a line in the thread; tapping it opens the transcript. */
+export function VoiceChatCard({
+  group,
+  userBubble,
+}: {
+  group: VoiceChatGroup<MobileMessage>;
+  /** The thread's own-bubble color, so the transcript matches it. */
+  userBubble?: string;
+}) {
   const { t } = useI18n();
   const tokens = useMobileTokens();
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const summary = voiceChatSummary(group);
+  const title = `${t("Voice chat")} · ${clock(voiceChatDuration(group))}`;
   return (
-    <View style={[styles.card, { backgroundColor: native.fill }]}>
+    <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={open ? t("Hide transcript") : t("Show transcript")}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((wasOpen) => !wasOpen)}
-        style={styles.header}
+        accessibilityLabel={t("Show transcript")}
+        onPress={() => setOpen(true)}
+        style={styles.row}
       >
-        <NativeSymbol ios="waveform" android="pulse-outline" size={16} color={tokens.foreground} />
-        <Text style={[styles.title, { color: tokens.foreground }]}>{t("Voice chat")}</Text>
-        <Text style={[styles.duration, { color: tokens.mutedForeground }]}>
-          {clock(voiceChatDuration(group))}
-        </Text>
-        <View style={styles.chevron}>
-          <NativeSymbol
-            ios={open ? "chevron.up" : "chevron.down"}
-            android={open ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={tokens.mutedForeground}
-          />
-        </View>
+        <NativeSymbol
+          ios="waveform"
+          android="pulse-outline"
+          size={13}
+          color={tokens.faintForeground}
+        />
+        <Text style={[styles.label, { color: tokens.faintForeground }]}>{title}</Text>
       </Pressable>
       {open ? (
-        <View style={styles.transcript}>
-          {group.messages.map((message) => {
-            // The marker is the card's summary line, never a transcript turn.
-            if (message === group.marker) return null;
-            const text = speechFromBlocks(message.blocks).trim();
-            if (!text) return null;
-            return message.role === "user" ? (
-              <Text key={message.id} style={[styles.user, { color: tokens.mutedForeground }]}>
-                {text}
-              </Text>
-            ) : (
-              <Text
-                key={message.id}
-                style={[
-                  styles.bot,
-                  { backgroundColor: native.fillPressed, color: tokens.foreground },
-                ]}
+        <Modal visible transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+          <Pressable
+            accessibilityLabel={t("Close")}
+            onPress={() => setOpen(false)}
+            style={[StyleSheet.absoluteFill, { backgroundColor: tokens.overlay }]}
+          />
+          <View
+            accessibilityViewIsModal
+            style={[styles.sheet, { top: insets.top + 62, backgroundColor: tokens.background }]}
+          >
+            <View style={styles.header}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("Close")}
+                hitSlop={4}
+                onPress={() => setOpen(false)}
+                style={[styles.close, { backgroundColor: tokens.muted }]}
               >
-                {text}
+                <NativeSymbol ios="xmark" android="close" size={18} color={tokens.foreground} />
+              </Pressable>
+              <Text numberOfLines={1} style={[styles.title, { color: tokens.foreground }]}>
+                {title}
               </Text>
-            );
-          })}
-        </View>
-      ) : summary ? (
-        <Text numberOfLines={1} style={[styles.summary, { color: tokens.mutedForeground }]}>
-          {summary}
-        </Text>
+            </View>
+            <ScrollView contentContainerStyle={styles.transcript}>
+              {group.messages.map((message) => {
+                // The marker is the call's summary line, never a transcript turn.
+                if (message === group.marker) return null;
+                const text = speechFromBlocks(message.blocks).trim();
+                if (!text) return null;
+                const user = message.role === "user";
+                return (
+                  <Text
+                    key={message.id}
+                    style={[
+                      styles.bubble,
+                      user
+                        ? {
+                            alignSelf: "flex-end",
+                            backgroundColor: userBubble ?? tokens.chatUser,
+                            color: tokens.chatUserForeground,
+                          }
+                        : {
+                            alignSelf: "flex-start",
+                            backgroundColor: tokens.muted,
+                            color: tokens.foreground,
+                          },
+                    ]}
+                  >
+                    {text}
+                  </Text>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Modal>
       ) : null}
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    alignSelf: "flex-start",
-    maxWidth: "88%",
-    borderRadius: 18,
+  row: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 44,
   },
-  // 40 tall around the 22 pt title line, growing with it at larger text sizes.
+  label: { fontSize: 16, lineHeight: 21, fontVariant: ["tabular-nums"] },
+  // A card floating inside the screen edges over the dimmed thread.
+  sheet: {
+    position: "absolute",
+    start: 8,
+    end: 8,
+    bottom: 8,
+    borderRadius: 48,
+    borderCurve: "continuous",
+    overflow: "hidden",
+    paddingTop: 16,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    minHeight: 40,
+    gap: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 12,
   },
-  title: typeScale.cardTitle,
-  duration: { ...typeScale.caption, fontVariant: ["tabular-nums"] },
-  chevron: { marginStart: "auto", paddingStart: 8 },
-  summary: {
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    ...typeScale.secondary,
-    writingDirection: "auto",
+  close: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  transcript: { paddingHorizontal: 12, paddingBottom: 12, gap: 6 },
-  user: {
-    alignSelf: "flex-end",
-    ...typeScale.secondary,
-    textAlign: "right",
-    writingDirection: "auto",
-  },
-  bot: {
-    ...typeScale.secondary,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+  title: { flex: 1, fontSize: 18, fontWeight: "500", fontVariant: ["tabular-nums"] },
+  transcript: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 32, gap: 10 },
+  bubble: {
+    ...typeScale.body,
+    maxWidth: "80%",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     overflow: "hidden",
     writingDirection: "auto",
   },

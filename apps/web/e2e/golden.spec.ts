@@ -412,31 +412,32 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
     .click();
   await composer.fill("keep working until I stop you");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
-    timeout: 30_000,
-  });
+  const composerBar = page.getByTestId("composer-bar");
+  await expect(composerBar).toHaveAttribute("data-running", "true", { timeout: 30_000 });
   await expect(page.getByTestId("composer-steering-status")).toHaveCount(0);
   await expect(page.getByText("Messages sent now guide the next turn.")).toHaveCount(0);
   await expect(page.getByText(/^Steer /)).toHaveCount(0);
   await expect(composer).toHaveAttribute("placeholder", "Message Chief");
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
-  const holdToTalk = page
-    .getByTestId("composer-bar")
-    .getByRole("button", { name: "Hold to talk", exact: true });
-  await expect(holdToTalk).toBeVisible();
+  // While a bot works, Stop sits at the right end of the composer.
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Voice", exact: true })).toBeVisible();
+  const mic = composerBar.getByRole("button", { name: "Start voice input", exact: true });
+  await expect(mic).toBeVisible();
   await composer.fill("Use the newer report and keep the answer short.");
-  await expect(holdToTalk).toHaveCount(0);
+  await expect(mic).toBeVisible();
   await composer.press("Tab");
+  await expect(mic).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(
     page.getByTestId("transcript").getByText("Use the newer report and keep the answer short."),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(composerBar).toHaveAttribute("data-running", "true");
   await captureScreenshot(page, testInfo, "14-active-bot-work");
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Voice", exact: true })).toBeVisible();
+  await expect(composerBar).toHaveAttribute("data-running", "true");
   await expect(composer).toHaveAttribute("placeholder", "Message Chief");
   await captureScreenshot(page, testInfo, "14-active-bot-work-mobile");
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -454,16 +455,16 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
     });
     await route.continue();
   });
-  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await composer.press("Escape");
   await stopRequestStarted;
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeDisabled();
+  // One Enter while the stop is still in flight sends as soon as it lands.
+  await composer.fill("That's enough for now.");
+  await composer.press("Enter");
   releaseStopRequest();
-  // Idle Send stays disabled with an empty draft; wait for Stop to leave instead.
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0, {
-    timeout: 30_000,
-  });
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
+  await expect(composerBar).not.toHaveAttribute("data-running", "true", { timeout: 30_000 });
+  await expect(
+    page.getByTestId("transcript").getByText("That's enough for now.", { exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
 
   await page.context().clearCookies();
   await page.goto("/sign-in");

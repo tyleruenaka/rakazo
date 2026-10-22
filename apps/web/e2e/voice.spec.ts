@@ -16,15 +16,17 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   await signup(page, `voice-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
 
+  const voice = page
+    .getByTestId("composer-bar")
+    .getByRole("button", { name: "Voice", exact: true });
+  await expect(voice).toHaveCount(1);
   await expect(
-    page.getByTestId("composer-bar").getByRole("button", { name: "Voice", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByTestId("composer-bar").getByRole("button", { name: "Hold to talk", exact: true }),
+    page
+      .getByTestId("composer-bar")
+      .getByRole("button", { name: "Start voice input", exact: true }),
   ).toHaveCount(1);
-  await expect(page.getByTestId("call-button")).toHaveAccessibleName("Call");
   await captureScreenshot(page, testInfo, "voice-composer");
-  await page.getByTestId("call-button").click();
+  await voice.click();
   await expect(page.getByTestId("voice-settings")).toBeVisible();
   await expect(page.getByLabel("API key", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Dictate", exact: true })).toHaveCount(0);
@@ -69,11 +71,16 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("say hello");
   await page.keyboard.press("Enter");
-  // A reply can render more than one text bubble; speak the latest one.
-  const speakReply = page.getByRole("button", { name: "Speak this reply" }).last();
-  await expect(speakReply).toBeVisible({
+  // A reply can render more than one text bubble; speak the latest one from its hover actions.
+  const speakRow = page
+    .locator("[data-message-id]")
+    .filter({ has: page.getByRole("button", { name: "Speak this reply" }) })
+    .last();
+  await expect(speakRow).toBeVisible({
     timeout: 30_000,
   });
+  await speakRow.hover();
+  const speakReply = speakRow.getByRole("button", { name: "Speak this reply" });
 
   const replySpoken = page.waitForResponse(
     (response) => response.url().includes("/api/voice/speak") && response.ok(),
@@ -86,35 +93,30 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   await expect(page.getByRole("button", { name: "Disconnect", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close voice settings" }).click();
 
-  await page.getByTestId("call-button").click();
-  await expect(page.getByTestId("call-view")).toBeVisible();
-  await expect(page.getByTestId("call-view").getByText("Calling…")).toBeVisible();
+  await voice.click();
+  const callBar = page.getByTestId("call-view");
+  // Connecting is silent and lasts only until the microphone is granted, so go straight to listening.
   await expect(page.getByRole("button", { name: "Hang up" })).toBeVisible();
-  await captureScreenshot(page, testInfo, "outgoing-ringing");
-  await expect(page.getByTestId("call-view").getByText(/· Listening/)).toBeVisible();
+  await expect(callBar).toHaveAttribute("data-call-phase", "listening");
   await captureScreenshot(page, testInfo, "voice-call");
-  await page.getByRole("button", { name: "Minimize call" }).click();
-  await expect(page.getByTestId("call-view")).toHaveCount(0);
-  await expect(page.getByTestId("call-button")).toHaveAccessibleName("Open call");
-  await captureScreenshot(page, testInfo, "call-minimized");
-  await page.getByTestId("call-return-bar").click();
-  await expect(page.getByTestId("call-view")).toBeVisible();
+  await callBar.getByRole("button", { name: "Transcript" }).click();
+  await expect(callBar.getByRole("log", { name: "Transcript" })).toBeVisible();
+  await captureScreenshot(page, testInfo, "voice-call-transcript");
+  await callBar.getByRole("button", { name: "Settings" }).click();
+  await expect(callBar.getByRole("combobox", { name: "Voice" })).toBeVisible();
+  await captureScreenshot(page, testInfo, "voice-call-settings");
   await page.getByRole("button", { name: "Hang up" }).click();
-  await expect(page.getByTestId("call-view")).toHaveCount(0);
-  await expect(page.getByTestId("call-return-bar")).toHaveCount(0);
+  await expect(callBar).toHaveCount(0);
 
-  const mic = page.getByRole("button", { name: "Hold to talk", exact: true });
-  const micBounds = await mic.boundingBox();
-  if (!micBounds) throw new Error("Missing composer microphone");
-  await page.mouse.move(micBounds.x + micBounds.width / 2, micBounds.y + micBounds.height / 2);
-  await page.mouse.down();
-  await expect(page.getByTestId("hold-to-talk-strip")).toBeVisible();
+  const mic = page.getByRole("button", { name: "Start voice input", exact: true });
+  await mic.click();
+  const chip = page.getByTestId("dictation-chip");
+  await expect(chip).toBeVisible();
   await captureScreenshot(page, testInfo, "composer-mic-dictation");
-  // Lock and discard so the screenshot's recording never sends a chat message.
-  await page.mouse.move(micBounds.x + micBounds.width / 2, micBounds.y - 100);
-  await page.mouse.up();
-  await page.getByRole("button", { name: "Discard recording" }).click();
-  await expect(page.getByTestId("hold-to-talk-strip")).toHaveCount(0);
+  // Discard so the screenshot's recording never sends a chat message.
+  await chip.press("Escape");
+  await expect(chip).toHaveCount(0);
+  await expect(mic).toBeVisible();
 
   await openUserSettings(page, "voice");
   const settings = page.getByTestId("voice-settings");

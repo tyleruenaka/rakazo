@@ -468,45 +468,34 @@ it("fills the message column only for secret asks, including answered and login 
   expect((container.firstElementChild as HTMLElement).style.width).toBe("90%");
 });
 
-it("uses the full column for wide asks and reserves only the visible avatar gutter", () => {
+it("uses the full column for wide asks", () => {
   const rowSource = source.slice(source.indexOf("const MessageRow = memo("));
   const wrapperSource = rowSource.slice(
     rowSource.indexOf("width:\n"),
     rowSource.indexOf("{isPeerReceiptBlocks(message.blocks)"),
   );
-  const menuSource = rowSource.slice(rowSource.indexOf("<MessageContextMenu"));
-  const widthExpression = menuSource
-    .slice(
-      menuSource.indexOf("maxWidth={") + "maxWidth={".length,
-      menuSource.indexOf("colorScheme="),
-    )
-    .replace(/}\s*$/, "");
   const measure = new Function(
     "wide",
     "activityBotId",
     "inGroup",
-    "columnWidth",
     `const message = { blocks: [] };
      const isWideAskBlock = () => wide;
      const isCenteredAgentEvent = () => false;
      return {
        wrapper: { ${wrapperSource.slice(0, wrapperSource.indexOf("}}"))} },
-       menuWidth: (${widthExpression}),
      };`,
   );
-  for (const [avatar, inGroup, gutter] of [
-    [false, false, 0],
-    [true, false, 36],
-    [true, true, 28],
+  for (const [avatar, inGroup] of [
+    [false, false],
+    [true, false],
+    [true, true],
   ] as const) {
-    const { wrapper, menuWidth } = measure(true, avatar, inGroup, 400);
+    const { wrapper } = measure(true, avatar, inGroup);
     expect(wrapper.width).toBe("100%");
     expect(wrapper.maxWidth).toBe("100%");
-    expect(menuWidth).toBe(400 - 40 - gutter);
-    const regular = measure(false, avatar, inGroup, 400);
+    const regular = measure(false, avatar, inGroup);
     expect(regular.wrapper.width).toBeUndefined();
-    expect(regular.wrapper.maxWidth).toBe(avatar ? undefined : "90%");
-    expect(regular.menuWidth).toBe(avatar ? 360 - gutter : 324);
+    expect(regular.wrapper.maxWidth).toBe(avatar ? undefined : "88%");
   }
 });
 

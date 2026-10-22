@@ -1,4 +1,4 @@
-import { botColors, typeScale } from "@rakazo/ui-tokens";
+import { botColors } from "@rakazo/ui-tokens";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -220,11 +220,12 @@ export default function SearchSheet() {
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
           >
             {item.group ? (
-              <GroupAvatar members={item.group.members} size={54} />
+              <GroupAvatar members={item.group.members} size={44} />
             ) : item.bot ? (
               <BotAvatar
                 identity={item.bot.id}
                 color={item.bot.color || botColors[3]}
+                size={44}
                 status={item.bot.status}
               />
             ) : (
@@ -275,33 +276,37 @@ function createStyles() {
     row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 12,
+      minHeight: 80,
+      paddingStart: 24,
+      paddingEnd: 23,
+      paddingVertical: 8,
+      gap: 15,
     },
     pressed: { opacity: 0.55 },
     clear: { minWidth: 32, minHeight: 44, alignItems: "center", justifyContent: "center" },
     neutralAvatar: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: tokens.muted,
       alignItems: "center",
       justifyContent: "center",
     },
-    body: { flex: 1, minWidth: 0, gap: 2 },
+    body: { flex: 1, minWidth: 0 },
     rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
     // Result rows match the inbox rows.
     name: {
       flex: 1,
       color: native.label,
-      ...typeScale.cardTitle,
+      fontSize: 18,
+      lineHeight: 24,
       writingDirection: "auto",
     },
-    time: { color: native.secondaryLabel, ...typeScale.caption },
+    time: { color: native.dimLabel, fontSize: 14.5, lineHeight: 24 },
     preview: {
       color: native.secondaryLabel,
-      ...typeScale.secondary,
+      fontSize: 16,
+      lineHeight: 24,
       writingDirection: "auto",
     },
     empty: { color: native.secondaryLabel, fontSize: 16, paddingHorizontal: 20, paddingTop: 28 },

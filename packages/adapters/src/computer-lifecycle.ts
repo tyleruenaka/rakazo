@@ -328,6 +328,7 @@ export async function provisionComputer(
   let provisioned: ComputerRef | undefined;
   try {
     await onProgress?.("recreating");
+    const timeZone = await userTimeZone(deps.prisma, context.userId);
     const ref = await getLogger().withContext(
       { "computer.id": computerId, "run.id": context.runId, previousState: existing.state },
       () =>
@@ -337,6 +338,7 @@ export async function provisionComputer(
             homePath,
             providerRef: existing.providerRef ?? undefined,
             providerKind: existing.kind as ComputerRef["kind"],
+            ...(timeZone ? { timeZone } : {}),
           },
           context,
         ),
@@ -449,6 +451,17 @@ export async function provisionComputer(
       );
     }
     throw error;
+  }
+}
+
+/** The requester's saved time zone, used for a new computer's desktop clock. */
+async function userTimeZone(prisma: PrismaClient, userId: string) {
+  try {
+    return (await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }))
+      ?.timezone;
+  } catch {
+    // The clock is cosmetic; a lookup failure must not block the computer.
+    return undefined;
   }
 }
 

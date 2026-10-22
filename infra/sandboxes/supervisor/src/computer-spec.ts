@@ -357,6 +357,8 @@ export interface ComputerCreateInput {
   networkMode?: string;
   publishControlPort?: boolean;
   dns?: string[];
+  /** IANA zone for the desktop clock and every process in the computer. */
+  timeZone?: string;
 }
 
 interface PointerInput {
@@ -386,6 +388,7 @@ export function containerCreateOptions(input: ComputerCreateInput) {
       "NPM_CONFIG_PREFIX=/home/rakazo/.local",
       "PIP_USER=1",
       ...(input.controlToken ? [`RAKAZO_COMPUTER_CONTROL_TOKEN=${input.controlToken}`] : []),
+      ...(input.timeZone ? [`TZ=${input.timeZone}`] : []),
     ],
     Labels: {
       "rakazo.managed": "true",

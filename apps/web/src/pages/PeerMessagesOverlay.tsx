@@ -1,15 +1,15 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ThreadMessage } from "@rakazo/contracts";
-import { timeSeparatorIds } from "@rakazo/core";
+import { loadPeerHistory, peerConversations, timeSeparatorIds } from "@rakazo/core";
 import { BotAvatar, Button, parseBotAvatar, resolvePersonaColorDef } from "@rakazo/ui-web";
 import { ArrowRightLeft } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { loadPeerHistory } from "../lib/peer-history";
-import { peerConversations } from "../lib/peer-messages";
+import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { rpc } from "../lib/rpc";
 import { TimeSeparator } from "./shell/chat-context";
+import { ArtifactImage } from "./shell/message-cards";
 
 /**
  * View-only transcript of a bot-to-bot exchange, shown in the chat area like Grok's: the
@@ -110,6 +110,8 @@ export function PeerMessagesOverlay({
     if (scroller && rows.length > 0) scroller.scrollTop = scroller.scrollHeight;
   }, [rows]);
 
+  // Files in the exchange live in the bot's own chat.
+  const artifactTarget = useMemo(() => ({ botId }), [botId]);
   const speakers = {
     sent: { id: botId, name: botName, color: botColor },
     received: { id: peerBotId, name: peerBotName, color: peerBotColor },
@@ -196,12 +198,33 @@ export function PeerMessagesOverlay({
                       >
                         {speaker.name}
                       </div>
-                      <div
-                        className="w-fit max-w-[560px] rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
-                        dir="auto"
-                      >
-                        <ChatMarkdown>{peerMessage.text}</ChatMarkdown>
-                      </div>
+                      {peerMessage.text ? (
+                        <div
+                          className="w-fit max-w-[560px] rounded-[18px] bg-muted px-3 py-[7px] text-[14px] leading-[22px] text-foreground"
+                          dir="auto"
+                        >
+                          <ChatMarkdown>{peerMessage.text}</ChatMarkdown>
+                        </div>
+                      ) : null}
+                      {peerMessage.attachments.map((attachment) =>
+                        attachment.kind === "image" ? (
+                          <ArtifactImage
+                            key={attachment.artifactId}
+                            target={artifactTarget}
+                            artifactId={attachment.artifactId}
+                            name={attachment.name}
+                          />
+                        ) : (
+                          <ArtifactFileCard
+                            key={attachment.artifactId}
+                            target={artifactTarget}
+                            artifactId={attachment.artifactId}
+                            name={attachment.name}
+                            mimeType={attachment.mimeType}
+                            size={attachment.size}
+                          />
+                        ),
+                      )}
                     </div>
                   </div>
                 </Fragment>

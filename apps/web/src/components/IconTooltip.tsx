@@ -6,7 +6,8 @@ export function IconTooltip({ label, children }: { label: string; children: Reac
   return (
     <Tooltip>
       <TooltipTrigger render={children} />
-      <TooltipContent>{label}</TooltipContent>
+      {/* It has no exit animation, so it leaves the moment it closes, as on a click. */}
+      <TooltipContent className="data-closed:hidden">{label}</TooltipContent>
     </Tooltip>
   );
 }

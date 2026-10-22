@@ -13,12 +13,15 @@ export interface GroupAvatarProps {
   members: GroupAvatarMember[];
   size?: number;
   className?: string;
+  /** Shows the members' live working faces; see BotAvatar `animated`. */
+  animated?: boolean;
 }
 
 export const GroupAvatar = memo(function GroupAvatar({
   members,
   size = 38,
   className,
+  animated = false,
 }: GroupAvatarProps) {
   const firstMember = members[0];
   if (!firstMember) {
@@ -57,6 +60,7 @@ export const GroupAvatar = memo(function GroupAvatar({
         identity={firstMember.botId ?? firstMember.name}
         size={size}
         status={firstMember.status}
+        animated={animated}
         className={cn("rakazo-group-avatar", className)}
       />
     );
@@ -96,6 +100,7 @@ export const GroupAvatar = memo(function GroupAvatar({
             identity={member.botId ?? member.name}
             size={miniSize}
             status={member.status}
+            animated={animated}
           />
         </div>
       ))}

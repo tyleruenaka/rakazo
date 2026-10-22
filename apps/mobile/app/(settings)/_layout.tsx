@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Platform } from "react-native";
 import { floatingHeaderOptions, glassHeaderOptions } from "../../components/glass-title";
 import { useI18n } from "../../lib/i18n";
-import { native, useMobileTokens } from "../../lib/native";
+import { useMobileTokens } from "../../lib/native";
 import { registerSettingsSheet, settingsSheetCloser } from "../../lib/settings-sheet";
 
 /** Settings pages share one stack, which the root layout presents as a sheet on iOS. */
@@ -19,14 +19,14 @@ export default function SettingsLayout() {
   return (
     <Stack
       screenOptions={({ navigation, route }) => ({
-        headerStyle: { backgroundColor: tokens.background },
+        headerStyle: { backgroundColor: tokens.sheetPage },
         ...floatingHeaderOptions(),
         headerTintColor: tokens.foreground,
         headerShadowVisible: false,
         headerBackButtonDisplayMode: "minimal",
         // Account has no visible title, so iOS's long-press back menu would list it as a blank entry.
         headerBackButtonMenuEnabled: false,
-        contentStyle: { backgroundColor: String(native.page) },
+        contentStyle: { backgroundColor: tokens.sheetPage },
         // The first page closes the sheet, or returns Home when opened by a cold deep link.
         // The inner stack has no native back arrow on its first page.
         ...(navigation.getState().routes[0]?.key === route.key
@@ -62,7 +62,6 @@ export default function SettingsLayout() {
         options={{
           ...glassHeaderOptions(t("Account")),
           ...(Platform.OS === "ios" ? { headerTitle: "" } : null),
-          contentStyle: { backgroundColor: native.groupedPage },
         }}
       />
       <Stack.Screen name="ai-data-sharing" options={glassHeaderOptions(t("AI data sharing"))} />
@@ -71,7 +70,14 @@ export default function SettingsLayout() {
       <Stack.Screen name="language" options={glassHeaderOptions(t("Language"))} />
       <Stack.Screen name="models" options={glassHeaderOptions(t("Models"))} />
       <Stack.Screen name="voice" options={glassHeaderOptions(t("Voice"))} />
-      <Stack.Screen name="integrations" options={glassHeaderOptions(t("Integrations"))} />
+      <Stack.Screen
+        name="integrations"
+        options={{
+          ...glassHeaderOptions(t("Connect apps")),
+          headerStyle: { backgroundColor: tokens.catalogPage },
+          contentStyle: { backgroundColor: tokens.catalogPage },
+        }}
+      />
       <Stack.Screen
         name="integration-setup"
         options={glassHeaderOptions(t("Server integrations"))}

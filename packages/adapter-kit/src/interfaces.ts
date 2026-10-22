@@ -117,6 +117,8 @@ export interface SandboxProvider {
       homePath: string;
       providerRef?: string;
       providerKind?: ComputerRef["kind"];
+      /** IANA zone for the desktop clock of a newly created computer. */
+      timeZone?: string;
     },
     context: AdapterContext,
   ): Promise<ComputerRef>;

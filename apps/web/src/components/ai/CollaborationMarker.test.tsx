@@ -16,11 +16,7 @@ vi.mock("@lingui/react/macro", () => ({
   }),
 }));
 
-import {
-  ActiveBotGlyph,
-  CollaborationMarker,
-  CollaborationMarkerGroup,
-} from "./CollaborationMarker";
+import { CollaborationMarker, CollaborationMarkerGroup } from "./CollaborationMarker";
 
 function chipOf(html: string) {
   const host = new DOMParser().parseFromString(html, "text/html").body;
@@ -157,19 +153,6 @@ describe("collaboration transcript markers", () => {
         onToggle: () => undefined,
       }),
     ).toContain('aria-expanded="true"');
-  });
-
-  it("animates the active bot glyph from its run status", () => {
-    const html = renderToString(
-      <ActiveBotGlyph
-        bots={[{ botId: "research", color: "#14B8A6", status: "running" }]}
-        label="Research is working"
-      />,
-    );
-
-    expect(html).toContain('role="status"');
-    expect(html).toContain('data-working="true"');
-    expect(html).toContain("rakazo-organic-avatar-body-working");
   });
 });
 

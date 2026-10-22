@@ -12,10 +12,11 @@ export function TimeSeparator({ createdAt }: { createdAt?: string }) {
       accessibilityRole="header"
       selectable={false}
       style={{
-        color: mobileTokens().faintForeground,
+        color: mobileTokens().chatTimestamp,
         ...typeScale.caption,
         textAlign: "center",
-        marginVertical: 12,
+        marginTop: 10,
+        marginBottom: 16,
       }}
     >
       {formatTimeSeparator(createdAt, dateLocaleForUi(locale), {

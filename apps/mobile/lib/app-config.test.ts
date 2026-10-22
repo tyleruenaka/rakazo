@@ -91,4 +91,47 @@ describe("mobile app config", () => {
 
     expect(appConfig(context(config))).toBe(config);
   });
+
+  describe("a copy with its own bundle ID", () => {
+    const upstream = { ...config, updates: { url: "https://updates.example.com/upstream" } };
+
+    beforeEach(() => {
+      vi.stubEnv("EAS_BUILD_PROFILE", "development");
+      vi.stubEnv("EXPO_PUBLIC_API_URL", undefined);
+      vi.stubEnv("RAKAZO_IOS_BUNDLE_ID", "com.example.copy");
+      vi.stubEnv("RAKAZO_APPLE_TEAM_ID", "TEAM123456");
+    });
+
+    it("turns off the original app's updates", () => {
+      expect(appConfig(context(upstream))).toEqual({
+        ...config,
+        ios: { ...config.ios, bundleIdentifier: "com.example.copy", appleTeamId: "TEAM123456" },
+        updates: { enabled: false },
+      });
+    });
+
+    it("takes updates only from its own source", () => {
+      vi.stubEnv("RAKAZO_UPDATES_URL", "https://updates.example.com/copy");
+
+      expect(appConfig(context(upstream))).toMatchObject({
+        ios: { bundleIdentifier: "com.example.copy" },
+        updates: { url: "https://updates.example.com/copy" },
+      });
+    });
+
+    it("pushes through its own project without turning updates back on", () => {
+      vi.stubEnv("RAKAZO_EAS_PROJECT_ID", "copy-project");
+
+      expect(appConfig(context(upstream))).toMatchObject({
+        extra: { example: true, eas: { projectId: "copy-project" } },
+        updates: { enabled: false },
+      });
+    });
+
+    it("keeps updates when the bundle ID is the original one", () => {
+      vi.stubEnv("RAKAZO_IOS_BUNDLE_ID", "com.example.app");
+
+      expect(appConfig(context(upstream)).updates).toEqual(upstream.updates);
+    });
+  });
 });

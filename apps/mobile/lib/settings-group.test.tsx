@@ -115,7 +115,7 @@ vi.mock("./native", () => ({
 }));
 
 vi.mock("./appearance", () => ({
-  mobileTokens: () => ({ destructive: "destructive" }),
+  mobileTokens: () => ({ destructive: "destructive", sheetBorder: "sheet-border" }),
 }));
 
 vi.mock("../components/native-symbol", () => {
@@ -128,7 +128,7 @@ function separators(container: HTMLElement) {
   return [...container.querySelectorAll<HTMLElement>("div[data-style]")].filter((element) =>
     [JSON.parse(element.dataset.style ?? "null")]
       .flat()
-      .some((style) => style?.backgroundColor === "separator"),
+      .some((style) => style?.backgroundColor === "sheet-border"),
   );
 }
 

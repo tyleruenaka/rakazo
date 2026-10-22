@@ -24,7 +24,9 @@ test("agent-attached files appear as cards with previews and downloads", async (
   expect(download.suggestedFilename()).toBe("result.txt");
 
   // Markdown opens a rendered preview and can be downloaded.
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 30_000,
+  });
   await composer.fill(
     "write path notes/preview.md and attach it to the thread says # Project preview",
   );
@@ -57,7 +59,9 @@ test("agent-attached files appear as cards with previews and downloads", async (
   await expect(previewButton).toBeFocused();
 
   // HTML renders in the sandboxed preview.
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 30_000,
+  });
   await composer.fill(
     "write path notes/page.html and attach it to the thread says <h1>Rendered page</h1><p id=ran></p><script>document.getElementById('ran').textContent = 'script ran'</script>",
   );

@@ -30,6 +30,7 @@ body,
   background: var(--background);
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Switching spaces in place (lib/space-switch.ts): the sidebar holds still while the
@@ -208,4 +209,116 @@ main:has(> [data-peer-view]) [data-name-pill] {
     black calc(100% - 40px),
     transparent
   );
+}
+
+/* Call bar: the tray settles with a soft spring, as in Grok. */
+.rk-call-tray {
+  transition-timing-function: linear(
+    0,
+    0.01588 2%,
+    0.05618 4%,
+    0.11201 6%,
+    0.1768 8%,
+    0.2458 10%,
+    0.31562 12%,
+    0.38392 14%,
+    0.44914 16%,
+    0.51029 18%,
+    0.56683 20%,
+    0.61852 22%,
+    0.66534 24%,
+    0.70743 26%,
+    0.74501 28%,
+    0.77838 30%,
+    0.80788 32%,
+    0.83383 34%,
+    0.85658 36%,
+    0.87645 38%,
+    0.89376 40%,
+    0.92183 44%,
+    0.94282 48%,
+    0.95838 52%,
+    0.96984 56%,
+    0.97823 60%,
+    0.98435 64%,
+    0.98878 68%,
+    0.99198 72%,
+    0.99594 80%,
+    0.99829 90%,
+    1 100%
+  );
+}
+
+/* While a call connects, a segment of the level line slides back and forth. */
+.rk-call-pending {
+  animation: rk-call-pending 1.4s ease-in-out infinite alternate;
+}
+@keyframes rk-call-pending {
+  from {
+    inset-inline-start: 0;
+  }
+  to {
+    inset-inline-start: 66%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rk-call-pending {
+    width: 100%;
+    animation: none;
+  }
+}
+
+/* An opened call record's close button pops in once the card has grown. */
+.rk-call-record-close {
+  animation: rk-call-record-close 0.26s 0.22s backwards;
+  animation-timing-function: linear(
+    0,
+    0.01588 2%,
+    0.05618 4%,
+    0.11201 6%,
+    0.1768 8%,
+    0.2458 10%,
+    0.31562 12%,
+    0.38392 14%,
+    0.44914 16%,
+    0.51029 18%,
+    0.56683 20%,
+    0.61852 22%,
+    0.66534 24%,
+    0.70743 26%,
+    0.74501 28%,
+    0.77838 30%,
+    0.80788 32%,
+    0.83383 34%,
+    0.85658 36%,
+    0.87645 38%,
+    0.89376 40%,
+    0.92183 44%,
+    0.94282 48%,
+    0.95838 52%,
+    0.96984 56%,
+    0.97823 60%,
+    0.98435 64%,
+    0.98878 68%,
+    0.99198 72%,
+    0.99594 80%,
+    0.99829 90%,
+    1 100%
+  );
+}
+/* Only scale: the button's own translate centers it, and a transform here would add to it. */
+@keyframes rk-call-record-close {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rk-call-record-close {
+    animation: none;
+  }
 }

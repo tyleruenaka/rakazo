@@ -4,6 +4,19 @@ export function transparentColor(color: string): string {
   return `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, 0)`;
 }
 
+/** `color` mixed toward black, as CSS `color-mix(in srgb, color <amount>, black)`. */
+export function mixWithBlack(color: string, amount: number): string {
+  const channels = colorChannels(color.trim());
+  if (!channels) return color;
+  return `#${channels
+    .map((channel) =>
+      Math.round(channel * amount)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 function colorChannels(color: string): [number, number, number] | null {
   const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(color);
   if (hex) {

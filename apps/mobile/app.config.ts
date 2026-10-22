@@ -42,6 +42,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     result = { ...result, android: { ...result.android, googleServicesFile } };
   }
 
+  const appleTeamId = process.env.RAKAZO_APPLE_TEAM_ID;
+  if (appleTeamId) result = { ...result, ios: { ...result.ios, appleTeamId } };
+
+  const projectId = process.env.RAKAZO_EAS_PROJECT_ID;
+  if (projectId) result = { ...result, extra: { ...result.extra, eas: { projectId } } };
+
+  const updatesUrl = process.env.RAKAZO_UPDATES_URL;
+  if (updatesUrl) result = { ...result, updates: { ...result.updates, url: updatesUrl } };
+
+  const bundleIdentifier = process.env.RAKAZO_IOS_BUNDLE_ID;
+  if (bundleIdentifier && bundleIdentifier !== result.ios?.bundleIdentifier) {
+    result = { ...result, ios: { ...result.ios, bundleIdentifier } };
+    // Another app's over-the-air updates would replace this copy's code, so a copy only takes
+    // updates from a source of its own.
+    if (!updatesUrl) result = { ...result, updates: { enabled: false } };
+  }
+
   return result;
 };
 

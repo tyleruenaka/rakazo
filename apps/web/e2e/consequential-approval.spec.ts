@@ -126,7 +126,7 @@ async function expectComposerReady(page: Page) {
   const composer = page.getByPlaceholder(/Message/);
   await expect(composer).toBeVisible();
   await expect(composer).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("composer-bar")).not.toHaveAttribute("data-running", "true");
 }
 
 async function requestDestinationWrite(page: Page, prompt: string) {

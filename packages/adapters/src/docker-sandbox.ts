@@ -143,7 +143,7 @@ export class DockerSandboxProvider implements SandboxProvider {
   }
 
   async provision(
-    request: { botId: string; homePath: string },
+    request: { botId: string; homePath: string; timeZone?: string },
     context: AdapterContext,
   ): Promise<ComputerRef> {
     const res = await fetch(this.url("/computers"), {
@@ -153,6 +153,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         botId: request.botId,
         homePath: request.homePath,
         spaceId: context.spaceId,
+        ...(request.timeZone ? { timeZone: request.timeZone } : {}),
       }),
       signal: context.signal,
     });

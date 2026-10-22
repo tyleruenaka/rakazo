@@ -43,7 +43,9 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     )
     .toBe(true);
 
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 60_000,
+  });
 
   const transcript = page.getByTestId("transcript");
   const chip = transcript
@@ -171,7 +173,9 @@ test("folds a peer run's reply under its marker and keeps its ask inline", async
   await expect(reply).toBeVisible();
 
   // A search hit on a folded reply expands its marker and scrolls to it.
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 60_000,
+  });
   await collapse.click();
   await expect(reply).toHaveCount(0);
   const search = page.getByTestId("sidebar-search").getByRole("textbox");
@@ -244,10 +248,14 @@ test("folds a peer run's reply under its marker and keeps its ask inline", async
   await captureScreenshot(page, testInfo, "peer-reply-quote-jump");
 
   // An ask from the woken run stays inline in the recipient's thread; its text folds.
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 60_000,
+  });
   await composer.fill("message the bot named Researcher saying which city peer-fold-beta");
   await composer.press("Enter");
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: /^(Send|Voice)$/ })).toBeVisible({
+    timeout: 60_000,
+  });
   await page.goto(`/app/${researcher.id}`);
   const researcherTranscript = page.getByTestId("transcript");
   await expect(

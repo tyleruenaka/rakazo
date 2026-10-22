@@ -15,11 +15,21 @@ const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed", "audio-captu
 
 type ResultEvent = { isFinal: boolean; results: { transcript: string }[] };
 type ErrorEvent = { error?: string };
-type DictationEventMap = { result: ResultEvent; end: null; error: ErrorEvent };
+type DictationEventMap = {
+  result: ResultEvent;
+  end: null;
+  error: ErrorEvent;
+  volumechange: { value: number };
+};
 
 /** The slice of `expo-speech-recognition` this module needs, so tests can drive the events. */
 export type SpeechRecognizer = {
-  start(options: { lang: string; interimResults: boolean; continuous: boolean }): void;
+  start(options: {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    volumeChangeEventOptions?: { enabled: boolean; intervalMillis: number };
+  }): void;
   stop(): void;
   abort(): void;
   isRecognitionAvailable(): boolean;
@@ -35,6 +45,8 @@ type Session = {
   lang: string;
   onInterim?: (text: string) => void;
   onFinal: (text: string) => void;
+  /** Input level, -2 (silent) to 10, for a live meter. */
+  onVolume?: (value: number) => void;
   subs: { remove: () => void }[];
   /** Text from earlier recognizer sessions of the same utterance. */
   carried: string;
@@ -92,6 +104,7 @@ export function stop(): void {
 export async function listen(opts: {
   onInterim?: (text: string) => void;
   onFinal: (text: string) => void;
+  onVolume?: (value: number) => void;
   signal?: AbortSignal;
   lang?: string;
 }): Promise<void> {
@@ -106,6 +119,7 @@ export async function listen(opts: {
     lang: opts.lang || "en-US",
     onInterim: opts.onInterim,
     onFinal: opts.onFinal,
+    onVolume: opts.onVolume,
     subs: [],
     carried: "",
     heard: "",
@@ -125,12 +139,27 @@ export async function listen(opts: {
     recognizer.addListener("end", () => onEnd(session)),
     recognizer.addListener("error", (event) => onError(session, event)),
   ];
+  const { onVolume } = opts;
+  if (onVolume) {
+    session.subs.push(
+      recognizer.addListener("volumechange", (event) => {
+        if (active === session) onVolume(event.value);
+      }),
+    );
+  }
   start(session);
 }
 
 function start(session: Session): void {
   if (active !== session) return;
-  session.recognizer.start({ lang: session.lang, interimResults: true, continuous: true });
+  session.recognizer.start({
+    lang: session.lang,
+    interimResults: true,
+    continuous: true,
+    ...(session.onVolume
+      ? { volumeChangeEventOptions: { enabled: true, intervalMillis: 100 } }
+      : {}),
+  });
 }
 
 function onResult(session: Session, event: ResultEvent): void {

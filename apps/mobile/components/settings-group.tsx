@@ -1,4 +1,3 @@
-import { typeScale } from "@rakazo/ui-tokens";
 import type { ReactNode } from "react";
 import { Children, Fragment, isValidElement } from "react";
 import type { PressableProps } from "react-native";
@@ -107,7 +106,7 @@ export function SettingsRow({
       {stacked ? null : end}
       {chevron ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Chevron expanded={chevron === "down"} />
+          <Chevron color={mobileTokens().sheetChevron} expanded={chevron === "down"} size={15} />
         </View>
       ) : null}
     </>
@@ -162,6 +161,7 @@ export function SettingsSwitch({
         accessibilityLabel={accessibilityLabel ?? label}
         disabled={disabled}
         onValueChange={onChange}
+        tintColor={mobileTokens().sheetSwitch}
         value={value}
       />
     </View>
@@ -181,46 +181,51 @@ export function SettingsSwitch({
 function createSettingsStyles() {
   const tokens = mobileTokens();
   return StyleSheet.create({
-    group: { gap: 7 },
+    group: { gap: 8 },
     groupLabel: {
-      color: native.secondaryLabel,
-      ...typeScale.caption,
-      paddingStart: 16,
+      color: tokens.sheetLabel,
+      fontSize: 14,
+      lineHeight: 18,
+      paddingStart: 19,
     },
     footer: {
-      color: native.secondaryLabel,
-      ...typeScale.caption,
-      paddingHorizontal: 16,
+      color: tokens.sheetLabel,
+      fontSize: 14,
+      lineHeight: 18,
+      paddingHorizontal: 19,
     },
     card: {
       borderRadius: 16,
       borderCurve: "continuous",
+      borderWidth: 1,
+      borderColor: tokens.sheetBorder,
       overflow: "hidden",
-      backgroundColor: native.groupedCell,
+      backgroundColor: tokens.sheetCell,
     },
     separator: {
-      height: StyleSheet.hairlineWidth,
-      marginStart: 16,
-      backgroundColor: native.separator,
+      height: 1,
+      marginStart: 18,
+      backgroundColor: tokens.sheetBorder,
     },
     row: {
-      minHeight: 52,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      minHeight: 49,
+      paddingStart: 19,
+      paddingEnd: 20,
+      paddingVertical: 13.5,
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 14,
     },
     compactLabel: { paddingStart: 12 },
     compactSeparator: { marginStart: 12 },
     compactRow: { paddingHorizontal: 12, gap: 8 },
     titleColumn: { flex: 1, flexShrink: 1, gap: 2 },
     stackedSwitch: { alignSelf: "flex-start", marginTop: 6 },
-    title: { color: native.label, fontSize: 17 },
+    title: { color: native.label, fontSize: 17, lineHeight: 22 },
     prominent: { fontSize: 20, fontWeight: "600" },
-    detail: { color: native.secondaryLabel, ...typeScale.caption },
+    detail: { color: native.secondaryLabel, fontSize: 14, lineHeight: 18 },
     destructive: { color: tokens.destructive },
-    value: { flexShrink: 1, color: native.secondaryLabel, fontSize: 17 },
+    value: { flexShrink: 1, color: native.secondaryLabel, fontSize: 17, lineHeight: 22 },
     pressed: { backgroundColor: native.fillPressed },
     dimmed: { opacity: 0.45 },
   });
