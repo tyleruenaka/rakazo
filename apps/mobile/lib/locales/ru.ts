@@ -1011,4 +1011,8 @@ export const RU_MESSAGES: Record<string, string> = {
   "Getting there": "Почти готово",
   "Plugging away": "Продолжает работу",
   "Making headway": "Продвигается",
+  "1 unread": "1 непрочитанный",
+  "{count} need attention": "Требуют внимания: {count}",
+  "{label}, above": "{label}, выше",
+  "{label}, below": "{label}, ниже",
 };

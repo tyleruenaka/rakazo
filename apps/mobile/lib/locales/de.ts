@@ -1016,4 +1016,8 @@ export const DE_MESSAGES: Record<string, string> = {
   "Getting there": "Kommt voran",
   "Plugging away": "Bleibt dran",
   "Making headway": "Macht Fortschritte",
+  "1 unread": "1 ungelesen",
+  "{count} need attention": "{count} brauchen Aufmerksamkeit",
+  "{label}, above": "{label}, oben",
+  "{label}, below": "{label}, unten",
 };

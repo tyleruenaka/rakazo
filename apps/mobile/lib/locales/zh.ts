@@ -977,4 +977,8 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Getting there": "快好了",
   "Plugging away": "埋头苦干",
   "Making headway": "进展顺利",
+  "1 unread": "1 条未读",
+  "{count} need attention": "{count} 个需要处理",
+  "{label}, above": "{label}，上方",
+  "{label}, below": "{label}，下方",
 };

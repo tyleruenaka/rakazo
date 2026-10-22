@@ -972,4 +972,8 @@ export const NL_MESSAGES: Record<string, string> = {
   "Getting there": "Bijna zover",
   "Plugging away": "Werkt door",
   "Making headway": "Boekt vooruitgang",
+  "1 unread": "1 ongelezen",
+  "{count} need attention": "{count} vragen aandacht",
+  "{label}, above": "{label}, boven",
+  "{label}, below": "{label}, onder",
 };
