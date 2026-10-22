@@ -141,14 +141,14 @@ export function InboxSwipeRow({
   );
 }
 
-// Hide shows in red, like the swipe action it matches.
-const HIDE_ROLE = "destructive";
+// Hide shows in red, like the swipe action it matches; Delete does too.
+const DESTRUCTIVE_ROLE = "destructive";
 
 type InboxMenuProps = Omit<InboxSwipeRowProps, "rowKey" | "preview" | "children">;
 
 /**
- * The long-press menu of a row or a pinned tile: read state, pin, Move to (rows), Hide, and the
- * rest under More. A pinned tile keeps Move to under More.
+ * The long-press menu of a row or a pinned tile: read state, pin, Move to (rows), Hide, the
+ * rest under More, and Delete last. A pinned tile keeps Move to under More.
  */
 function InboxMenuItems({
   unread,
@@ -218,7 +218,7 @@ function InboxMenuItems({
       <Button
         label={t("Hide")}
         systemImage="eye.slash"
-        role={HIDE_ROLE}
+        role={DESTRUCTIVE_ROLE}
         onPress={() => onAction("archive")}
       />
       {pinned || notify ? (
@@ -234,6 +234,12 @@ function InboxMenuItems({
           {pinned ? move : null}
         </Menu>
       ) : null}
+      <Button
+        label={t(INBOX_ROW_ACTIONS.delete.label)}
+        systemImage={INBOX_ROW_ACTIONS.delete.systemImage}
+        role={DESTRUCTIVE_ROLE}
+        onPress={() => onAction("delete")}
+      />
     </>
   );
 }

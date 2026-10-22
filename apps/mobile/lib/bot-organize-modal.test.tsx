@@ -79,7 +79,11 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function render(bot: ComponentProps<typeof BotOrganizeModal>["bot"], canMove?: boolean) {
+async function render(
+  bot: ComponentProps<typeof BotOrganizeModal>["bot"],
+  canMove?: boolean,
+  onDelete?: () => void,
+) {
   await act(async () =>
     root.render(
       <BotOrganizeModal
@@ -91,6 +95,7 @@ async function render(bot: ComponentProps<typeof BotOrganizeModal>["bot"], canMo
         onCreateSection={vi.fn()}
         onRenameSection={vi.fn()}
         onDeleteSection={vi.fn()}
+        onDelete={onDelete}
       />,
     ),
   );
@@ -130,4 +135,20 @@ it("shows Pin for a top-level bot and pins it", async () => {
   await render({ name: "Helper", pinned: false, sectionId: null });
   await act(async () => button("Pin")!.click());
   expect(onUpdate).toHaveBeenCalledWith({ pinned: true });
+});
+
+it("offers Delete last, before Cancel, and closes the sheet for the chat's own confirmation", async () => {
+  const onDelete = vi.fn();
+  await render({ name: "Helper", pinned: false, sectionId: "sec-research" }, true, onDelete);
+  const labels = [...container.querySelectorAll("button")].map((item) => item.textContent);
+  expect(labels.slice(-2)).toEqual(["Delete…", "Cancel"]);
+  await act(async () => button("Delete…")!.click());
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(onDelete).toHaveBeenCalledOnce();
+  expect(onUpdate).not.toHaveBeenCalled();
+});
+
+it("has no Delete for a chat from another space", async () => {
+  await render({ name: "Helper", pinned: false, sectionId: null });
+  expect(button("Delete…")).toBeUndefined();
 });

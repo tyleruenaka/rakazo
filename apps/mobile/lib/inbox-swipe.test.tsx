@@ -321,7 +321,7 @@ describe("iOS swipe row", () => {
     act(() => root.unmount());
   });
 
-  it("offers read state, pin, move, hide, and notifications under More for a bot", () => {
+  it("offers read state, pin, move, hide, notifications under More, then Delete last for a bot", () => {
     const { items, find, root } = render({
       unread: true,
       pinned: false,
@@ -334,6 +334,7 @@ describe("iOS swipe row", () => {
       ["Move to", "folder", null],
       ["Hide", "eye.slash", "destructive"],
       ["More", "ellipsis", null],
+      ["Delete…", "trash", "destructive"],
     ]);
     expect(entries(find('[data-ui="Menu"][data-label="More"]')!)).toEqual([
       ["Silence notifications", "bell.slash", null],
@@ -360,7 +361,11 @@ describe("iOS swipe row", () => {
       "Unpin",
       "Hide",
       "More",
+      "Delete…",
     ]);
+    expect(items.querySelector('[data-label="Delete…"]')?.getAttribute("data-role")).toBe(
+      "destructive",
+    );
     expect(entries(find('[data-ui="Menu"][data-label="More"]')!).map(([label]) => label)).toEqual([
       "Move to",
     ]);
@@ -389,7 +394,8 @@ describe("iOS swipe row", () => {
     press("New section");
     press("Rename section");
     press("Hide");
-    expect(onAction.mock.calls).toEqual([["unread"], ["pin"], ["archive"]]);
+    press("Delete…");
+    expect(onAction.mock.calls).toEqual([["unread"], ["pin"], ["archive"], ["delete"]]);
     // Choosing the current section again changes nothing.
     expect(onOrganize.mock.calls).toEqual([
       [{ notifyOnFinish: true }],
@@ -546,6 +552,8 @@ describe("inbox swipe handlers", () => {
       chatTarget,
       unreadOverrideKey,
       afterChatNotifyChange: vi.fn(async () => {}),
+      confirmDeleteBot: vi.fn(),
+      confirmDeleteGroup: vi.fn(),
       notifyArchivedChatsChanged: vi.fn(),
       currentApiBase: () => "",
       loadSessionToken: async () => null,
@@ -563,7 +571,7 @@ describe("inbox swipe handlers", () => {
     const run = new Function(...Object.keys(scope), compiled)(...Object.values(scope)) as {
       runRowAction: (
         kind: "bot" | "group",
-        chat: { id: string; spaceId?: string },
+        chat: { id: string; name?: string; spaceId?: string },
         action: InboxRowAction,
       ) => Promise<void>;
       updateChat: (
@@ -683,6 +691,23 @@ describe("inbox swipe handlers", () => {
     expect(h.rpc.mock.calls).toEqual([[procedure, input]]);
     expect(h.loadBots).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["bot", "confirmDeleteBot"],
+    ["group", "confirmDeleteGroup"],
+  ] as const)(
+    "%s delete asks with the chat's own confirmation and refreshes once deleted",
+    async (kind, confirm) => {
+      const h = handlers(async () => ({ ok: true }));
+      await h.runRowAction(kind, { id: "x", name: "Ada" }, "delete");
+      // Nothing is removed until the alert is confirmed.
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.loadBots).not.toHaveBeenCalled();
+      expect(h[confirm]).toHaveBeenCalledWith({ id: "x", name: "Ada" }, expect.any(Function));
+      h[confirm].mock.calls[0]![1]();
+      expect(h.loadBots).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("archives a chat from another space in that space", async () => {
     const h = handlers(async () => ({ ok: true }));

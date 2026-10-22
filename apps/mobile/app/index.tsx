@@ -97,6 +97,7 @@ import {
   onArchivedChatsChanged,
 } from "../lib/archived-chats";
 import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
+import { confirmDeleteBot, confirmDeleteGroup } from "../lib/bot-lifecycle";
 import type { CollapsedSections } from "../lib/collapsed-sections";
 import { loadCollapsedSections, saveCollapsedSections } from "../lib/collapsed-sections";
 import { confirmDeleteSection } from "../lib/confirm-delete-section";
@@ -1042,6 +1043,16 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
         await loadBots();
         return;
       }
+      // The same confirmation as the chat's own menu; the row goes once the server deletes it.
+      if (action === "delete") {
+        const deleted = () => {
+          notifyArchivedChatsChanged();
+          void loadBots();
+        };
+        if (kind === "bot") confirmDeleteBot({ id: chat.id, name: chat.name }, deleted);
+        else confirmDeleteGroup({ id: chat.id, name: chat.name }, deleted);
+        return;
+      }
       await updateChat(kind, chat, { pinned: action === "pin" }).catch((err) =>
         Alert.alert(t("Could not update chat"), errorText(err, t("Try again."))),
       );
@@ -1511,6 +1522,12 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             await chatRpc(organizeTarget.spaceId, "botSections/remove", { sectionId });
             await loadBots();
           }}
+          // Like the iOS row menu, Delete is only for chats in the current space.
+          onDelete={
+            organizeTarget.spaceId === me?.spaceId
+              ? () => void runRowAction(organizeTarget.kind, organizeChat, "delete")
+              : undefined
+          }
         />
       ) : null}
     </View>
