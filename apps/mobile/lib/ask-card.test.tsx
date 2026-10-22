@@ -478,8 +478,10 @@ it("uses the full column for wide asks", () => {
     "wide",
     "activityBotId",
     "inGroup",
+    "appConnect",
     `const message = { blocks: [] };
      const isWideAskBlock = () => wide;
+     const hasAppConnectBlock = () => appConnect;
      const isCenteredAgentEvent = () => false;
      return {
        wrapper: { ${wrapperSource.slice(0, wrapperSource.indexOf("}}"))} },
@@ -497,6 +499,10 @@ it("uses the full column for wide asks", () => {
     expect(regular.wrapper.width).toBeUndefined();
     expect(regular.wrapper.maxWidth).toBe(avatar ? undefined : "88%");
   }
+  // Connect cards take the full bubble width rather than shrinking to their button.
+  const card = measure(false, undefined, false, true);
+  expect(card.wrapper.width).toBe("88%");
+  expect(card.wrapper.maxWidth).toBe("88%");
 });
 
 it.each([
