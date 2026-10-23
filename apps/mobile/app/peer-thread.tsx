@@ -190,7 +190,7 @@ export default function PeerThreadScreen() {
                         {item.peerMessage.attachments.length > 0 ? (
                           <MessageAttachments
                             attachments={item.peerMessage.attachments}
-                            role="bot"
+                            messageRole="bot"
                             target={artifactTarget}
                             onPreviewImage={(preview) =>
                               router.push({
