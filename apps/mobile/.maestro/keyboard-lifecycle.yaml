@@ -50,9 +50,9 @@ tags:
     timeout: 30000
 - openLink: "rakazo:///thread?botId=${RAKAZO_SCREENSHOT_BOT_ID}&name=Researcher"
 - extendedWaitUntil:
-    visible: "Message Researcher"
+    visible: "Ask Researcher"
     timeout: 15000
-- tapOn: "Message Researcher"
+- tapOn: "Ask Researcher"
 - inputText: "Keyboard lifecycle check"
 - pressKey: Enter
 - inputText: "Second line"
@@ -62,7 +62,7 @@ tags:
 - pressKey: Home
 - launchApp:
     stopApp: false
-- tapOn: "Message Researcher"
+- tapOn: "Ask Researcher"
 - assertVisible: 'Keyboard lifecycle check\nSecond line'
 - assertVisible: "Send"
 - takeScreenshot: "keyboard-resumed"
@@ -73,9 +73,9 @@ tags:
     timeout: 30000
 - tapOn: "Researcher"
 - extendedWaitUntil:
-    visible: "Message Researcher"
+    visible: "Ask Researcher"
     timeout: 15000
-- tapOn: "Message Researcher"
+- tapOn: "Ask Researcher"
 - inputText: "Keyboard lifecycle check"
 - pressKey: Enter
 - inputText: "Second line"
@@ -103,9 +103,9 @@ tags:
     timeout: 15000
 - openLink: "rakazo:///thread?botId=${RAKAZO_SCREENSHOT_BOT_ID}&name=Researcher"
 - extendedWaitUntil:
-    visible: "Message Researcher"
+    visible: "Ask Researcher"
     timeout: 15000
-- tapOn: "Message Researcher"
+- tapOn: "Ask Researcher"
 - inputText: "Keyboard lifecycle check"
 - pressKey: Enter
 - inputText: "Second line"

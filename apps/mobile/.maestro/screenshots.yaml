@@ -50,11 +50,15 @@ tags:
     timeout: 30000
 - takeScreenshot: "04-inbox"
 
-- tapOn: "Activity"
+# On Android, Create opens a dialog with the create choices.
+- tapOn: "Create"
 - extendedWaitUntil:
-    visible: "Recent"
+    visible: "New Space"
     timeout: 10000
-- takeScreenshot: "05-activity"
+- assertVisible: "New Bot"
+- assertVisible: "New Group Chat"
+- takeScreenshot: "05-create-menu"
+- back
 
 - tapOn:
     id: "home-search-button"
@@ -139,14 +143,18 @@ tags:
 - assertNotVisible: "React"
 - assertNotVisible: "More"
 - takeScreenshot: "15-thread"
-- assertVisible: "Show Message from Writer"
+# Writer's message and Researcher's reply fold into one marker that opens their exchange.
+- assertVisible: "2 messages with"
 - assertNotVisible: "Update from Writer: The fixture launch note is drafted."
 - takeScreenshot: "15e-thread-peer-folded"
-- tapOn: "Show Message from Writer"
-- assertVisible: "Update from Writer: The fixture launch note is drafted."
-- takeScreenshot: "15f-thread-peer-expanded"
-- tapOn: "Hide Message from Writer"
-- tapOn: "Message Researcher"
+- tapOn: "2 messages with"
+- extendedWaitUntil:
+    visible: "The fixture launch note is drafted."
+    timeout: 10000
+- assertVisible: "Read-only"
+- takeScreenshot: "15f-thread-peer-exchange"
+- back
+- tapOn: "Ask Researcher"
 - inputText: "Keyboard visibility check"
 - assertVisible: "Keyboard visibility check"
 - assertVisible: "Send"
@@ -156,11 +164,11 @@ tags:
 - assertVisible: 'Keyboard visibility check\nSecond line'
 - hideKeyboard
 - assertVisible: 'Keyboard visibility check\nSecond line'
-- tapOn: "Message Researcher"
+- tapOn: "Ask Researcher"
 - assertVisible: 'Keyboard visibility check\nSecond line'
 - assertVisible: "Send"
 - takeScreenshot: "15g-thread-keyboard-reopened"
-- longPressOn: "Message Researcher"
+- longPressOn: "Ask Researcher"
 - tapOn: "Select all"
 - eraseText: 1
 - assertNotVisible: 'Keyboard visibility check\nSecond line'
@@ -211,7 +219,7 @@ tags:
 - assertNotVisible: "React"
 - assertNotVisible: "More"
 - takeScreenshot: "19-group-thread"
-- tapOn: "Message Launch team"
+- tapOn: "Ask Launch team"
 - inputText: "Group keyboard visibility check"
 - assertVisible: "Group keyboard visibility check"
 - assertVisible: "Send"
