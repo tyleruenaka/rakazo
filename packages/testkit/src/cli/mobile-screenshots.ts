@@ -26,6 +26,7 @@ const DEVICE_CONTROL_PORT = 3111;
 const HOST_API_URL = `http://127.0.0.1:${API_PORT}`;
 const DEVICE_CONTROL_URL = `http://127.0.0.1:${DEVICE_CONTROL_PORT}`;
 const EXPAND_NOTIFICATIONS_URL = `${DEVICE_CONTROL_URL}/expand-notifications`;
+const BOT_NESTING_URL = `${DEVICE_CONTROL_URL}/bot-nesting`;
 const WEB_ORIGIN = "http://127.0.0.1:5180";
 /** Flows to run, in order. A flow with a window runs on the emulator resized to it. */
 const FLOWS: { name: string; window?: { size: string; density: string } }[] = [
@@ -33,6 +34,8 @@ const FLOWS: { name: string; window?: { size: string; density: string } }[] = [
   { name: "notification-demo" },
   // An unfolded foldable, about 750dp wide, where the chat list sits beside the open chat.
   { name: "split-view", window: { size: "1968x2184", density: "420" } },
+  // Last, so its extra bots and sections stay out of the other flows' screenshots.
+  { name: "bot-nesting" },
 ];
 
 type App = { request: (input: string, init?: RequestInit) => Response | Promise<Response> };
@@ -83,7 +86,7 @@ async function main() {
     hostname: "0.0.0.0",
     port: API_PORT,
   });
-  const deviceControl = startDeviceControlServer();
+  const deviceControl = startDeviceControlServer(botNestingSteps(handles.app, fixture.cookie));
 
   try {
     await waitForHealth(`${HOST_API_URL}/health`, 15_000);
@@ -163,15 +166,83 @@ async function runFlow(flow: string, fixture: Awaited<ReturnType<typeof seedFixt
       "RAKAZO_NOTIFICATION_VIDEO=notification-demo",
       "-e",
       `RAKAZO_EXPAND_NOTIFICATIONS_URL=${EXPAND_NOTIFICATIONS_URL}`,
+      "-e",
+      `RAKAZO_BOT_NESTING_URL=${BOT_NESTING_URL}`,
       path.join(FLOW_DIR, `${flow}.yaml`),
     ],
     process.env,
   );
 }
 
-/** Maestro host-side helper: expand the Android shade without flaky status-bar swipes. */
-function startDeviceControlServer(): Server {
+/**
+ * Server-side steps for the bot-nesting flow. The phone app has no Nest under or Move out, so
+ * the flow asks for them here (the same calls the web menu makes) and checks what the phone shows.
+ */
+function botNestingSteps(app: App, cookie: string): Map<string, () => Promise<void>> {
+  const ids = new Map<string, string>();
+  const id = (name: string) => ids.get(name)!;
+  const call = (procedure: string, body: unknown) =>
+    rpc<{ id: string }>(app, cookie, procedure, body);
+  async function setup() {
+    for (const name of ["Nest lead", "Nest anchor", "Nest helper"]) {
+      const bot = await call("bots/create", {
+        name,
+        title: "Nesting fixture",
+        description: "A bot for the nesting screenshots.",
+        instructions: "Stay idle.",
+        notifyOnFinish: false,
+      });
+      ids.set(name, bot.id);
+    }
+    const section = (botName: string, name: string) =>
+      call("botSections/create", { botId: id(botName), name });
+    await section("Nest lead", "Alpha");
+    const bravo = await section("Nest anchor", "Bravo");
+    await section("Nest helper", "Charlie");
+    // A section starts with a bot in it; Delta is left empty as a place to move to.
+    await section("Nest anchor", "Delta");
+    await call("bots/update", { botId: id("Nest anchor"), sectionId: bravo.id });
+  }
+  return new Map([
+    ["setup", setup],
+    [
+      "nest",
+      async () => {
+        await call("bots/update", { botId: id("Nest helper"), parentBotId: id("Nest lead") });
+      },
+    ],
+    [
+      "move-out",
+      async () => {
+        await call("bots/update", { botId: id("Nest helper"), parentBotId: null });
+      },
+    ],
+  ]);
+}
+
+/**
+ * Maestro host-side helper: expand the Android shade without flaky status-bar swipes, and run
+ * the bot-nesting steps.
+ */
+function startDeviceControlServer(nesting: Map<string, () => Promise<void>>): Server {
   const server = createServer((req, res) => {
+    const nestingStep = req.url?.startsWith("/bot-nesting/")
+      ? nesting.get(req.url.slice("/bot-nesting/".length))
+      : undefined;
+    if (req.method === "GET" && nestingStep) {
+      nestingStep().then(
+        () => {
+          res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+          res.end("ok");
+        },
+        (error: unknown) => {
+          console.error("Bot nesting step failed", error);
+          res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+          res.end("Bot nesting step failed");
+        },
+      );
+      return;
+    }
     if (req.method !== "GET" || req.url !== "/expand-notifications") {
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       res.end("not found");
@@ -369,7 +440,7 @@ async function seedFixture(app: App, prisma: PrismaClient) {
     blocks: [{ kind: "text", text: "Update from Writer: The fixture launch note is drafted." }],
   });
 
-  return { botId: researcher.id, groupId: group.id, routineId: routine.id };
+  return { botId: researcher.id, groupId: group.id, routineId: routine.id, cookie };
 }
 
 async function signup(app: App) {

@@ -1,0 +1,162 @@
+appId: com.rakazo.app
+name: Bot nesting in the chat list
+tags:
+  - screenshots
+---
+# Fixture: Nest lead in Alpha, Nest anchor in Bravo, Nest helper in its own section Charlie,
+# and an empty Delta. The phone app has no Nest under or Move out, so the host runs those
+# (RAKAZO_BOT_NESTING_URL) and the flow checks where the phone lists the bots.
+- evalScript: ${output.nesting = http.get(RAKAZO_BOT_NESTING_URL + "/setup")}
+- assertTrue: ${output.nesting.ok}
+
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: deny
+- extendedWaitUntil:
+    visible: "Sign up for Rakazo|Pixel Launcher isn't responding"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Sign up for Rakazo"
+    timeout: 30000
+- tapOn: "Sign in"
+- runFlow: helpers/server.yaml
+- runFlow: helpers/use-password.yaml
+- tapOn: "Email"
+- inputText: ${RAKAZO_SCREENSHOT_EMAIL}
+- tapOn: "Password"
+- inputText: ${RAKAZO_SCREENSHOT_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+- tapOn:
+    text: "Don’t allow"
+    optional: true
+
+# Before nesting, the helper is in its own section, below the anchor.
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Nest anchor"
+    timeout: 30000
+- takeScreenshot: "40-nesting-start"
+
+# Nested under an unpinned parent, it lists under the parent in the parent's section.
+- evalScript: ${output.nesting = http.get(RAKAZO_BOT_NESTING_URL + "/nest")}
+- assertTrue: ${output.nesting.ok}
+- swipe:
+    start: "50%, 35%"
+    end: "50%, 75%"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Nest lead"
+      above: "Nest anchor"
+    timeout: 15000
+- takeScreenshot: "41-nested-under-lead"
+
+# It moves with its parent, so its sheet offers neither Pin nor Move to.
+- longPressOn: "Nest helper"
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 5000
+- assertNotVisible: "Move to"
+- assertNotVisible: "Pin"
+- takeScreenshot: "42-nested-helper-sheet"
+- tapOn: "Cancel"
+
+# Pinning the parent shows the helper in its own section; unpinning brings it back.
+- longPressOn: "Nest lead"
+- tapOn: "Pin"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Nest anchor"
+    timeout: 15000
+- takeScreenshot: "43-lead-pinned"
+- longPressOn: "Nest lead"
+- tapOn: "Unpin"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Nest lead"
+      above: "Nest anchor"
+    timeout: 15000
+- takeScreenshot: "44-lead-unpinned"
+
+# Moving the unpinned parent takes the helper along: Delta, then back to Alpha.
+- longPressOn: "Nest lead"
+- tapOn:
+    text: "Delta"
+    below: "Move to"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Delta"
+    timeout: 15000
+- assertVisible:
+    text: "Nest lead"
+    below: "Delta"
+- takeScreenshot: "45-lead-moved-to-delta"
+- longPressOn: "Nest lead"
+- tapOn:
+    text: "Alpha"
+    below: "Move to"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Nest lead"
+      above: "Nest anchor"
+    timeout: 15000
+
+# Moved out, it stays in the parent's section (Alpha), not its own (Charlie).
+- evalScript: ${output.nesting = http.get(RAKAZO_BOT_NESTING_URL + "/move-out")}
+- assertTrue: ${output.nesting.ok}
+- swipe:
+    start: "50%, 35%"
+    end: "50%, 75%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      above: "Bravo"
+    timeout: 15000
+- assertVisible:
+    text: "Nest helper"
+    above: "Nest anchor"
+- takeScreenshot: "46-moved-out-stays-in-alpha"
+
+# Top level again: Pin and Move to are back, and it moves to another section.
+- longPressOn: "Nest helper"
+- extendedWaitUntil:
+    visible: "Move to"
+    timeout: 5000
+- assertVisible: "Pin"
+- takeScreenshot: "47-moved-out-helper-sheet"
+- tapOn:
+    text: "Delta"
+    below: "Move to"
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Delta"
+    timeout: 15000
+- swipe:
+    start: "50%, 35%"
+    end: "50%, 75%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible:
+      text: "Nest helper"
+      below: "Delta"
+    timeout: 15000
+- assertVisible:
+    text: "Nest lead"
+    above: "Bravo"
+- takeScreenshot: "48-helper-moved-to-delta"
