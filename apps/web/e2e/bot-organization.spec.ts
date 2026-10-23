@@ -308,6 +308,103 @@ test("holding a dragged bot on another nests it, and it moves back out", async (
   await expect(page.getByRole("menuitem", { name: "Nest under", exact: true })).toHaveCount(0);
 });
 
+test("a nested bot lists under its unpinned parent, and in its own section while it is pinned", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `bot-nest-sections-${stamp}@rakazo.test`, "password12", "Nest Sections");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+  const create = (name: string) =>
+    rpc<{ id: string }>(page, "bots/create", {
+      name,
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+      computerMode: "team",
+    });
+  const lead = await create("Lead");
+  const helper = await create("Helper");
+  const other = await create("Other");
+  const engineering = await rpc<{ id: string }>(page, "botSections/create", {
+    botId: lead.id,
+    name: "Engineering",
+  });
+  const research = await rpc<{ id: string }>(page, "botSections/create", {
+    botId: other.id,
+    name: "Research",
+  });
+  // The helper has no section of its own, like a bot spawned without one.
+  await rpc(page, "bots/update", { botId: helper.id, parentBotId: lead.id });
+  await page.reload();
+
+  const sidebar = page.locator("aside").first();
+  const rowSelector = (id: string) => `[data-roster-bot-id="${id}"]`;
+  const row = (id: string) => sidebar.locator(rowSelector(id));
+  // A row inside one sidebar list (a section, unassigned or pinned).
+  const listed = (key: string, id: string) =>
+    sidebar.locator(`[data-sidebar-group="${key}"]`).locator(rowSelector(id));
+  const menu = (id: string) => row(id).click({ button: "right" });
+  const moveTo = async (id: string, section: string) => {
+    await menu(id);
+    await page.getByRole("menuitem", { name: "Move to", exact: true }).hover();
+    await page
+      .getByRole("menu", { name: "Move to", exact: true })
+      .getByRole("menuitem", { name: section, exact: true })
+      .click();
+  };
+  const togglePin = async (id: string, name: "Pin" | "Unpin") => {
+    await menu(id);
+    await page.getByRole("menuitem", { name, exact: true }).click();
+  };
+
+  // Unpinned parent: the parent's section wins, and the nested bot can't move on its own.
+  await expect(listed(`section:${engineering.id}`, helper.id)).toHaveAttribute(
+    "data-roster-depth",
+    "1",
+  );
+  await menu(helper.id);
+  await expect(page.getByRole("menuitem", { name: "Move out of Lead", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Move to", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Pin", exact: true })).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "nested-under-unpinned-parent");
+  await page.keyboard.press("Escape");
+
+  // Pinned parent: the nested bot is an ordinary row in its own section, and can move.
+  await togglePin(lead.id, "Pin");
+  await expect(listed("unassigned", helper.id)).toBeVisible();
+  await moveTo(helper.id, "Research");
+  await expect(listed(`section:${research.id}`, helper.id)).toBeVisible();
+  await captureScreenshot(page, testInfo, "nested-under-pinned-parent");
+
+  // Unpin: back under the parent. Re-pin: back to its own section.
+  await togglePin(lead.id, "Unpin");
+  await expect(listed(`section:${engineering.id}`, helper.id)).toHaveAttribute(
+    "data-roster-depth",
+    "1",
+  );
+  await togglePin(lead.id, "Pin");
+  await expect(listed(`section:${research.id}`, helper.id)).toBeVisible();
+  await togglePin(lead.id, "Unpin");
+
+  // Moving the unpinned parent takes the nested bot along, and its own section with it.
+  await moveTo(lead.id, "Unassigned");
+  await expect(listed("unassigned", helper.id)).toHaveAttribute("data-roster-depth", "1");
+  await togglePin(lead.id, "Pin");
+  await expect(listed("unassigned", helper.id)).toBeVisible();
+  await togglePin(lead.id, "Unpin");
+
+  // Nest under offers top-level bots from every section.
+  await menu(other.id);
+  await page.getByRole("menuitem", { name: "Nest under", exact: true }).hover();
+  const targets = page.getByRole("menu", { name: "Nest under", exact: true });
+  await expect(targets.getByRole("menuitem", { name: "Lead", exact: true })).toBeVisible();
+  await expect(targets.getByRole("menuitem", { name: "Helper", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+});
+
 test("one bot at a time is the Primary, with the star and no Delete", async ({
   page,
 }, testInfo) => {

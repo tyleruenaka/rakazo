@@ -648,8 +648,11 @@ export async function organizeBot(
       if (!target.thread) return { error: NOT_FOUND };
       if (pinned && target.parentBotId) return { error: NESTED_PIN };
       // A named section is always the user's own: found or created by name in their scope.
+      // Either way an unpinned parent's nested bots move with it.
       if (section) {
         await createRepos(deps.prisma).createBotSection(actor, { botId: target.id, name: section });
+      } else if (section === null) {
+        await createRepos(deps.prisma).setBotSection(actor, target.id, null);
       }
       await commitBotUpdate({
         prisma: deps.prisma,
@@ -658,10 +661,7 @@ export async function organizeBot(
         threadId: target.thread.id,
         botId: target.id,
         emitBotUpdated: true,
-        data: {
-          ...(pinned !== undefined ? { pinned } : {}),
-          ...(section === null ? { sectionId: null } : {}),
-        },
+        data: pinned !== undefined ? { pinned } : {},
       });
       return { ok: true };
     }

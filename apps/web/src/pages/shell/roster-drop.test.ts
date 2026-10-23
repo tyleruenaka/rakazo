@@ -30,14 +30,14 @@ describe("resolveRosterDrop", () => {
     ).toBeNull();
   });
 
-  it("moves a nested bot out beside the top-level bot it is dropped on", () => {
+  it("moves a nested bot out beside the top-level bot it is dropped on, into its section", () => {
     expect(
       resolveRosterDrop({
         dragged: bot("a", "s1", { parentBotId: "p" }),
         target: { kind: "bot", chat: bot("b", "s1") },
         sameParent: false,
       }),
-    ).toEqual({ action: "reorder", targetBotId: "b", unnest: true });
+    ).toEqual({ action: "reorder", targetBotId: "b", unnest: true, sectionId: "s1" });
   });
 
   it("leaves a row in another list to that list's own drop", () => {
@@ -231,10 +231,57 @@ describe("applyRosterDrop", () => {
   const find = (bots: readonly ReturnType<typeof row>[], id: string) =>
     bots.find((bot) => bot.id === id);
 
-  it("nests into the parent's section without pinning, even under a pinned parent", () => {
+  it("nests without pinning and keeps the bot's own section, even with none", () => {
     expect(
       find(applyRosterDrop(roster, "a", { action: "nest", parentBotId: "chief" }), "a"),
-    ).toEqual(row("a", "s1", false, "chief"));
+    ).toEqual(row("a", "s2", false, "chief"));
+    const loose = [row("chief", "s1"), row("wren", null)];
+    expect(
+      find(applyRosterDrop(loose, "wren", { action: "nest", parentBotId: "chief" }), "wren"),
+    ).toEqual(row("wren", null, false, "chief"));
+  });
+
+  it("takes an unpinned parent's nested bots along to its new section", () => {
+    const team = [
+      row("chief", "s1"),
+      row("scout", null, false, "chief"),
+      row("aide", "s3", false, "chief"),
+      row("other", "s1"),
+    ];
+    const moved = applyRosterDrop(team, "chief", {
+      action: "move",
+      sectionId: "s2",
+      unpin: false,
+      unnest: false,
+    });
+    expect(moved).toEqual([
+      row("chief", "s2"),
+      row("scout", "s2", false, "chief"),
+      row("aide", "s2", false, "chief"),
+      row("other", "s1"),
+    ]);
+  });
+
+  it("leaves a pinned parent's nested bots in their own sections when it moves", () => {
+    const team = [row("chief", "s1", true), row("scout", "s3", false, "chief")];
+    const moved = applyRosterDrop(team, "chief", {
+      action: "move",
+      sectionId: "s2",
+      unpin: true,
+      unnest: false,
+    });
+    expect(moved).toEqual([row("chief", "s2"), row("scout", "s3", false, "chief")]);
+  });
+
+  it("puts a nested bot moved out beside a row into that row's section", () => {
+    const team = [row("chief", "s1"), row("scout", null, false, "chief"), row("peer", "s1")];
+    const moved = applyRosterDrop(team, "scout", {
+      action: "reorder",
+      targetBotId: "peer",
+      unnest: true,
+      sectionId: "s1",
+    });
+    expect(find(moved, "scout")).toEqual(row("scout", "s1"));
   });
 
   it("moves, unpins and un-nests as the drop says", () => {

@@ -1,6 +1,6 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { RunActivityRow, SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { accountDisplay, isRunWorking, shownPinned } from "@rakazo/core";
+import { accountDisplay, isRunWorking, movesWithParent, shownPinned } from "@rakazo/core";
 import { botColors, typeScale } from "@rakazo/ui-tokens";
 import type { Href } from "expo-router";
 import {
@@ -1469,6 +1469,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
         <BotOrganizeModal
           bot={organizeChat}
           sections={organizeSpace?.botSections ?? organizeTarget.sections}
+          canMove={!movesWithParent(organizeChat, organizeSpace?.bots ?? [])}
           onClose={() => {
             organizeRequestId.current += 1;
             setOrganizeTarget(null);

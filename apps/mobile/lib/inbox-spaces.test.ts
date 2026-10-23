@@ -222,6 +222,43 @@ describe("spaceInboxItems", () => {
     expect(collapsed.map((item) => ("bot" in item ? item.bot.id : item.type))).toEqual(["parent"]);
   });
 
+  it("lists a nested bot under its unpinned parent, and in its own section once it is pinned", () => {
+    const sections = ["eng", "research"].map((id) => ({
+      id,
+      name: id === "eng" ? "Engineering" : "Research",
+      position: 0,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }));
+    const parent = { ...bot, id: "remy", sectionId: "eng", parentBotId: null };
+    // Spawned without a section of its own.
+    const loose = { ...bot, id: "wren", sectionId: null, parentBotId: "remy" };
+    const filed = { ...bot, id: "scout", sectionId: "research", parentBotId: "remy" };
+    const rows = (bots: MobileBot[]) =>
+      spaceInboxItems([space({ isDefault: true, bots, botSections: sections })]).map((item) =>
+        item.type === "heading"
+          ? item.title
+          : item.type === "bot"
+            ? [item.bot.id, item.depth]
+            : item.type,
+      );
+    expect(rows([parent, loose, filed])).toEqual([
+      "Engineering",
+      ["remy", 0],
+      ["wren", 1],
+      ["scout", 1],
+      "Research",
+    ]);
+    // The home screen lifts pinned bots into tiles before it builds these rows.
+    expect(rows([loose, filed])).toEqual([
+      "Engineering",
+      "Research",
+      ["scout", 0],
+      "Unassigned",
+      ["wren", 0],
+    ]);
+  });
+
   it("collapses one section heading and counts its chats", () => {
     const work = space({
       bots: [

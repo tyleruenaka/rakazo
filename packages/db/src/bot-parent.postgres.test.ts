@@ -81,21 +81,111 @@ describePostgres("setBotParent (PostgreSQL)", () => {
       const section = await repos.createBotSection(actor, { botId: parent.id, name: "Nesting" });
       await prisma.bot.update({ where: { id: parent.id }, data: { pinned: true } });
 
-      // The child takes the parent's section, so it shows under it once the parent is unpinned.
+      // The child keeps its own section (none here); the sidebar lists it under an unpinned parent.
       await repos.setBotParent(actor, child.id, parent.id);
+      expect((await read(parent.id)).sectionId).toBe(section.id);
       expect(await read(child.id)).toMatchObject({
         parentBotId: parent.id,
-        sectionId: section.id,
+        sectionId: null,
         pinned: false,
       });
 
       await repos.setBotParent(actor, child.id, null);
       expect(await read(child.id)).toMatchObject({
         parentBotId: null,
-        sectionId: section.id,
+        sectionId: null,
         pinned: false,
       });
     }));
+
+  it("keeps the nested bot's own section when it is nested", () =>
+    runAsTenant(owners[0]!, async () => {
+      const repos = createRepos(prisma);
+      const actor = actorOf(owners[0]!);
+      const parent = await create(owners[0]!, "Own parent");
+      const child = await create(owners[0]!, "Own child");
+      const parentSection = await repos.createBotSection(actor, {
+        botId: parent.id,
+        name: "Own parent section",
+      });
+      const childSection = await repos.createBotSection(actor, {
+        botId: child.id,
+        name: "Own child section",
+      });
+      expect(parentSection.id).not.toBe(childSection.id);
+
+      await repos.setBotParent(actor, child.id, parent.id);
+      expect(await read(child.id)).toMatchObject({
+        parentBotId: parent.id,
+        sectionId: childSection.id,
+      });
+    }));
+
+  it("moves an unpinned parent's nested bots with it, and leaves a pinned parent's alone", () =>
+    runAsTenant(owners[0]!, async () => {
+      const repos = createRepos(prisma);
+      const actor = actorOf(owners[0]!);
+      const parent = await create(owners[0]!, "Mover");
+      const first = await create(owners[0]!, "Mover child one");
+      const second = await create(owners[0]!, "Mover child two");
+      const bystander = await create(owners[0]!, "Mover bystander");
+      const start = await repos.createBotSection(actor, { botId: first.id, name: "Mover start" });
+      const sales = await repos.createBotSection(actor, {
+        botId: bystander.id,
+        name: "Mover sales",
+      });
+      const ops = await repos.createBotSection(actor, { botId: bystander.id, name: "Mover ops" });
+      await repos.setBotParent(actor, first.id, parent.id);
+      await repos.setBotParent(actor, second.id, parent.id);
+
+      // Unpinned: every nested bot takes the parent's new section, including none.
+      await repos.setBotSection(actor, parent.id, sales.id);
+      for (const id of [parent.id, first.id, second.id]) {
+        expect((await read(id)).sectionId).toBe(sales.id);
+      }
+      expect((await read(bystander.id)).sectionId).toBe(ops.id);
+      await repos.setBotSection(actor, parent.id, null);
+      for (const id of [parent.id, first.id, second.id]) {
+        expect((await read(id)).sectionId).toBeNull();
+      }
+
+      // "New section" from the parent's menu moves them too.
+      const fresh = await repos.createBotSection(actor, { botId: parent.id, name: "Mover new" });
+      for (const id of [parent.id, first.id, second.id]) {
+        expect((await read(id)).sectionId).toBe(fresh.id);
+      }
+
+      // Pinned: its nested bots list in their own sections, which stay.
+      await repos.setBotSection(actor, first.id, start.id);
+      await prisma.bot.update({ where: { id: parent.id }, data: { pinned: true } });
+      await repos.setBotSection(actor, parent.id, ops.id);
+      await repos.createBotSection(actor, { botId: parent.id, name: "Mover pinned new" });
+      expect((await read(first.id)).sectionId).toBe(start.id);
+      expect((await read(second.id)).sectionId).toBe(fresh.id);
+    }));
+
+  it("refuses a section move for another owner's bot or section", async () => {
+    const theirs = await runAsTenant(owners[1]!, async () => {
+      const bot = await create(owners[1]!, "Their mover");
+      const section = await createRepos(prisma).createBotSection(actorOf(owners[1]!), {
+        botId: bot.id,
+        name: "Their section",
+      });
+      return { bot, section };
+    });
+    await runAsTenant(owners[0]!, async () => {
+      const repos = createRepos(prisma);
+      const actor = actorOf(owners[0]!);
+      const mine = await create(owners[0]!, "My mover");
+      await expect(repos.setBotSection(actor, theirs.bot.id, null)).rejects.toBeInstanceOf(
+        IsolationError,
+      );
+      await expect(repos.setBotSection(actor, mine.id, theirs.section.id)).rejects.toBeInstanceOf(
+        IsolationError,
+      );
+      expect((await read(mine.id)).sectionId).toBeNull();
+    });
+  });
 
   it("unpins a pinned bot when it is nested, and clears a stale pin when it moves out", () =>
     runAsTenant(owners[0]!, async () => {

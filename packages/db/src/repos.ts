@@ -138,6 +138,23 @@ function mapBot(
   };
 }
 
+/**
+ * An unpinned parent lists its nested bots under it, so moving it to a section takes their
+ * own section along. A pinned parent's nested bots list in their own sections and keep them.
+ */
+async function moveNestedWithParent(
+  tx: Pick<Prisma.TransactionClient, "bot">,
+  actor: Actor,
+  parent: { id: string; pinned: boolean; parentBotId: string | null },
+  sectionId: string | null,
+): Promise<void> {
+  if (parent.pinned || parent.parentBotId) return;
+  await tx.bot.updateMany({
+    where: { parentBotId: parent.id, spaceId: actor.spaceId, userId: actor.userId },
+    data: { sectionId },
+  });
+}
+
 export function createRepos(
   prisma: PrismaClient,
   capabilities: { phoneCallsEnabled?: boolean; phoneCallRingSeconds?: number } = {},
@@ -275,7 +292,12 @@ export function createRepos(
           },
         });
         if (input.botId) {
-          await tx.bot.update({ where: { id: target.id }, data: { sectionId: section.id } });
+          const moved = await tx.bot.update({
+            where: { id: target.id },
+            data: { sectionId: section.id },
+            select: { id: true, pinned: true, parentBotId: true },
+          });
+          await moveNestedWithParent(tx, actor, moved, section.id);
         } else {
           await tx.chatGroup.update({
             where: { id: target.id },
@@ -695,10 +717,50 @@ export function createRepos(
     },
 
     /**
+     * Move a bot to one of the actor's sections, or to unassigned with null. An unpinned
+     * parent lists its nested bots under it, so they take the new section too and keep it
+     * once the parent is pinned. A pinned parent's nested bots list in their own sections,
+     * which stay as they are.
+     */
+    async setBotSection(actor: Actor, botId: string, sectionId: string | null): Promise<void> {
+      await prisma.$transaction(async (tx) => {
+        // Lock the bot and its nested bots in id order, the order setBotParent locks rows.
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            parentBotId: string | null;
+            pinned: boolean;
+            archivedAt: Date | null;
+          }>
+        >`
+          SELECT id, "parentBotId", pinned, "archivedAt"
+          FROM bots
+          WHERE (id = ${botId} OR "parentBotId" = ${botId})
+            AND "spaceId" = ${actor.spaceId}
+            AND "userId" = ${actor.userId}
+          ORDER BY id
+          FOR UPDATE
+        `;
+        const bot = rows.find((row) => row.id === botId);
+        if (!bot || bot.archivedAt) throw new IsolationError();
+        if (sectionId) {
+          const section = await tx.botSection.findFirst({
+            where: { id: sectionId, spaceId: actor.spaceId, userId: actor.userId },
+            select: { id: true },
+          });
+          if (!section) throw new IsolationError();
+        }
+        await tx.bot.update({ where: { id: botId }, data: { sectionId } });
+        await moveNestedWithParent(tx, actor, bot, sectionId);
+      });
+    },
+
+    /**
      * Nest a bot under another of the actor's top-level bots, or move it back to
      * the top level. Nesting gives the parent's fleet tools reach over it. The bot
-     * takes the parent's section so it renders under it, and is never pinned: a
-     * pinned parent's nested bots stay ordinary rows in that section.
+     * keeps its own section and is never pinned: it lists under its parent while the
+     * parent is unpinned, and as an ordinary row in its own section while the parent
+     * is pinned.
      */
     async setBotParent(actor: Actor, botId: string, parentBotId: string | null): Promise<void> {
       if (parentBotId === botId) throw new BotParentError("A bot can't be nested under itself");
@@ -748,7 +810,7 @@ export function createRepos(
         if (child) throw new BotParentError("A bot with nested bots can't be nested");
         await tx.bot.update({
           where: { id: botId },
-          data: { parentBotId: parent.id, sectionId: parent.sectionId, pinned: false },
+          data: { parentBotId: parent.id, pinned: false },
         });
       });
     },
