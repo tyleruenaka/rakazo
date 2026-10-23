@@ -23,6 +23,8 @@ import { Checkmark } from "./row-accessories";
 import { SettingsLabel, SettingsRow } from "./settings-group";
 import { TextOnlyMark } from "./text-only-mark";
 
+const MAX_REVEAL_RETRIES = 10;
+
 /** Searchable grouped model cells shared by chat and connection settings. */
 export function ModelPickerList({
   choices,
@@ -50,7 +52,7 @@ export function ModelPickerList({
     ready: false,
     handled: false,
     cancelled: false,
-    retried: false,
+    retries: 0,
     target: null as { sectionIndex: number; itemIndex: number; key: string } | null,
   });
   const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -147,9 +149,10 @@ export function ModelPickerList({
   const retryInitialSelection = useCallback(
     ({ averageItemLength, index }: { averageItemLength: number; index: number }) => {
       const state = initialScroll.current;
-      if (!state.handled || state.cancelled || state.retried || !state.target) return;
-      state.retried = true;
-      // Move the render window near an unmeasured row before trying its location once more.
+      if (!state.handled || state.cancelled || state.retries >= MAX_REVEAL_RETRIES || !state.target)
+        return;
+      state.retries += 1;
+      // Rows render in batches, so keep moving the render window toward the row until it is measured.
       list.current
         ?.getScrollResponder()
         ?.scrollTo({ y: averageItemLength * index, animated: false });

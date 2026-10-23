@@ -1118,16 +1118,25 @@ describe("initial model picker scroll", () => {
     expect(mocks.scrollToLocation).not.toHaveBeenCalled();
   });
 
-  it("moves the render window and retries an unmeasured location only once", async () => {
+  it("keeps moving the render window toward an unmeasured row, up to a limit", async () => {
     vi.useFakeTimers();
     await render();
     fail();
     expect(mocks.scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 1200, animated: false });
     act(() => vi.advanceTimersByTime(100));
     expect(mocks.scrollToLocation).toHaveBeenCalledTimes(2);
+    // A slow device can still be rendering rows after the first retry.
     fail();
     act(() => vi.advanceTimersByTime(100));
-    expect(mocks.scrollToLocation).toHaveBeenCalledTimes(2);
+    expect(mocks.scrollToLocation).toHaveBeenCalledTimes(3);
+    for (let attempt = 3; attempt <= 10; attempt += 1) {
+      fail();
+      act(() => vi.advanceTimersByTime(100));
+    }
+    expect(mocks.scrollToLocation).toHaveBeenCalledTimes(11);
+    fail();
+    act(() => vi.advanceTimersByTime(100));
+    expect(mocks.scrollToLocation).toHaveBeenCalledTimes(11);
   });
 
   it.each(["query", "drag", "unmount"])("cancels the retry after %s", async (interaction) => {
