@@ -64,6 +64,7 @@ function setup(
       if (!stores.has(name)) stores.set(name, new FakeCache());
       return stores.get(name)!;
     },
+    has: async (name: string) => stores.has(name),
     keys: async () => [...stores.keys()],
     delete: async (name: string) => stores.delete(name),
   };
@@ -101,9 +102,17 @@ function setup(
     await Promise.all(pending);
     return result;
   }
-  const request = (path: string, mode: RequestMode = "cors", method = "GET") =>
-    // Request() refuses "navigate" as a mode, so pin it the way the browser would.
-    Object.defineProperty(new Request(new URL(path, ORIGIN), { method }), "mode", { value: mode });
+  const request = (
+    path: string,
+    mode: RequestMode = "cors",
+    method = "GET",
+    destination: RequestDestination = mode === "navigate" ? "document" : "",
+  ) =>
+    // Request() refuses "navigate" as a mode, so pin it (and the destination) the way the browser would.
+    Object.defineProperties(new Request(new URL(path, ORIGIN), { method }), {
+      mode: { value: mode },
+      destination: { value: destination },
+    });
   return {
     stores,
     scope,
@@ -111,6 +120,8 @@ function setup(
     dispatch,
     fetch: (path: string, mode?: RequestMode, method?: string) =>
       dispatch("fetch", { request: request(path, mode, method) }),
+    frame: (path: string, destination: RequestDestination = "iframe") =>
+      dispatch("fetch", { request: request(path, "navigate", "GET", destination) }),
   };
 }
 
@@ -154,9 +165,22 @@ describe("service worker", () => {
         ? new Response("<html>", { headers: HTML })
         : new Response("chunk", { headers: JS });
     const sw = setup();
+    await sw.scope.caches.open(CACHE);
     await sw.fetch("/assets/lazy.js");
     await sw.fetch("/assets/missing.js");
     expect([...sw.stores.get(CACHE)!.entries.keys()]).toEqual([`${ORIGIN}/assets/lazy.js`]);
+  });
+
+  it("leaves pages loaded in frames to the network: no offline shell, no takeover", async () => {
+    network = vi.fn(offline);
+    const sw = setup();
+    await sw.scope.caches.open(CACHE).then((cache) => cache.put("/", new Response("shell")));
+    sw.scope.registration.waiting = sw.waiting;
+    for (const destination of ["iframe", "frame"] as const) {
+      expect(await sw.frame("/html-viewer.html", destination)).toBeUndefined();
+    }
+    expect(network).not.toHaveBeenCalled();
+    expect(sw.waiting.postMessage).not.toHaveBeenCalled();
   });
 
   it("keeps only the current and newest previous shell caches on activate", async () => {
@@ -323,6 +347,49 @@ describe("switching server versions", () => {
     expect([...sw.stores.keys()]).toEqual(["someone-else"]);
   });
 
+  it("does not recreate its cache in a worker restarted after retiring", async () => {
+    network = server("v2", V2);
+    const stores: Stores = new Map();
+    const sw = setup({ precache: V2, cacheName: "rakazo-shell-v2", stores });
+    await sw.dispatch("install", {});
+    network = server("old", ["/", "/assets/index-old.js"], { serviceWorker: false });
+    await sw.fetch("/", "navigate");
+    expect([...stores.keys()]).toEqual([]);
+
+    // The browser stopped the idle worker; a fresh copy no longer knows it retired.
+    const restarted = setup({ precache: V2, cacheName: "rakazo-shell-v2", stores });
+    expect(await (await restarted.fetch("/assets/index-old.js"))!.text()).toBe(
+      "old /assets/index-old.js",
+    );
+    network = offline;
+    await expect(restarted.fetch("/", "navigate")).rejects.toThrow("offline");
+    expect([...stores.keys()]).toEqual([]);
+  });
+
+  it("does not retire when /sw.js is answered by a redirect, such as a captive portal", async () => {
+    network = server("v2", V2);
+    const sw = setup({ precache: V2 });
+    await sw.dispatch("install", {});
+    const portal = server("portal", []);
+    const manualRedirects: string[] = [];
+    network = async (request) => {
+      if (new URL(request.url).pathname !== "/sw.js") return portal(request);
+      if (request.redirect === "manual") {
+        manualRedirects.push(request.url);
+        return Object.defineProperties(new Response(null), {
+          type: { value: "opaqueredirect" },
+          status: { value: 0 },
+          ok: { value: false },
+        });
+      }
+      return Object.defineProperty(await portal(request), "redirected", { value: true });
+    };
+    await sw.fetch("/", "navigate");
+    expect(manualRedirects).toEqual([`${ORIGIN}/sw.js`]);
+    expect(sw.scope.registration.unregister).not.toHaveBeenCalled();
+    expect(sw.stores.get(CACHE)?.entries.size).toBe(2);
+  });
+
   it("keeps working when /sw.js is still served, or the server is only briefly unreachable", async () => {
     network = server("v2", V2);
     const sw = setup({ precache: V2 });
@@ -347,5 +414,9 @@ describe("switching server versions", () => {
       ),
     ).toBe(false);
     expect(serviceWorkerRemoved(new Response("", { status: 502 }))).toBe(false);
+    const portal = new Response("<html>", { headers: HTML });
+    expect(serviceWorkerRemoved(Object.defineProperty(portal, "redirected", { value: true }))).toBe(
+      false,
+    );
   });
 });

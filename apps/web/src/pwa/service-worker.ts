@@ -6,6 +6,8 @@ const SHELL_PATH = "/";
 // Live data, auth callbacks and the screen proxy always go straight to the server.
 const BYPASS_PREFIXES = ["/api", "/rpc", "/novnc", "/.well-known", "/health"];
 const ACTIVATION_TIMEOUT_MS = 3_000;
+// Pages loaded inside the app (e.g. /html-viewer.html) are not the app: they go straight to the server.
+const FRAME_DESTINATIONS = new Set<RequestDestination>(["iframe", "frame", "object", "embed"]);
 
 type ExtendableEvent = { waitUntil(promise: Promise<unknown>): void };
 type FetchEvent = ExtendableEvent & {
@@ -39,9 +41,11 @@ const isHtml = (response: Response) =>
 /**
  * True when the server answering /sw.js no longer ships a service worker: a
  * 404/410, or the SPA's HTML fallback that a build without one serves for
- * unknown paths. A 5xx or a network error during a deploy is not a verdict.
+ * unknown paths. A 5xx, a network error during a deploy, or a redirect (a
+ * captive portal or a login page answering in the server's place) is not a verdict.
  */
 export function serviceWorkerRemoved(response: Response): boolean {
+  if (response.type === "opaqueredirect" || response.redirected) return false;
   if (response.status === 404 || response.status === 410) return true;
   if (!response.ok) return false;
   return !/javascript|ecmascript/i.test(response.headers.get("content-type") ?? "");
@@ -94,7 +98,7 @@ export function installServiceWorker(
     const url = new URL(request.url);
     if (url.origin !== scope.location.origin || bypassesServiceWorker(url.pathname)) return;
     if (request.mode === "navigate") {
-      event.respondWith(navigate(event));
+      if (!FRAME_DESTINATIONS.has(request.destination)) event.respondWith(navigate(event));
     } else if (
       // The HTML shell is only ever served from the cache for an offline navigation.
       url.pathname !== SHELL_PATH &&
@@ -132,11 +136,11 @@ export function installServiceWorker(
       response = await scope.fetch(request);
     } catch (error) {
       // Only a failed network reaches the cache; an HTTP error from the server passes through.
-      const shell = await (await scope.caches.open(cacheName)).match(SHELL_PATH);
+      const shell = await (await openCurrentCache())?.match(SHELL_PATH);
       if (shell) return shell;
       throw error;
     }
-    if (request.destination !== "iframe") event.waitUntil(retireIfRemoved());
+    event.waitUntil(retireIfRemoved());
     return response;
   }
 
@@ -144,7 +148,10 @@ export function installServiceWorker(
     let response: Response;
     try {
       response = await scope.fetch(
-        new Request(new URL(SERVICE_WORKER_PATH, scope.location.origin), { cache: "no-store" }),
+        new Request(new URL(SERVICE_WORKER_PATH, scope.location.origin), {
+          cache: "no-store",
+          redirect: "manual",
+        }),
       );
     } catch {
       return;
@@ -178,9 +185,19 @@ export function installServiceWorker(
     });
   }
 
+  /**
+   * This build's cache, or undefined once it is gone. Opening a missing cache
+   * would recreate it, and a worker restarted after retiring (the flag above
+   * lives only in memory) would then leave an orphaned cache behind.
+   */
+  async function openCurrentCache(): Promise<Cache | undefined> {
+    if (retired || !(await scope.caches.has(cacheName))) return undefined;
+    return scope.caches.open(cacheName);
+  }
+
   async function cacheFirst(event: FetchEvent, pathname: string): Promise<Response> {
-    const cache = await scope.caches.open(cacheName);
-    const cached = await cache.match(event.request);
+    const cache = await openCurrentCache();
+    const cached = await cache?.match(event.request);
     if (cached) return cached;
     // Hashed file names: the same URL in an earlier version's cache is the same bytes.
     for (const name of await scope.caches.keys()) {
@@ -190,7 +207,7 @@ export function installServiceWorker(
     }
     const response = await scope.fetch(event.request);
     // A missing chunk can come back as the SPA's HTML; never store that as an asset.
-    if (response.ok && !isHtml(response) && pathname.startsWith("/assets/")) {
+    if (cache && !retired && response.ok && !isHtml(response) && pathname.startsWith("/assets/")) {
       event.waitUntil(cache.put(event.request, response.clone()).catch(() => undefined));
     }
     return response;
