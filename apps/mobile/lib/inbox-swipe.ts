@@ -34,6 +34,11 @@ export function inboxRowActionList(chat: {
   return [leading, ...trailing];
 }
 
+/** The Primary bot can't be deleted, as on the web; the inbox offers Delete for every other chat. */
+export function isPrimaryBot(kind: InboxChatKind, chat: object) {
+  return kind === "bot" && "primary" in chat && chat.primary === true;
+}
+
 export function chatTarget(kind: InboxChatKind, id: string) {
   return kind === "bot" ? { botId: id } : { groupId: id };
 }

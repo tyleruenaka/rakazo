@@ -128,6 +128,7 @@ import {
   createLatestQueue,
   INBOX_ROW_ACTIONS,
   inboxRowActionList,
+  isPrimaryBot,
   unreadOverrideKey,
 } from "../lib/inbox-swipe";
 import { afterChatNotifyChange, dismissThreadNotifications } from "../lib/live-notifications";
@@ -1075,6 +1076,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       }
       // The same confirmation as the chat's own menu; the row goes once the server deletes it.
       if (action === "delete") {
+        if (isPrimaryBot(kind, chat)) return;
         const deleted = () => {
           notifyArchivedChatsChanged();
           void loadBots();
@@ -1552,9 +1554,11 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             await chatRpc(organizeTarget.spaceId, "botSections/remove", { sectionId });
             await loadBots();
           }}
-          // Like the iOS row menu, Delete is only for chats in the current space.
+          // Like the iOS row menu, Delete is only for chats in the current space, and never for
+          // the Primary, which the web can't delete either.
           onDelete={
-            organizeTarget.spaceId === me?.spaceId
+            organizeTarget.spaceId === me?.spaceId &&
+            !isPrimaryBot(organizeTarget.kind, organizeChat)
               ? () => void runRowAction(organizeTarget.kind, organizeChat, "delete")
               : undefined
           }

@@ -148,7 +148,8 @@ type InboxMenuProps = Omit<InboxSwipeRowProps, "rowKey" | "preview" | "children"
 
 /**
  * The long-press menu of a row or a pinned tile: read state, pin, Move to (rows), Hide, the
- * rest under More, and Delete last. A pinned tile keeps Move to under More.
+ * rest under More, and Delete last (never for the Primary). A pinned tile keeps Move to under
+ * More.
  */
 function InboxMenuItems({
   unread,
@@ -234,12 +235,15 @@ function InboxMenuItems({
           {pinned ? move : null}
         </Menu>
       ) : null}
-      <Button
-        label={t(INBOX_ROW_ACTIONS.delete.label)}
-        systemImage={INBOX_ROW_ACTIONS.delete.systemImage}
-        role={DESTRUCTIVE_ROLE}
-        onPress={() => onAction("delete")}
-      />
+      {/* The Primary can't be deleted, as on the web. */}
+      {primary ? null : (
+        <Button
+          label={t(INBOX_ROW_ACTIONS.delete.label)}
+          systemImage={INBOX_ROW_ACTIONS.delete.systemImage}
+          role={DESTRUCTIVE_ROLE}
+          onPress={() => onAction("delete")}
+        />
+      )}
     </>
   );
 }

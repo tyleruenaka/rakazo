@@ -13,7 +13,7 @@ import type { MobileBot } from "./api";
 import { botTag, formatThreadTime } from "./inbox";
 import { retainInboxValue } from "./inbox-retention";
 import { spaceInboxItems } from "./inbox-spaces";
-import { inboxRowActionList } from "./inbox-swipe";
+import { inboxRowActionList, isPrimaryBot } from "./inbox-swipe";
 
 // Section headings use the real item builder; its space actions stay unused here.
 vi.mock("./api", () => ({}));
@@ -773,6 +773,66 @@ it("gives the long-press menu, and with it Delete, only to chats in the current 
     expect(withMenu).toEqual(["bot:current-bot", "group:current-group"]);
   } finally {
     act(() => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
+
+it("offers Delete in the organize sheet for current-space chats except the Primary bot", () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const start = source.indexOf("      {organizeChat && organizeTarget ? (");
+  const end = source.indexOf("      ) : null}", start) + "      ) : null}".length;
+  expect(start).toBeGreaterThan(0);
+  const runRowAction = vi.fn();
+  let onDelete: (() => void) | undefined;
+  const scope = {
+    React,
+    BotOrganizeModal: (props: { onDelete?: () => void }) => {
+      onDelete = props.onDelete;
+      return null;
+    },
+    movesWithParent: () => false,
+    setOrganizeTarget: vi.fn(),
+    organizeRequestId: { current: 0 },
+    updateChat: vi.fn(),
+    createSection: vi.fn(),
+    renameSection: vi.fn(),
+    chatRpc: vi.fn(),
+    loadBots: vi.fn(),
+    runRowAction,
+    isPrimaryBot,
+    me: { spaceId: "space-current" },
+  };
+  const compiled = ts.transpileModule(
+    `return function Sheet({ organizeTarget, organizeChat, organizeSpace }) {
+      return (<>\n${source.slice(start, end)}\n</>);
+    };`,
+    { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
+  const Sheet = new Function(...Object.keys(scope), compiled)(...Object.values(scope));
+  function sheetDelete(
+    kind: "bot" | "group",
+    chat: Record<string, unknown>,
+  ): (() => void) | undefined {
+    onDelete = undefined;
+    const root = createRoot(document.createElement("div"));
+    const target = { kind, id: chat.id, spaceId: chat.spaceId, chat, sections: [] };
+    act(() => root.render(<Sheet organizeTarget={target} organizeChat={chat} />));
+    act(() => root.unmount());
+    return onDelete;
+  }
+  try {
+    const primary = { id: "primary", name: "Primary", spaceId: "space-current", primary: true };
+    expect(sheetDelete("bot", primary)).toBeUndefined();
+    const bot = { id: "bot", name: "Ada", spaceId: "space-current", primary: false };
+    const deleteBot = sheetDelete("bot", bot);
+    expect(deleteBot).toBeTypeOf("function");
+    deleteBot?.();
+    expect(runRowAction).toHaveBeenCalledWith("bot", bot, "delete");
+    const group = { id: "group", name: "Team", spaceId: "space-current", members: [] };
+    expect(sheetDelete("group", group)).toBeTypeOf("function");
+    // Chats from another space still offer no Delete.
+    expect(sheetDelete("bot", { ...bot, spaceId: "space-other" })).toBeUndefined();
+  } finally {
     vi.unstubAllGlobals();
   }
 });
