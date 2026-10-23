@@ -81,7 +81,7 @@ tags:
     id: "search-sheet-close"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- assertVisible: "Name your Bot"
 - takeScreenshot: "07-new-bot"
 
 - openLink: "rakazo:///new-group"
@@ -200,6 +200,9 @@ tags:
     timeout: 10000
 - assertVisible: "Advanced"
 - tapOn: "Advanced"
+- scrollUntilVisible:
+    element: "Space default.*"
+    direction: DOWN
 - assertVisible: "Model"
 # Label includes the resolved space model, e.g. "Space default (OpenAI: …)".
 - assertVisible: "Space default.*"
@@ -253,7 +256,7 @@ tags:
 - takeScreenshot: "22-account-dark"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- assertVisible: "Name your Bot"
 - takeScreenshot: "23-new-bot-dark"
 
 - openLink: "rakazo:///new-group"
