@@ -34,8 +34,10 @@ const FLOWS: { name: string; window?: { size: string; density: string } }[] = [
   { name: "notification-demo" },
   // An unfolded foldable, about 750dp wide, where the chat list sits beside the open chat.
   { name: "split-view", window: { size: "1968x2184", density: "420" } },
-  // Last, so its extra bots and sections stay out of the other flows' screenshots.
+  // After the screenshot flows, so its extra bots and sections stay out of their screenshots.
   { name: "bot-nesting" },
+  // After the others, so its made-up model key stays out of their screenshots.
+  { name: "model-picker-search" },
 ];
 
 type App = { request: (input: string, init?: RequestInit) => Response | Promise<Response> };
