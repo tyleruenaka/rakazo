@@ -33,7 +33,7 @@ async function render(
   image?: string,
   onIntegrations = vi.fn(),
   onBoard?: () => void,
-  logos?: Array<{ name: string; logo: string }>,
+  logos?: Array<{ name: string; logo?: string }>,
   { connectedCount, open = true }: { connectedCount?: number; open?: boolean } = {},
 ) {
   const email = "account@rakazo.test";
@@ -285,4 +285,18 @@ it.each([
   [200, 3],
 ])("fits marks into %ipx without consuming label or padding space", (width, count) => {
   expect(sidebarMarkCount(width)).toBe(count);
+});
+
+it("keeps at most three marks on the same tile with a missing-logo fallback", async () => {
+  await render("Demo User", undefined, undefined, undefined, [
+    { name: "Gmail", logo: "https://example.test/gmail.svg" },
+    { name: "Notion" },
+    { name: "GitHub", logo: "https://example.test/github.svg" },
+    { name: "Slack" },
+  ]);
+  const tiles = [...host.querySelectorAll('span[aria-hidden="true"] > span')];
+  expect(tiles).toHaveLength(3);
+  // The outer ring fans per position on hover; the plate inside it is shared.
+  expect(new Set(tiles.map((tile) => tile.firstElementChild?.className)).size).toBe(1);
+  expect(tiles[1]!.textContent).toBe("N");
 });
