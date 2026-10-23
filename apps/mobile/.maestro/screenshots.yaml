@@ -50,15 +50,26 @@ tags:
     timeout: 30000
 - takeScreenshot: "04-inbox"
 
-# On Android, Create opens a dialog with the create choices.
+# On Android, Create opens a menu with the create choices and Activity.
 - tapOn: "Create"
 - extendedWaitUntil:
     visible: "New Space"
     timeout: 10000
 - assertVisible: "New Bot"
 - assertVisible: "New Group Chat"
+- assertVisible: "Activity"
 - takeScreenshot: "05-create-menu"
-- back
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: "Recent"
+    timeout: 10000
+- takeScreenshot: "05b-activity"
+# Turn Activity back off so the inbox shows its chats again.
+- tapOn: "Create"
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: "Researcher"
+    timeout: 10000
 
 - tapOn:
     id: "home-search-button"
