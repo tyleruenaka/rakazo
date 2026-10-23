@@ -2231,6 +2231,10 @@ export function createRouter(deps: RouterDeps) {
       }),
       remove: authed.bots.remove.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId, { includeArchived: true });
+        // Archived or not, the Primary stays; another bot must become Primary first.
+        if (bot.primary) {
+          throw new ORPCError("BAD_REQUEST", { message: "The Primary bot can't be deleted" });
+        }
         await destroyBot(
           {
             prisma: deps.prisma,
