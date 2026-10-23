@@ -90,6 +90,8 @@ async function main() {
 
   try {
     await waitForHealth(`${HOST_API_URL}/health`, 15_000);
+    // Every flow runs even after one fails, so one stale flow doesn't hide the others' results.
+    const failedFlows: string[] = [];
     for (const { name: flow, window } of process.env.MOBILE_KEYBOARD_ONLY === "true"
       ? [{ name: "keyboard-lifecycle", window: undefined }]
       : FLOWS) {
@@ -111,8 +113,12 @@ async function main() {
           console.error("Could not reset the emulator window", resetError);
         }
       }
-      if (flowFailed) throw flowError;
+      if (flowFailed) {
+        console.error(`Flow ${flow} failed`, flowError);
+        failedFlows.push(flow);
+      }
     }
+    if (failedFlows.length > 0) throw new Error(`Flows failed: ${failedFlows.join(", ")}`);
     await writeFile(
       path.join(REPORT_DIR, "summary.json"),
       `${JSON.stringify({ ok: true }, null, 2)}\n`,
