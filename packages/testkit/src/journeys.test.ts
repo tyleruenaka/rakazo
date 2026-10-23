@@ -846,6 +846,85 @@ describeJourneys("required product journeys", () => {
     ).toBe(releaseEvents);
   });
 
+  it("4b: release revokes control again once the database no longer names it", async () => {
+    const cookie = await signup(app, `release-twice-j-${stamp}@rakazo.test`, "Release Twice");
+    const bot = await rpc<Bot>(app, cookie, "bots/create", {
+      name: "Chief",
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+    });
+    await rpc(app, cookie, "computer/boot", { botId: bot.id });
+    const lease = await rpc<{ leaseId: string }>(app, cookie, "computer/takeover", {
+      botId: bot.id,
+    });
+    const originalSetScreenControl = sandbox.setScreenControl;
+    const revokes: Array<{ token: string | undefined; heldInDatabase: boolean }> = [];
+    sandbox.setScreenControl = async (computer, interactive, context, controlToken) => {
+      const row = await prisma.computer.findFirstOrThrow({
+        where: { bots: { some: { id: bot.id } } },
+        select: { controlLeaseId: true },
+      });
+      revokes.push({ token: controlToken, heldInDatabase: row.controlLeaseId === controlToken });
+      return originalSetScreenControl?.call(sandbox, computer, interactive, context, controlToken);
+    };
+    try {
+      await rpc(app, cookie, "computer/release", { botId: bot.id });
+    } finally {
+      sandbox.setScreenControl = originalSetScreenControl;
+    }
+    // The second revoke closes the gap a screen read could use to grant the lease again.
+    expect(revokes).toEqual([
+      { token: lease.leaseId, heldInDatabase: true },
+      { token: lease.leaseId, heldInDatabase: false },
+    ]);
+  });
+
+  it("4c: a screen read that granted control while it was released takes it back", async () => {
+    const cookie = await signup(app, `stale-grant-j-${stamp}@rakazo.test`, "Stale Grant");
+    const bot = await rpc<Bot>(app, cookie, "bots/create", {
+      name: "Chief",
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+    });
+    await rpc(app, cookie, "computer/boot", { botId: bot.id });
+    const lease = await rpc<{ leaseId: string }>(app, cookie, "computer/takeover", {
+      botId: bot.id,
+    });
+    const originalConnectScreen = sandbox.connectScreen;
+    const originalSetScreenControl = sandbox.setScreenControl;
+    const revoked: Array<string | undefined> = [];
+    sandbox.connectScreen = async (computer, request, context) => {
+      const session = await originalConnectScreen.call(sandbox, computer, request, context);
+      // A release commits while this read's grant is on its way to the screen.
+      if (request.interactive) {
+        await prisma.computer.updateMany({
+          where: { bots: { some: { id: bot.id } } },
+          data: { controlHolder: "none", controlBotId: null, controlLeaseId: null },
+        });
+      }
+      return session;
+    };
+    sandbox.setScreenControl = async (computer, interactive, context, controlToken) => {
+      revoked.push(controlToken);
+      return originalSetScreenControl?.call(sandbox, computer, interactive, context, controlToken);
+    };
+    let screen: { url: string | null };
+    try {
+      screen = await rpc<{ url: string | null }>(app, cookie, "computer/screenUrl", {
+        botId: bot.id,
+      });
+    } finally {
+      sandbox.connectScreen = originalConnectScreen;
+      sandbox.setScreenControl = originalSetScreenControl;
+    }
+    expect(screen.url).toBeNull();
+    expect(revoked).toEqual([lease.leaseId]);
+  });
+
   it("4d: skipping takeover resumes without treating login as done", async () => {
     const cookie = await signup(app, `takeover-skip-j-${stamp}@rakazo.test`, "Skip Takeover");
     const bot = await rpc<Bot>(app, cookie, "bots/create", {

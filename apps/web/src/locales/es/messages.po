@@ -5430,6 +5430,10 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "Espera un momento y vuelve a probar."
 
+#: src/pages/Shell.tsx
+msgid "Waiting for a free screen…"
+msgstr "Esperando una pantalla libre…"
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "Esperando a que vuelva la API…"

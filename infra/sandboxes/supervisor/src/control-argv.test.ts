@@ -136,3 +136,63 @@ describe("controller argv restrictions", () => {
     expect(check(argv).allowed).toBe(false);
   });
 });
+
+describe("controller batches across a screen handover", () => {
+  function runBatch(steps: unknown[], handOverDuringWait: boolean) {
+    const probe = spawnSync(
+      "python3",
+      [
+        "-c",
+        [
+          "import importlib.util, json, os, sys, tempfile, threading, urllib.error, urllib.request",
+          "spec = importlib.util.spec_from_file_location('control_probe', sys.argv[1])",
+          "module = importlib.util.module_from_spec(spec)",
+          "spec.loader.exec_module(module)",
+          "generation = os.path.join(tempfile.mkdtemp(), 'input-generation-{}')",
+          "module.INPUT_GENERATION = generation",
+          "module.TOKEN = 'probe-token'",
+          "module.native_capture = lambda display: None",
+          "ran = []",
+          "module.run_control_argv = lambda argv, display, generation=None: ran.append(argv)",
+          "real_sleep = module.time.sleep",
+          "def sleep(seconds):",
+          "  if sys.argv[3] == 'handover':",
+          "    with open(generation.format('7'), 'w') as handle: handle.write('next-owner')",
+          "  real_sleep(0)",
+          "module.time.sleep = sleep",
+          "server = module.ThreadingHTTPServer(('127.0.0.1', 0), module.Handler)",
+          "threading.Thread(target=server.serve_forever, daemon=True).start()",
+          "body = json.dumps({'display': ':7', 'steps': json.loads(sys.argv[2]), 'observe': False}).encode()",
+          "request = urllib.request.Request(f'http://127.0.0.1:{server.server_port}/v1/desktop', data=body, headers={'Authorization': 'Bearer probe-token'})",
+          "try:",
+          "  response = urllib.request.urlopen(request); status, payload = response.status, json.load(response)",
+          "except urllib.error.HTTPError as error:",
+          "  status, payload = error.code, json.load(error)",
+          "print(json.dumps({'status': status, 'payload': payload, 'ran': len(ran)}))",
+        ].join("\n"),
+        controlPath,
+        JSON.stringify(steps),
+        handOverDuringWait ? "handover" : "same-owner",
+      ],
+      { encoding: "utf8" },
+    );
+    expect(probe.status, probe.stderr).toBe(0);
+    return JSON.parse(probe.stdout) as { status: number; payload: unknown; ran: number };
+  }
+
+  const typing = [
+    containerActionStep({ kind: "wait", ms: 200 }, display),
+    containerActionStep({ kind: "clipboard", text: "secret" }, display),
+  ];
+
+  it("stops before the next step once the screen changed hands", () => {
+    const result = runBatch(typing, true);
+    expect(result.ran).toBe(0);
+    expect(result.status).toBe(500);
+    expect(result.payload).toEqual({ error: "computer screen changed hands" });
+  });
+
+  it("runs every step while the screen stays with its owner", () => {
+    expect(runBatch(typing, false)).toMatchObject({ status: 200, ran: 1 });
+  });
+});

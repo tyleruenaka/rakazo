@@ -777,6 +777,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Computer failed to boot": "Computer konnte nicht gestartet werden",
   "Computer is asleep. Take control to wake it.":
     "Der Computer ist im Ruhezustand. Übernimm die Kontrolle, um ihn zu wecken.",
+  "Waiting for a free screen…": "Warte auf einen freien Bildschirm…",
   "Computer is stopped": "Computer ist gestoppt",
   "Team Computer": "Team-Computer",
   "{name} is using it": "{name} verwendet ihn gerade",

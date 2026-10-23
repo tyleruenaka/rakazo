@@ -244,6 +244,7 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Computer failed to boot": "电脑启动失败",
   "Computer is asleep": "电脑已休眠",
   "Computer is asleep. Take control to wake it.": "电脑已休眠。接管控制即可唤醒。",
+  "Waiting for a free screen…": "正在等待空闲屏幕…",
   "Computer is stopped": "电脑已停止",
   "Configured by deployment": "由部署配置",
   Connect: "连接",

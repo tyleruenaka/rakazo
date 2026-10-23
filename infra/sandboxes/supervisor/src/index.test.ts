@@ -5,7 +5,9 @@ import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { resolveSupervisorToken } from "@rakazo/core";
+import { releaseDisplayInputCommand } from "@rakazo/core/node/desktop-runtime";
 import { describe, expect, it } from "vitest";
+import { screenPorts } from "./computer-spec.js";
 import {
   MAX_SUPERVISOR_FILE_REQUEST_BYTES,
   MAX_SUPERVISOR_REQUEST_BYTES,
@@ -38,19 +40,23 @@ import {
   interactiveScreenCommand,
   isComputerControlUnavailable,
   nextScreenIndex,
+  nextViewScreenIndex,
   normalizeWorkspaceRelative,
   oldestIdleScreen,
   parseObservation,
   preferComputerControl,
   releaseAssignedScreen,
+  releaseScreenControl,
   resetManagedScreensCommand,
   sandboxCommandTimedOut,
   sandboxTimeoutCommand,
   screenReleaseStopCommand,
+  screenToEvict,
   shouldReplayComputerActions,
   stopExtraScreenCommand,
   teardownReleasedScreen,
   terminalCommand,
+  WOKEN_SCREEN_GRACE_MS,
   withKeyedLock,
 } from "./supervisor-logic.js";
 
@@ -876,6 +882,79 @@ describe("sandbox supervisor input containment", () => {
     expect(assigned.get("writer")?.releasing).toBeUndefined();
   });
 
+  it("frees a full computer whose screens were only opened by looking at them", () => {
+    // Before: a viewer allocated a slot with no idle mark, or stamped a run's lease on it when
+    // that run never used the screen, so nothing could ever take the spot.
+    const before = new Map<string, ScreenAssignment>();
+    nextScreenIndex(before, "viewed", undefined, 2);
+    nextScreenIndex(before, "viewed-during-run", "run-1:1", 2);
+    expect(oldestIdleScreen(before, 2)).toBeUndefined();
+
+    const assigned = new Map<string, ScreenAssignment>();
+    expect(nextViewScreenIndex(assigned, "viewed", 2, 100)).toBe(0);
+    expect(nextViewScreenIndex(assigned, "viewed-during-run", 2, 200)).toBe(1);
+    expect(assigned.get("viewed-during-run")).toEqual({ index: 1, idleAt: 200 });
+    expect(screenToEvict(assigned, "waking", 2)).toBe("viewed");
+  });
+
+  it("evicts only for a new bot on a full computer", () => {
+    const assigned = new Map<string, ScreenAssignment>();
+    nextViewScreenIndex(assigned, "writer", 2, 100);
+    expect(screenToEvict(assigned, "researcher", 2)).toBeUndefined();
+    nextScreenIndex(assigned, "researcher", "run-1:1", 2);
+    expect(screenToEvict(assigned, "writer", 2)).toBeUndefined();
+    expect(screenToEvict(assigned, "waking", 2)).toBe("writer");
+
+    nextScreenIndex(assigned, "writer", "run-2:1", 2);
+    expect(screenToEvict(assigned, "waking", 2)).toBeUndefined();
+    expect(() => nextViewScreenIndex(assigned, "waking", 2)).toThrow(
+      /cannot allocate another screen/,
+    );
+  });
+
+  it("keeps a viewed screen in use while a run holds it, and idle again after the run", () => {
+    const assigned = new Map<string, ScreenAssignment>();
+    nextViewScreenIndex(assigned, "writer", 1, 100);
+    expect(nextScreenIndex(assigned, "writer", "run-1:1", 1)).toBe(0);
+    expect(nextViewScreenIndex(assigned, "writer", 1, 300)).toBe(0);
+    expect(oldestIdleScreen(assigned, 1)).toBeUndefined();
+
+    expect(releaseAssignedScreen(assigned, "writer", "run-1:1")).toBe(0);
+    completeWarmReleasedScreen(assigned, "writer", 0, 400);
+    expect(nextViewScreenIndex(assigned, "writer", 1, 500)).toBe(0);
+    expect(assigned.get("writer")?.idleAt).toBe(400);
+    expect(oldestIdleScreen(assigned, 1)).toBe("writer");
+  });
+
+  it("keeps a just-woken screen from other wakes for the grace period, but not from runs", () => {
+    const assigned = new Map<string, ScreenAssignment>();
+    nextViewScreenIndex(assigned, "woken", 1, 1_000, true);
+    expect(screenToEvict(assigned, "second-waker", 1, 1_000 + WOKEN_SCREEN_GRACE_MS - 1)).toBe(
+      undefined,
+    );
+    expect(screenToEvict(assigned, "second-waker", 1, 1_000 + WOKEN_SCREEN_GRACE_MS)).toBe("woken");
+    expect(screenToEvict(assigned, "run-bot", 1)).toBe("woken");
+
+    const looked = new Map<string, ScreenAssignment>();
+    nextViewScreenIndex(looked, "viewed", 1, 1_000);
+    expect(screenToEvict(looked, "waker", 1, 1_001)).toBe("viewed");
+  });
+
+  it("leaves a released screen idle unless a run still holds it", () => {
+    const opened: ScreenAssignment = { index: 0, controlled: true, controlToken: "control-1" };
+    releaseScreenControl(opened, 500);
+    expect(opened).toEqual({ index: 0, idleAt: 500 });
+
+    const running: ScreenAssignment = { index: 1, leaseId: "run-1:1", controlled: true };
+    releaseScreenControl(running, 500);
+    expect(running.idleAt).toBeUndefined();
+    expect(running.controlled).toBeUndefined();
+
+    const finished: ScreenAssignment = { index: 2, leaseId: "run-1:1", idleAt: 100 };
+    releaseScreenControl(finished, 500);
+    expect(finished.idleAt).toBe(500);
+  });
+
   it("keeps a warm slot evictable when a viewer repeats the completed run lease", () => {
     const assigned = new Map<string, ScreenAssignment>();
     expect(nextScreenIndex(assigned, "writer", "run-1:1", 1)).toBe(0);
@@ -915,6 +994,30 @@ describe("sandbox supervisor input containment", () => {
     expect(nextScreenIndex(assigned, "writer", "run-1:1")).toBe(0);
     expect(releaseAssignedScreen(assigned, "writer", "screen-view-writer:0")).toBeUndefined();
     expect(releaseAssignedScreen(assigned, "writer", "run-1:1")).toBe(0);
+  });
+
+  it("lets go of held keys whenever a screen changes hands, and new screens never autorepeat", () => {
+    for (const [index, display] of [
+      [0, ":1"],
+      [1, ":2"],
+    ] as const) {
+      const handovers = [
+        stopExtraScreenCommand(index, "writer"),
+        screenReleaseStopCommand(index, {
+          hasRegistry: true,
+          cancelRunWork: false,
+          screenId: "writer",
+        }),
+        interactiveScreenCommand(false, "control-token", screenPorts(index)),
+        interactiveScreenCommand(false, undefined, screenPorts(index)),
+      ];
+      for (const command of handovers) {
+        expect(command).toContain(releaseDisplayInputCommand(display));
+      }
+    }
+    expect(releaseDisplayInputCommand(":1")).toContain("grep -qx 'DISPLAY=:1'");
+    expect(releaseDisplayInputCommand(":1")).toContain("' ':1' release");
+    expect(ensureScreenCommand(0, "writer", "view-token")).toContain("' ':1' no-repeat");
   });
 
   it("stops the released bot's browser without tearing down the primary desktop", () => {

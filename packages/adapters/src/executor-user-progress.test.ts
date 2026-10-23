@@ -1,5 +1,6 @@
 import type { AgentRunRequest, AgentRuntimeEvent } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
+import { foldPeerReplies } from "@rakazo/core";
 import { describe, expect, it, vi } from "vitest";
 import { loadBotMessageContext, returnBotMessageOutcome } from "./bot-messages.js";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
@@ -30,13 +31,14 @@ async function runTurn(
   silent = true,
   narration: string | string[] = "I will check that.",
   secrets: string[] = [],
-  intent: "fyi" | "request" | "question" = "fyi",
+  intent: "fyi" | "request" | "question" | "result" | "status" = "fyi",
   options: {
     trigger?: string;
     doneText?: string;
     splitText?: boolean;
     priorProgressText?: string;
     runtimeEvents?: AgentRuntimeEvent[];
+    messageUser?: string;
   } = {},
 ) {
   vi.mocked(loadBotMessageContext).mockResolvedValue({
@@ -60,7 +62,16 @@ async function runTurn(
     sourceMessageId: "source-1",
     leaseFence: 0,
   };
-  const runtimeRun = vi.fn(async function* (_request: AgentRunRequest) {
+  const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
+    if (options.messageUser) {
+      // message_user posts only once a turn is long enough to need progress updates.
+      const now = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_000);
+      try {
+        await request.executeTool?.("message_user", { message: options.messageUser }, "call-mu");
+      } finally {
+        now.mockRestore();
+      }
+    }
     if (options.runtimeEvents) {
       yield* options.runtimeEvents;
       return;
@@ -80,7 +91,15 @@ async function runTurn(
     if (finalText) yield { type: "text" as const, text: finalText };
     yield { type: "done" as const, text: options.doneText ?? narrations.join("") + finalText };
   });
+  const createdMessages: Record<string, unknown>[] = [];
   const prisma = {
+    ...(options.messageUser
+      ? {
+          event: { create: vi.fn(async () => ({ seq: 3 })) },
+          actionApprovalRule: { findMany: vi.fn(async () => []) },
+          actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: false })) },
+        }
+      : {}),
     user: { findUnique: vi.fn(async () => null) },
     run: {
       findUnique: vi.fn(async () => run),
@@ -112,6 +131,9 @@ async function runTurn(
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     thread: {
+      ...(options.messageUser
+        ? { update: vi.fn(async () => ({ nextMessageSeq: 4, nextEventSeq: 4 })) }
+        : {}),
       findUniqueOrThrow: vi.fn(async () => ({
         id: run.threadId,
         groupId: null,
@@ -121,6 +143,15 @@ async function runTurn(
       })),
     },
     message: {
+      ...(options.messageUser
+        ? {
+            create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+              const created = { id: `message-${createdMessages.length + 1}`, ...data };
+              createdMessages.push(created);
+              return created;
+            }),
+          }
+        : {}),
       findMany: vi.fn(async ({ where }: { where: { runId?: string } }) =>
         where.runId === run.id && options.priorProgressText
           ? [
@@ -165,7 +196,21 @@ async function runTurn(
     botSecret: { findMany: vi.fn(async () => []) },
     agentSkill: { findMany: vi.fn(async () => []) },
     scratchpadItem: { findMany: vi.fn(async () => []) },
-    externalEffect: { findMany: vi.fn(async () => []) },
+    externalEffect: {
+      findMany: vi.fn(async () => []),
+      ...(options.messageUser
+        ? {
+            findUnique: vi.fn(async () => null),
+            findFirst: vi.fn(async () => null),
+            create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+              ...data,
+              id: "effect-1",
+            })),
+            update: vi.fn(async () => undefined),
+            updateMany: vi.fn(async () => ({ count: 1 })),
+          }
+        : {}),
+    },
     computerExecutionLease: {
       updateManyAndReturn: vi.fn(async () => [{ fence: 1 }]),
       updateMany: vi.fn(async () => ({ count: 1 })),
@@ -195,7 +240,11 @@ async function runTurn(
     home: { commit: vi.fn(async () => "fixture-revision") },
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
-    events: { append, finalizeRun },
+    events: {
+      append,
+      finalizeRun,
+      ...(options.messageUser ? { notify: vi.fn(async () => undefined) } : {}),
+    },
     jobs: { enqueue: vi.fn(async () => undefined) },
     secrets,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
@@ -203,7 +252,7 @@ async function runTurn(
   await executor.continueRun(run.id, "worker-1");
   expect(runtimeRun).toHaveBeenCalled();
   expect(finalizeRun).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failed" }));
-  return { finalizeRun, append };
+  return { finalizeRun, append, createdMessages, thread: prisma.thread };
 }
 
 describe.each(["routine", "reaction", "bot_message", "messaging"])(
@@ -321,6 +370,67 @@ it("does not restore narration already published as durable progress", async () 
 it("keeps background ticket runs silent", async () => {
   const { finalizeRun } = await runTurn("", true, undefined, [], "fyi", { trigger: "tickets" });
   expect(finalizeRun.mock.calls[0]![0].blocks).toEqual([]);
+});
+
+describe("peer reply unread state", () => {
+  it.each([
+    { intent: "result", unread: true },
+    { intent: "status", unread: true },
+    { intent: "fyi", unread: false },
+    { intent: "request", unread: false },
+    { intent: "question", unread: false },
+  ] as const)("marks the reply to a $intent unread: $unread", async ({ intent, unread }) => {
+    const { finalizeRun } = await runTurn(
+      "Coder found two failing endpoints.",
+      true,
+      [],
+      [],
+      intent,
+    );
+    expect(finalizeRun).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ outcome: "completed", markUnread: unread }),
+    );
+  });
+});
+
+describe("message_user in a peer run", () => {
+  it.each(["request", "question", "result", "status", "fyi"] as const)(
+    "reaches the user's chat when the run answers a %s",
+    async (intent) => {
+      const { createdMessages, thread } = await runTurn("Done.", true, [], [], intent, {
+        messageUser: "Waiting on your login to continue.",
+      });
+      const posts = createdMessages.filter((message) => message.role === "bot");
+      expect(posts).toHaveLength(1);
+      const posted = posts[0];
+      expect(thread.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ unread: true }) }),
+      );
+      const marker = {
+        id: "marker",
+        runId: "run-1",
+        role: "user",
+        blocks: [
+          {
+            kind: "bot_message_received" as const,
+            fromBotId: "caller",
+            fromBotName: "Caller",
+            text: "Look again",
+            intent,
+          },
+        ],
+      };
+      const update = {
+        id: String(posted!.id),
+        runId: "run-1",
+        role: "bot",
+        blocks: posted!.blocks as MessageBlock[],
+      };
+      const transcript = foldPeerReplies([marker, update], { includePeerReceipts: true });
+      expect(transcript.messages.map((message) => message.id)).toEqual(["marker", update.id]);
+      expect(transcript.folded.size).toBe(0);
+    },
+  );
 });
 
 describe("held-back narration on peer requests", () => {

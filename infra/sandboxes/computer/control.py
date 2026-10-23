@@ -30,10 +30,26 @@ LAUNCH_SPAWN_POLL_SEC = 0.2
 # profile scan at 0.4s and that forward at 1.6s. This poll outlasts both, plus a
 # little shell, so a forward that fails after the scan is not reported as success.
 BROWSER_OPEN_POLL_SEC = 2.4
+# The supervisor writes a new value here when a screen changes hands. A batch that started
+# under the previous value belongs to the previous owner and stops before its next step.
+INPUT_GENERATION = "/tmp/rakazo/input-generation-{}"
 NATIVE_CAPTURES = {}
 NATIVE_LOCK = threading.Lock()
 DISPLAY_LOCKS = {}
 DISPLAY_LOCKS_GUARD = threading.Lock()
+
+
+def input_generation(display):
+    try:
+        with open(INPUT_GENERATION.format(display.lstrip(":")), encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
+def require_generation(display, generation):
+    if generation is not None and input_generation(display) != generation:
+        raise RuntimeError("computer screen changed hands")
 
 
 def display_lock(display):
@@ -223,7 +239,7 @@ def launch_spawn_poll_sec(argv):
     return LAUNCH_SPAWN_POLL_SEC
 
 
-def run_control_argv(argv, display):
+def run_control_argv(argv, display, generation=None):
     """Run a fallback control command without holding the lock forever."""
     env = {**os.environ, "DISPLAY": display}
     if argv[control_command_index(argv)] == FOCUS_OR_LAUNCH:
@@ -244,11 +260,18 @@ def run_control_argv(argv, display):
         if code:
             raise RuntimeError("computer action failed")
         return
-    try:
-        result = subprocess.run(argv, env=env, timeout=CONTROL_TIMEOUT_SEC)
-    except subprocess.TimeoutExpired as error:
-        raise RuntimeError("computer action timed out") from error
-    if result.returncode:
+    with subprocess.Popen(argv, env=env) as child:
+        try:
+            # A handover between the step check and this start has already killed what it saw.
+            require_generation(display, generation)
+            code = child.wait(timeout=CONTROL_TIMEOUT_SEC)
+        except subprocess.TimeoutExpired as error:
+            child.kill()
+            raise RuntimeError("computer action timed out") from error
+        except RuntimeError:
+            child.kill()
+            raise
+    if code:
         raise RuntimeError("computer action failed")
 
 
@@ -311,8 +334,10 @@ class Handler(BaseHTTPRequestHandler):
             display = body.get("display", ":1")
             if not isinstance(display, str) or not re.fullmatch(r":[0-9]+", display):
                 raise RuntimeError("invalid display")
+            generation = input_generation(display)
             with display_lock(display):
                 for step in body.get("steps", []):
+                    require_generation(display, generation)
                     if "waitMs" in step:
                         time.sleep(max(0, min(int(step["waitMs"]), 5000)) / 1000)
                         continue
@@ -326,7 +351,7 @@ class Handler(BaseHTTPRequestHandler):
                             drop_native_capture(display)
                             handled = 0
                     if not handled:
-                        run_control_argv(argv, display)
+                        run_control_argv(argv, display, generation)
                 settle_ms = max(0, min(int(body.get("settleMs", 0)), 5000))
                 if settle_ms:
                     time.sleep(settle_ms / 1000)

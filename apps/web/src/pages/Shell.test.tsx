@@ -24,10 +24,12 @@ vi.mock("../lib/call-session", async (importOriginal) => ({
 }));
 
 import { dictation } from "../lib/dictation";
+import { useScreenWake, waitingScreenWake } from "../lib/screen-wake";
 import {
   Composer,
   ComposerDock,
   ComputerControlPill,
+  ComputerPlaceholder,
   computerFrameStyle,
   MessageView,
   showsWorkingLine,
@@ -966,6 +968,115 @@ describe("composer replies and quotes", () => {
     expect(document.activeElement).not.toBe(textarea);
     rerenderComposer({ replyQuote: "the repo" });
     expect(document.activeElement).toBe(textarea);
+  });
+});
+
+describe("ComputerPlaceholder", () => {
+  const wren = { id: "bot-wren", name: "Wren", color: "blue" } as ComponentProps<
+    typeof ComputerPlaceholder
+  >["bot"];
+
+  function renderPlaceholder(overrides: Partial<ComponentProps<typeof ComputerPlaceholder>>) {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const props = { bot: wren, state: "running", booting: false, label: "Team Computer" } as const;
+    act(() => root?.render(<ComputerPlaceholder {...props} {...overrides} />));
+    return {
+      text: () => container?.textContent ?? "",
+      sleeping: () => Boolean(container?.querySelector(".stroke-preview-glyph-asleep")),
+    };
+  }
+
+  it("shows a computer with no free screen exactly like a sleeping computer", () => {
+    const suspended = renderPlaceholder({ state: "suspended" });
+    const suspendedHtml = container?.innerHTML;
+    expect(suspended.sleeping()).toBe(true);
+    act(() => root?.unmount());
+    container?.remove();
+
+    const noScreen = renderPlaceholder({ sleep: { waiting: false } });
+    expect(noScreen.sleeping()).toBe(true);
+    expect(noScreen.text()).toBe("Computer is asleep. Open it to wake.");
+    expect(container?.innerHTML).toBe(suspendedHtml);
+  });
+
+  it("keeps the asleep look while it waits for a screen to free up", () => {
+    const { text, sleeping } = renderPlaceholder({ sleep: { waiting: true } });
+    expect(sleeping()).toBe(true);
+    expect(text()).toBe("Waiting for a free screen…");
+  });
+
+  it("uses the full window's own asleep line", () => {
+    const { text } = renderPlaceholder({
+      sleep: { waiting: false },
+      asleepText: "Computer is asleep",
+    });
+    expect(text()).toBe("Computer is asleep");
+  });
+
+  it("still shows a running computer's label when a screen is free", () => {
+    const { text, sleeping } = renderPlaceholder({});
+    expect(sleeping()).toBe(false);
+    expect(text()).toBe("Team Computer");
+  });
+});
+
+describe("screen wake", () => {
+  it("wakes only the waiting bot whose computer is on screen", () => {
+    const waiting = { botId: "ada", waiting: true };
+    expect(waitingScreenWake(waiting, "ada")).toBe("ada");
+    expect(waitingScreenWake(waiting, "bo")).toBeNull();
+    expect(waitingScreenWake(waiting, undefined)).toBeNull();
+    expect(waitingScreenWake({ botId: "ada", waiting: false }, "ada")).toBeNull();
+    expect(waitingScreenWake(null, "ada")).toBeNull();
+  });
+
+  function renderWake(shown: string | undefined) {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    // Each screen read the page would send, and whether it asked to wake.
+    const reads: Array<{ botId: string; wake: boolean }> = [];
+    const hook: { current: ReturnType<typeof useScreenWake> | null } = { current: null };
+    function Panel({ shownBotId }: { shownBotId: string | undefined }) {
+      const wake = useScreenWake(shownBotId, (botId) => {
+        reads.push({ botId, wake: hook.current?.wantsWake(botId) ?? false });
+      });
+      hook.current = wake;
+      return <span>{wake.wakeLookBotId ? "waking" : wake.sleep?.waiting ? "waiting" : "-"}</span>;
+    }
+    const show = (shownBotId: string | undefined) =>
+      act(() => root?.render(<Panel shownBotId={shownBotId} />));
+    show(shown);
+    return { reads, hook, show, text: () => container?.textContent };
+  }
+
+  it("never wakes the old bot once another bot or a group thread is shown", () => {
+    const { reads, hook, show, text } = renderWake("ada");
+    act(() => hook.current?.wake("ada"));
+    expect(text()).toBe("waking");
+    act(() => hook.current?.settle("ada", true, true));
+    expect(text()).toBe("waiting");
+
+    // The page's bots refresh while Ada is still shown asks again for her.
+    act(() => hook.current?.onBotsRefresh());
+    expect(reads).toEqual([
+      { botId: "ada", wake: true },
+      { botId: "ada", wake: true },
+    ]);
+    // The retry keeps the waiting look: no blink to the waking look.
+    expect(text()).toBe("waiting");
+
+    for (const shown of [undefined, "bo"]) {
+      show(shown);
+      for (let tick = 0; tick < 3; tick += 1) act(() => hook.current?.onBotsRefresh());
+    }
+    expect(reads).toHaveLength(2);
+    expect(hook.current?.wantsWake("ada")).toBe(false);
+    expect(text()).toBe("-");
   });
 });
 

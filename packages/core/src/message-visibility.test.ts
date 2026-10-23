@@ -139,6 +139,72 @@ describe("user-visible messages", () => {
     expect(transcript.folded.get("received")?.map((item) => item.id)).toEqual(["reply"]);
   });
 
+  it.each(["result", "status"] as const)(
+    "keeps the relay of a %s inline: it is written for the user",
+    (intent) => {
+      const messages = [
+        message("sent", "run-user", [
+          { kind: "bot_message_sent", toBotId: "coder", toBotName: "Coder", text: "Check this." },
+        ]),
+        message("received", "run-peer", [
+          {
+            kind: "bot_message_received",
+            fromBotId: "coder",
+            fromBotName: "Coder",
+            text: "Two endpoints fail.",
+            intent,
+          },
+        ]),
+        message("activity", "run-peer", [
+          { kind: "steps", steps: [{ label: "Read file", count: 1 }] },
+        ]),
+        message("relay", "run-peer", [
+          { kind: "text", text: "Coder found two failing endpoints." },
+        ]),
+      ];
+      const transcript = foldPeerReplies(messages, { includePeerReceipts: true });
+
+      expect(transcript.messages.map((item) => item.id)).toEqual(["sent", "received", "relay"]);
+      expect(transcript.folded.size).toBe(0);
+    },
+  );
+
+  it.each(["request", "question", "fyi"] as const)(
+    "still folds the reply to a %s, which is not written for the user",
+    (intent) => {
+      const messages = [
+        message("received", "run-peer", [
+          {
+            kind: "bot_message_received",
+            fromBotId: "coder",
+            fromBotName: "Coder",
+            text: "Which branch?",
+            intent,
+          },
+        ]),
+        message("reply", "run-peer", [{ kind: "text", text: "main" }]),
+      ];
+      const transcript = foldPeerReplies(messages, { includePeerReceipts: true });
+
+      expect(transcript.messages.map((item) => item.id)).toEqual(["received"]);
+      expect(transcript.folded.get("received")?.map((item) => item.id)).toEqual(["reply"]);
+    },
+  );
+
+  it("keeps a message_user update inline while the reply to the asking bot folds", () => {
+    const messages = [
+      received,
+      message("update", "run-peer", [
+        { kind: "text", text: "Waiting on your login to continue.", toUser: true },
+      ]),
+      message("reply", "run-peer", [{ kind: "text", text: "Sent Coder the endpoints." }]),
+    ];
+    const transcript = foldPeerReplies(messages, { includePeerReceipts: true });
+
+    expect(transcript.messages.map((item) => item.id)).toEqual(["received", "update"]);
+    expect(transcript.folded.get("received")?.map((item) => item.id)).toEqual(["reply"]);
+  });
+
   it("draws expanded folds right after their marker", () => {
     const transcript = foldPeerReplies(peerExchange, { includePeerReceipts: true });
 

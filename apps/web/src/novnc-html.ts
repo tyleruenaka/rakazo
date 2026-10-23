@@ -61,7 +61,8 @@ export function rewrittenNovncHeaders(headers: IncomingHttpHeaders): IncomingHtt
 /**
  * Replace both storages, and keep browser extensions from taking the page down. Their content
  * scripts run inside the sandboxed document too; one reading storage throws a SecurityError
- * that noVNC's global error handler would otherwise show in place of the screen.
+ * that noVNC's global error handler would otherwise show in place of the screen. The page also
+ * reports its first frame and a dropped live connection to the app (see `screenPageState`).
  */
 export function injectNovncStorageShim(html: string) {
   const shim = `<script>
@@ -81,6 +82,36 @@ export function injectNovncStorageShim(html: string) {
   window.addEventListener("error", (event) => {
     if (/^[a-z-]+-extension:/.test(String(event.filename))) event.stopImmediatePropagation();
   }, true);
+  // Tell the app when the screen first draws, and when a live connection closes, so it never
+  // shows a black page as if it were live.
+  const report = (state) => window.parent.postMessage({ type: "rakazo-screen", state }, "*");
+  let painted = false;
+  for (const method of ["drawImage", "putImageData"]) {
+    const prototype = window.CanvasRenderingContext2D.prototype;
+    const original = prototype[method];
+    prototype[method] = function (...args) {
+      const result = original.apply(this, args);
+      if (!painted && this.canvas.isConnected) {
+        painted = true;
+        window.requestAnimationFrame(() => report("painted"));
+      }
+      return result;
+    };
+  }
+  let leaving = false;
+  window.addEventListener("pagehide", () => { leaving = true; });
+  // noVNC needs a genuine WebSocket, so wrap the constructor rather than subclass it.
+  const NativeWebSocket = window.WebSocket;
+  function ReportingWebSocket(...args) {
+    const socket = new NativeWebSocket(...args);
+    let opened = false;
+    socket.addEventListener("open", () => { opened = true; });
+    socket.addEventListener("close", () => { if (opened && !leaving) report("closed"); });
+    return socket;
+  }
+  ReportingWebSocket.prototype = NativeWebSocket.prototype;
+  Object.assign(ReportingWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+  window.WebSocket = ReportingWebSocket;
 })();
 </script>`;
   return html.includes("<head>")

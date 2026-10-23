@@ -26,6 +26,7 @@ import {
   managedDesktopCommand,
   quiesceBrowserProfilesCommand,
   releaseDesktopCommand,
+  releaseDisplayInputCommand,
   resetDesktopRuntimeCommand,
   screenPorts,
   shellQuote,
@@ -654,4 +655,37 @@ describe("shared Linux desktop lifecycle", () => {
     expect(url.searchParams.get("_token")).toBe("provider-key");
     expect(url.searchParams.get("path")).toBe("websockify?_token=provider-key&token=view-key");
   });
+});
+
+describe("held input release", () => {
+  it("gives up on an X server that stops answering instead of holding the screen lock", async () => {
+    // An Xvfb that accepts the connection but never replies, like a stopped or wedged one.
+    mkdirSync("/tmp/.X11-unix", { recursive: true });
+    const socketPath = "/tmp/.X11-unix/X987";
+    rmSync(socketPath, { force: true });
+    const server = net.createServer((socket) => socket.resume());
+    await new Promise<void>((resolve) => server.listen(socketPath, resolve));
+    try {
+      const started = Date.now();
+      const result = await new Promise<{ code: number | null; stderr: string }>((resolve) => {
+        const child = spawn("bash", ["-c", releaseDisplayInputCommand(":987")]);
+        let stderr = "";
+        child.stderr.on("data", (chunk) => {
+          stderr += String(chunk);
+        });
+        const killer = setTimeout(() => child.kill("SIGKILL"), 15_000);
+        child.on("close", (code) => {
+          clearTimeout(killer);
+          resolve({ code, stderr });
+        });
+      });
+      expect(Date.now() - started).toBeLessThan(8_000);
+      expect(result.code).toBe(0);
+      expect(result.stderr).toContain("held input not released");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(socketPath, { force: true });
+      rmSync("/tmp/rakazo/input-generation-987", { force: true });
+    }
+  }, 20_000);
 });

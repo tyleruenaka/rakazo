@@ -3562,26 +3562,37 @@ export function createRouter(deps: RouterDeps) {
           return { url: null };
         }
         const computer = bot.computer;
+        const interactive = hasActiveComputerControl(computer) && computer.controlBotId === bot.id;
         const session = await deps.sandbox
           .connectScreen(
             toComputerRef(computer),
             {
               view: "stream",
-              interactive: hasActiveComputerControl(computer) && computer.controlBotId === bot.id,
+              interactive,
               controlToken:
                 computer.controlBotId === bot.id
                   ? (computer.controlLeaseId ?? undefined)
                   : undefined,
+              wake: input.wake,
             },
             await computerScreenContext(deps.prisma, context.actor, computer.id, bot.id, "screen"),
           )
           .catch(async (error: unknown) => {
-            if (isComputerScreenUnavailable(error)) {
-              throw new ORPCError("CONFLICT", { message: error.message });
-            }
+            if (isComputerScreenUnavailable(error)) return "unavailable" as const;
             return clearGoneSandbox(deps, computer, error);
           });
+        if (session === "unavailable") return { url: null, unavailable: true };
         if (!session?.url) return { url: null };
+        if (interactive && !(await controlStillHeld(deps.prisma, computer, bot.id))) {
+          // A release committed while this read granted control: take it back.
+          await revokeScreenControl(
+            deps,
+            computer,
+            computerContext(context.actor, bot.id, "screen.release"),
+            computer.controlLeaseId ?? undefined,
+          ).catch((error) => getLogger().error("computer control stale grant revoke", error));
+          return { url: null };
+        }
         scheduleComputerSleep(deps.jobs, bot.computer.id);
         const viewUrl = withViewOnly(
           session.url,
@@ -7205,6 +7216,14 @@ async function releaseComputerControl(
     reason: reason ?? "released",
   });
   if (!released) return;
+  // A screen read that loaded the old control before this release committed can grant it
+  // again; revoke once more now that the database no longer names it.
+  await revokeScreenControl(
+    deps,
+    bot.computer,
+    computerContext(actor, controlBotId, "screen.release"),
+    controlLeaseId,
+  ).catch((error) => getLogger().error("computer control second revoke", error));
   // The lease-specific key makes this cancellation safe after a replacement takeover.
   await deps.jobs
     .cancel(computerControlExpireJobKey(bot.computer.id, controlLeaseId))
@@ -7363,6 +7382,29 @@ async function bindWaitingTakeoverToControl(
       payload: { leaseId: input.controlLeaseId, takeoverRequested: true },
     });
   });
+}
+
+/** Whether the control lease a screen read granted is still the one the database names. */
+async function controlStillHeld(
+  prisma: PrismaClient,
+  computer: { id: string; controlLeaseId: string | null },
+  botId: string,
+) {
+  const current = await prisma.computer.findUnique({
+    where: { id: computer.id },
+    select: {
+      controlHolder: true,
+      controlBotId: true,
+      controlLeaseId: true,
+      controlLeaseExpiresAt: true,
+    },
+  });
+  return Boolean(
+    current &&
+      hasActiveComputerControl(current) &&
+      current.controlBotId === botId &&
+      current.controlLeaseId === computer.controlLeaseId,
+  );
 }
 
 async function computerScreenContext(

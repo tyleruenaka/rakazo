@@ -116,6 +116,8 @@ export interface ScreenRequest {
   interactive?: boolean;
   /** Fences an interactive stream so an older lease cannot revoke its replacement. */
   controlToken?: string;
+  /** When no screen is free, take the longest-idle one instead of reporting none. */
+  wake?: boolean;
 }
 
 export interface TerminalRequest {

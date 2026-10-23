@@ -13,6 +13,7 @@ import {
   hostComputerUser,
   screenPorts,
 } from "./computer-spec.js";
+import { browserProfilePathForScreen } from "./supervisor-logic.js";
 
 const mocks = vi.hoisted(() => ({
   docker: {
@@ -1619,8 +1620,10 @@ describe("screen registry across run boundaries", () => {
         signalQueued = resolve;
       });
       let waitingForInspection = false;
+      let onInspect: (() => void) | undefined;
       const container = {
         inspect: vi.fn(async () => {
+          onInspect?.();
           if (waitingForInspection) signalQueued();
           return {
             Config: {
@@ -1661,6 +1664,13 @@ describe("screen registry across run boundaries", () => {
           headers: { ...headers, "x-rakazo-screen-lease-id": leaseId },
           body: JSON.stringify({ interactive: false, revokeControl: false }),
         });
+      // Viewing never claims a screen; a run claims it through its own input.
+      const claim = (leaseId = "run-2:2") =>
+        supervisorApp.request("/computers/restarted/input", {
+          method: "POST",
+          headers: { ...headers, "x-rakazo-screen-lease-id": leaseId },
+          body: JSON.stringify({ input: { kind: "key", key: "a" } }),
+        });
       const resets = () =>
         commands.filter((command) =>
           command.includes("for marker in /tmp/rakazo/browser-profile-*"),
@@ -1669,6 +1679,17 @@ describe("screen registry across run boundaries", () => {
       blockCommand = true;
       const holder = view();
       await blocked;
+      let claimed: ReturnType<typeof claim> | undefined;
+      if (method === "DELETE") {
+        // The run's claim queues for the lock before the delayed release does.
+        const claimQueued = new Promise<void>((resolve) => {
+          onInspect = resolve;
+        });
+        claimed = claim();
+        await claimQueued;
+        onInspect = undefined;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
       waitingForInspection = true;
       const queued =
         method === "POST"
@@ -1682,6 +1703,7 @@ describe("screen registry across run boundaries", () => {
       unblock();
       const held = await holder;
       expect(held.status).toBe(200);
+      if (claimed) expect((await claimed).status).toBe(200);
       const response = await queued;
       expect(response.status).toBe(200);
       if (method === "DELETE") {
@@ -1787,13 +1809,24 @@ describe("screen registry across run boundaries", () => {
       "x-rakazo-screen-id": screenId,
       "x-rakazo-screen-lease-id": leaseId,
     });
-    const view = (screenId: string, leaseId: string) =>
+    const view = (screenId: string, leaseId: string, wake?: boolean) =>
       supervisorApp.request("/computers/registry/screen-mode", {
         method: "POST",
         headers: headersFor(screenId, leaseId),
-        body: JSON.stringify({ interactive: false, revokeControl: false }),
+        body: JSON.stringify({ interactive: false, revokeControl: false, wake }),
       });
+    // Viewing never claims a screen; a run claims it through its own input.
+    const claim = async (screenId: string, leaseId: string) => {
+      const response = await supervisorApp.request("/computers/registry/input", {
+        method: "POST",
+        headers: headersFor(screenId, leaseId),
+        body: JSON.stringify({ input: { kind: "key", key: "a" } }),
+      });
+      expect(response.status).toBe(200);
+    };
 
+    await claim("writer", "run-1:1");
+    await claim("researcher", "team-run:1");
     const first = await view("writer", "run-1:1");
     const researcher = await view("researcher", "team-run:1");
     expect(first.status).toBe(200);
@@ -1815,6 +1848,7 @@ describe("screen registry across run boundaries", () => {
     expect(releaseCommand).not.toContain("view-1");
     expect(releaseCommand).not.toContain("Browser.close");
 
+    await claim("writer", "run-2:2");
     const resumed = await view("writer", "run-2:2");
     expect(resumed.status).toBe(200);
     expect(((await resumed.json()) as { screenUrl: string }).screenUrl).toBe(firstScreenUrl);
@@ -1884,13 +1918,24 @@ describe("screen registry across run boundaries", () => {
       "x-rakazo-screen-id": screenId,
       "x-rakazo-screen-lease-id": leaseId,
     });
-    const view = (screenId: string, leaseId: string) =>
+    const view = (screenId: string, leaseId: string, wake?: boolean) =>
       supervisorApp.request("/computers/registry/screen-mode", {
         method: "POST",
         headers: headersFor(screenId, leaseId),
-        body: JSON.stringify({ interactive: false, revokeControl: false }),
+        body: JSON.stringify({ interactive: false, revokeControl: false, wake }),
       });
+    // Viewing never claims a screen; a run claims it through its own input.
+    const claim = async (screenId: string, leaseId: string) => {
+      const response = await supervisorApp.request("/computers/registry/input", {
+        method: "POST",
+        headers: headersFor(screenId, leaseId),
+        body: JSON.stringify({ input: { kind: "key", key: "a" } }),
+      });
+      expect(response.status).toBe(200);
+    };
 
+    await claim("writer", "run-1:1");
+    await claim("researcher", "team-run:1");
     const writer = await view("writer", "run-1:1");
     const researcher = await view("researcher", "team-run:1");
     const writerUrl = ((await writer.json()) as { screenUrl: string }).screenUrl;
@@ -1904,6 +1949,7 @@ describe("screen registry across run boundaries", () => {
     });
     expect(release.status).toBe(200);
 
+    await claim("newcomer", "team-run:2");
     const newcomer = await view("newcomer", "team-run:2");
     expect(newcomer.status).toBe(200);
     expect(((await newcomer.json()) as { screenUrl: string }).screenUrl).not.toBe(writerUrl);
@@ -1913,6 +1959,184 @@ describe("screen registry across run boundaries", () => {
 
     const peerStillOpen = await view("researcher", "team-run:1");
     expect(((await peerStillOpen.json()) as { screenUrl: string }).screenUrl).toBe(researcherUrl);
+
+    // A viewer never takes a screen by looking; a wake waits while every screen is in use.
+    const closes = () => commands.filter((command) => command.includes("Browser.close")).length;
+    const closesBefore = closes();
+    for (const wake of [false, true]) {
+      const asleep = await view("watcher", "", wake);
+      expect(asleep.status).toBe(400);
+      expect(await asleep.json()).toEqual({ error: expect.stringMatching(/cannot allocate/) });
+    }
+    expect(closes()).toBe(closesBefore);
+
+    // Once the newcomer's run finishes, only a wake takes its idle screen.
+    await supervisorApp.request("/computers/registry/screen", {
+      method: "DELETE",
+      headers: { ...headersFor("newcomer", "team-run:2"), "x-rakazo-preserve-screen": "1" },
+    });
+    expect((await view("watcher", "")).status).toBe(400);
+    expect((await view("watcher", "", true)).status).toBe(200);
+    expect(commands.filter((command) => command.includes("Browser.close")).at(-1)).toContain(
+      "view-1",
+    );
+  });
+  async function fullTeamComputer(
+    limit: string,
+    exitCodeFor: (command: string) => number | Promise<number> = () => 0,
+  ) {
+    vi.stubEnv("SANDBOX_TEAM_SCREEN_LIMIT", limit);
+    const { supervisorApp } = await import("./index.js");
+    const commands: string[] = [];
+    const container = {
+      inspect: vi.fn().mockResolvedValue({
+        Config: {
+          Labels: { "rakazo.managed": "true", "rakazo.botId": "bot", "rakazo.spaceId": "space" },
+        },
+        HostConfig: { NetworkMode: computerNetworkNameFor("bot") },
+        State: { Running: true },
+        NetworkSettings: {
+          Ports: Object.fromEntries(
+            [0, 1].map((index) => [
+              `${screenPorts(index).viewPort}/tcp`,
+              [{ HostIp: "127.0.0.1", HostPort: screenPort }],
+            ]),
+          ),
+        },
+      }),
+      exec: vi.fn(async ({ Cmd }: { Cmd: string[] }) => {
+        const command = Cmd.join(" ");
+        commands.push(command);
+        const ExitCode = await exitCodeFor(command);
+        return { start: async () => Readable.from([]), inspect: async () => ({ ExitCode }) };
+      }),
+    };
+    mocks.docker.getContainer.mockReturnValue(container);
+    const headersFor = (screenId: string, leaseId?: string) => ({
+      authorization: `Bearer ${resolveSupervisorToken(process.env)}`,
+      "content-type": "application/json",
+      "x-rakazo-bot-id": "bot",
+      "x-rakazo-space-id": "space",
+      "x-rakazo-screen-id": screenId,
+      ...(leaseId ? { "x-rakazo-screen-lease-id": leaseId } : {}),
+    });
+    const screenMode = (screenId: string, body: Record<string, unknown>) =>
+      supervisorApp.request("/computers/registry/screen-mode", {
+        method: "POST",
+        headers: headersFor(screenId),
+        body: JSON.stringify(body),
+      });
+    return {
+      view: (screenId: string, wake?: boolean) =>
+        screenMode(screenId, { interactive: false, revokeControl: false, wake }),
+      control: (screenId: string, controlToken: string) =>
+        screenMode(screenId, { interactive: true, controlToken }),
+      release: (screenId: string) => screenMode(screenId, { interactive: false }),
+      revoke: (screenId: string, controlToken: string) =>
+        screenMode(screenId, { interactive: false, controlToken }),
+      act: (screenId: string, leaseId: string) =>
+        supervisorApp.request("/computers/registry/actions", {
+          method: "POST",
+          headers: headersFor(screenId, leaseId),
+          body: JSON.stringify({ actions: [{ kind: "key", key: "a" }], observe: false }),
+        }),
+      cancel: (screenId: string, leaseId: string) =>
+        supervisorApp.request("/computers/registry/screen", {
+          method: "DELETE",
+          headers: { ...headersFor(screenId, leaseId), "x-rakazo-cancel-run-work": "1" },
+        }),
+      commands,
+      evicted: (screenId: string) =>
+        commands.some(
+          (command) =>
+            command.includes("Browser.close") &&
+            command.includes(browserProfilePathForScreen(screenId)),
+        ),
+    };
+  }
+
+  it("keeps a screen someone just woke from another wake", async () => {
+    const { view, evicted } = await fullTeamComputer("1");
+    expect((await view("idle-bot")).status).toBe(200);
+    expect((await view("first-waker", true)).status).toBe(200);
+    expect(evicted("idle-bot")).toBe(true);
+
+    const second = await view("second-waker", true);
+    expect(second.status).toBe(400);
+    expect(evicted("first-waker")).toBe(false);
+  });
+
+  it("frees a screen first opened by Take control once control is released", async () => {
+    const { view, control, release, evicted } = await fullTeamComputer("1");
+    expect((await control("helper", "control-1")).status).toBe(200);
+    expect((await view("waiting-bot", true)).status).toBe(400);
+    expect((await release("helper")).status).toBe(200);
+
+    expect((await view("waiting-bot", true)).status).toBe(200);
+    expect(evicted("helper")).toBe(true);
+  });
+
+  it("never recreates a screen when a revoke arrives after it was taken", async () => {
+    const { view, control, release, revoke, evicted } = await fullTeamComputer("1");
+    expect((await control("helper", "control-1")).status).toBe(200);
+    expect((await release("helper")).status).toBe(200);
+    // A waiting wake takes the now idle screen before the second revoke arrives.
+    expect((await view("waking-bot", true)).status).toBe(200);
+    expect(evicted("helper")).toBe(true);
+
+    expect((await revoke("helper", "control-1")).status).toBe(200);
+    expect(evicted("waking-bot")).toBe(false);
+    // The helper got no screen back, so the limit is still the waking bot's alone.
+    expect((await view("helper")).status).toBe(400);
+    expect((await view("waking-bot")).status).toBe(200);
+  });
+
+  it("cleans up a failed action only on its own screen, without stopping later input", async () => {
+    let finishAction!: () => void;
+    const actionGate = new Promise<void>((resolve) => {
+      finishAction = resolve;
+    });
+    let actions = 0;
+    const { view, act, cancel, commands } = await fullTeamComputer("1", async (command) => {
+      if (!command.includes("subprocess.run(step['argv'])")) return 0;
+      actions += 1;
+      if (actions === 2) await actionGate;
+      return 1;
+    });
+    const isCleanup = (command: string) => command.includes("' ':1' release");
+
+    expect((await act("writer", "run-1:1")).status).toBe(500);
+    const cleanup = commands.filter(isCleanup);
+    expect(cleanup).toHaveLength(1);
+    // Another request on this screen may be typing: the cleanup must not end its input.
+    expect(cleanup[0]).not.toContain("xdotool");
+    expect(cleanup[0]).not.toContain("input-generation");
+
+    // The screen changes hands while an action is still running: its cleanup is skipped.
+    const failing = act("writer", "run-1:2");
+    await vi.waitFor(() =>
+      expect(commands.filter((command) => command.includes("subprocess.run")).length).toBe(2),
+    );
+    expect((await cancel("writer", "run-1:2")).status).toBe(200);
+    expect((await view("next-owner")).status).toBe(200);
+    const before = commands.filter(isCleanup).length;
+    finishAction();
+    expect((await failing).status).toBe(500);
+    expect(commands.filter(isCleanup).length).toBe(before);
+  });
+
+  it("hands a revoked control lease back as real control", async () => {
+    const { view, control, release, evicted } = await fullTeamComputer("1");
+    expect((await control("helper", "control-1")).status).toBe(200);
+    expect((await release("helper")).status).toBe(200);
+
+    // An unconfirmed revoke restores the same lease: the person controls the screen again.
+    const handback = await control("helper", "control-1");
+    expect(handback.status).toBe(200);
+    const { screenUrl } = (await handback.json()) as { screenUrl: string };
+    expect(new URL(screenUrl).searchParams.get("path")).toBe("websockify?token=control-1");
+    expect((await view("waiting-bot", true)).status).toBe(400);
+    expect(evicted("helper")).toBe(false);
   });
 });
 

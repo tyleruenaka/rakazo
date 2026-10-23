@@ -321,16 +321,70 @@ export function completeWarmReleasedScreen(
 export function oldestIdleScreen(
   assigned: Map<string, ScreenAssignment>,
   limit: number,
+  wokenAfter = Number.POSITIVE_INFINITY,
 ): string | undefined {
   return [...assigned.entries()]
     .filter(
       ([, slot]) =>
-        !slot.releasing && !slot.controlled && slot.idleAt !== undefined && slot.index < limit,
+        !slot.releasing &&
+        !slot.controlled &&
+        slot.idleAt !== undefined &&
+        slot.index < limit &&
+        !(slot.wokenAt !== undefined && slot.wokenAt > wokenAfter),
     )
     .sort(
       ([screenA, a], [screenB, b]) =>
         (a.idleAt ?? 0) - (b.idleAt ?? 0) || a.index - b.index || screenA.localeCompare(screenB),
     )[0]?.[0];
+}
+
+/** A screen someone just woke stays theirs this long against other wakes; runs still take it. */
+export const WOKEN_SCREEN_GRACE_MS = 60_000;
+
+/**
+ * The idle screen a new bot takes when every slot is assigned; undefined when it needs none.
+ * A wake skips screens another wake opened within the grace period.
+ */
+export function screenToEvict(
+  assigned: Map<string, ScreenAssignment>,
+  screenId: string,
+  limit: number,
+  wakeAt?: number,
+): string | undefined {
+  if (assigned.has(screenId)) return undefined;
+  const used = new Set([...assigned.values()].map((slot) => slot.index));
+  for (let index = 0; index < limit; index += 1) if (!used.has(index)) return undefined;
+  return oldestIdleScreen(
+    assigned,
+    limit,
+    wakeAt === undefined ? undefined : wakeAt - WOKEN_SCREEN_GRACE_MS,
+  );
+}
+
+/** Viewing never claims a screen for a run, so a screen opened only to look at it starts idle. */
+export function nextViewScreenIndex(
+  assigned: Map<string, ScreenAssignment>,
+  screenId: string,
+  limit: number,
+  now = Date.now(),
+  woken = false,
+): number {
+  const opened = !assigned.has(screenId);
+  const index = nextScreenIndex(assigned, screenId, undefined, limit);
+  if (opened) {
+    const slot = assigned.get(screenId)!;
+    slot.idleAt = now;
+    if (woken) slot.wokenAt = now;
+  }
+  return index;
+}
+
+/** Releasing control leaves a screen idle unless a run still holds it. */
+export function releaseScreenControl(slot: ScreenAssignment, now = Date.now()) {
+  delete slot.controlled;
+  delete slot.controlToken;
+  const heldByRun = slot.leaseId !== undefined && slot.idleAt === undefined;
+  if (!heldByRun) slot.idleAt = now;
 }
 
 export async function teardownReleasedScreen(
@@ -358,6 +412,8 @@ export interface ScreenAssignment {
   releasing?: boolean;
   viewToken?: string;
   idleAt?: number;
+  /** When a person's wake opened this screen; see WOKEN_SCREEN_GRACE_MS. */
+  wokenAt?: number;
   controlled?: boolean;
   controlToken?: string;
 }

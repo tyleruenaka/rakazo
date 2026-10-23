@@ -138,6 +138,7 @@ describe("completionMarksUnread", () => {
   it("keeps peer completions quiet except the requester’s final answer", () => {
     expect(completionMarksUnread("bot_message", "The result")).toBe(false);
     expect(completionMarksUnread("bot_message", "The result", true)).toBe(true);
+    expect(completionMarksUnread("bot_message", "", true)).toBe(false);
   });
 
   it("keeps empty-run done. fallback unread and notifying", () => {

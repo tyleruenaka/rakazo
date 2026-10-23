@@ -253,6 +253,7 @@ import {
   embeddableScreenUrl,
   loadComputerScreen,
   screenIframeSandbox,
+  screenPageState,
 } from "../lib/computer-screen";
 import { connectedAppMarks } from "../lib/connected-apps";
 import { desktopBridge } from "../lib/desktop";
@@ -286,6 +287,7 @@ import {
 import { clearSpaceSelection, createSpaceRpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { translateRunError } from "../lib/run-error";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
+import { useScreenWake } from "../lib/screen-wake";
 import { sharedInflight } from "../lib/shared-inflight";
 import { useSignOut } from "../lib/sign-out";
 import {
@@ -961,6 +963,11 @@ function SpaceShell() {
   const [runningRoutine, setRunningRoutine] = useState(false);
   const [routineError, setRoutineError] = useState<string | null>(null);
   const [screenUrl, setScreenUrl] = useState<string | null>(null);
+  const screenUrlRef = useRef(screenUrl);
+  screenUrlRef.current = screenUrl;
+  // The screen page that has drawn its first frame; until then the waking look covers it.
+  const [paintedScreenUrl, setPaintedScreenUrl] = useState<string | null>(null);
+  const [screenReload, setScreenReload] = useState(0);
   const [computerOpen, setComputerOpen] = useState(false);
   const [computerBotId, setComputerBotId] = useState<string | undefined>();
   const computerOpenRef = useRef(false);
@@ -1071,6 +1078,16 @@ function SpaceShell() {
   const inCallWithActive = Boolean(active && callBotId === active.id);
   const computerBot =
     (computerBotId ? bots.find((bot) => bot.id === computerBotId) : undefined) ?? active;
+  const shownComputerBotId = computerOpen ? computerBotId : active?.id;
+  const shownComputerBotIdRef = useRef(shownComputerBotId);
+  shownComputerBotIdRef.current = shownComputerBotId;
+  const screenWake = useScreenWake(shownComputerBotId, (id) => {
+    void refreshComputerScreen(id).catch(() => undefined);
+  });
+  const screenWakeRef = useRef(screenWake);
+  screenWakeRef.current = screenWake;
+  const screenSleep = screenWake.sleep;
+  const screenWakeBotId = screenWake.wakeLookBotId;
   computerOpenRef.current = computerOpen;
   computerBotIdRef.current = computerBotId ?? active?.id;
   const activeGroup = groups.find((group) => group.id === groupId);
@@ -1248,6 +1265,7 @@ function SpaceShell() {
         setSpaces((current) => sameData(current, navigation.spaces));
         setInitialBotsLoaded(true);
         botsRefreshApplied.current = request;
+        screenWakeRef.current.onBotsRefresh();
         if (
           includeArchived &&
           list.length === 0 &&
@@ -1382,14 +1400,16 @@ function SpaceShell() {
   async function refreshComputerScreen(id: string) {
     if (!computerVisible.current) return null;
     const request = ++screenRequest.current;
+    const wake = screenWakeRef.current.wantsWake(id);
     return loadComputerScreen({
-      load: () => rpc.computer.screenUrl({ botId: id }),
+      load: () => rpc.computer.screenUrl(wake ? { botId: id, wake } : { botId: id }),
       isCurrent: () =>
         request === screenRequest.current &&
         (activeBotId.current === id || computerBotIdRef.current === id) &&
         computerVisible.current,
       commit: (screen) => {
         setScreenUrl(screen.url);
+        screenWakeRef.current.settle(id, Boolean(screen.unavailable), wake);
         // A screen read replaces only its own error; a failed boot keeps its error and Retry.
         if (screen.error || computerErrorFromScreenRef.current) {
           setComputerError(screen.error);
@@ -3165,6 +3185,7 @@ function SpaceShell() {
       const state = snap?.computer?.state;
       const screen = state === "running" ? await refreshComputerScreen(botId) : null;
       if (cancelled || activeBotId.current !== botId) return;
+      if (screenWakeRef.current.sleepRef.current?.botId === botId) return;
       if (!computerPanelNeedsScreen(state, screen) || autoBooted.current === botId) return;
       autoBooted.current = botId;
       await bootComputer({
@@ -3336,6 +3357,7 @@ function SpaceShell() {
     }
     // Reopening during a boot shows it; a second boot would be refused as busy.
     const bootInFlight = bootsInFlight.current.has(id) || targetComputer?.state === "booting";
+    if (screenWake.sleepRef.current?.botId === id) screenWake.requestWake(id);
     setComputerOpen(true);
     computerVisible.current = true;
     if (bootInFlight && !takeControl) return true;
@@ -3355,6 +3377,30 @@ function SpaceShell() {
     }
   }
   openComputerRef.current = openComputer;
+
+  // The screen page reports its first frame, and a connection that drops after it was live.
+  // A drop usually means another bot took the screen: read it again, which shows asleep.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const state = screenPageState(event.data);
+      if (!state) return;
+      const frame = [...document.querySelectorAll("iframe")].find(
+        (candidate) => candidate.contentWindow === event.source,
+      );
+      const src = frame?.getAttribute("src");
+      if (!src || src !== embeddableScreenUrl(screenUrlRef.current)) return;
+      if (state === "painted") {
+        setPaintedScreenUrl(src);
+        return;
+      }
+      setPaintedScreenUrl(null);
+      setScreenReload((count) => count + 1);
+      const botId = shownComputerBotIdRef.current;
+      if (botId) void refreshComputerScreen(botId).catch(() => undefined);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
   const onOpenComputer = useCallback((botId?: string) => {
     void openComputerRef.current(botId);
   }, []);
@@ -3424,13 +3470,23 @@ function SpaceShell() {
     </div>
   ) : null;
   // Booting shows inline with the screen's own Close; leaving it lets the boot finish.
-  const computerBooting =
-    booting || computer?.state === "booting" ? (
-      <span className="flex flex-col items-center gap-3">
-        <Spinner aria-hidden className="size-5 motion-reduce:animate-none" />
-        {t`Booting live desktop…`}
-      </span>
-    ) : null;
+  const wakingLook = (
+    <span className="flex flex-col items-center gap-3">
+      <Spinner aria-hidden className="size-5 motion-reduce:animate-none" />
+      {t`Booting live desktop…`}
+    </span>
+  );
+  const computerBooting = booting || computer?.state === "booting" ? wakingLook : null;
+  // A noVNC page is black until its first frame; desktop and test screens draw at once.
+  const screenLive =
+    !screenIframeSandbox(embeddedScreenUrl) || paintedScreenUrl === embeddedScreenUrl;
+
+  // Never leave the waking look up if a screen page cannot report its first frame.
+  useEffect(() => {
+    if (!embeddedScreenUrl || screenLive) return;
+    const timer = window.setTimeout(() => setPaintedScreenUrl(embeddedScreenUrl), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [embeddedScreenUrl, screenLive]);
   const computerPreviewScreen =
     !computerOpen &&
     computer?.kind !== "desktop" &&
@@ -5018,14 +5074,30 @@ function SpaceShell() {
                       ) : computer?.state === "running" &&
                         embeddedScreenUrl &&
                         !computerScreenError ? (
-                        <iframe
-                          title={t`Bot screen preview`}
-                          src={embeddedScreenUrl}
-                          sandbox={screenIframeSandbox(embeddedScreenUrl)}
-                          className="h-full w-full border-0 bg-black"
-                          allow="clipboard-read; clipboard-write"
-                          style={{ pointerEvents: "none" }}
-                        />
+                        <>
+                          <iframe
+                            key={screenReload}
+                            title={t`Bot screen preview`}
+                            src={embeddedScreenUrl}
+                            sandbox={screenIframeSandbox(embeddedScreenUrl)}
+                            className={cn(
+                              "h-full w-full border-0 bg-black",
+                              !screenLive && "invisible",
+                            )}
+                            allow="clipboard-read; clipboard-write"
+                            style={{ pointerEvents: "none" }}
+                          />
+                          {screenLive ? null : (
+                            <div className="absolute inset-0 grid place-items-center border-[0.5px] border-preview-border bg-preview px-6 text-center text-[13px]">
+                              <ComputerPlaceholder
+                                bot={active}
+                                state={computer?.state}
+                                booting
+                                label={computerLabel(computer?.mode, active.name)}
+                              />
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="grid h-full place-items-center px-6 text-center text-[13px]">
                           {computerScreenError ??
@@ -5049,8 +5121,13 @@ function SpaceShell() {
                               <ComputerPlaceholder
                                 bot={active}
                                 state={computer?.state}
-                                booting={booting}
+                                booting={booting || screenWakeBotId === active.id}
                                 label={computerLabel(computer?.mode, active.name)}
+                                sleep={
+                                  screenSleep?.botId === active.id && screenWakeBotId !== active.id
+                                    ? screenSleep
+                                    : null
+                                }
                               />
                             ))}
                         </div>
@@ -5074,7 +5151,10 @@ function SpaceShell() {
                       className="mt-[8.5px] truncate px-1 text-center text-[12px] text-caption"
                       dir="auto"
                     >
-                      {t`${active.name}'s screen`} · {computer?.state ?? active.status}
+                      {t`${active.name}'s screen`} ·{" "}
+                      {screenSleep?.botId === active.id
+                        ? "suspended"
+                        : (computer?.state ?? active.status)}
                     </p>
                   </TabsContent>
                 </Tabs>
@@ -5805,10 +5885,14 @@ function SpaceShell() {
                   ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
                     <>
                       <iframe
+                        key={screenReload}
                         title={t`Bot screen`}
                         src={embeddedScreenUrl}
                         sandbox={screenIframeSandbox(embeddedScreenUrl)}
-                        className="h-full w-full border-0 bg-black"
+                        className={cn(
+                          "h-full w-full border-0 bg-black",
+                          !screenLive && "invisible",
+                        )}
                         allow="clipboard-read; clipboard-write; fullscreen"
                         style={{
                           pointerEvents: recordingSkill || !hasControl ? "none" : "auto",
@@ -5821,7 +5905,33 @@ function SpaceShell() {
                         screenWidth={computer?.screenWidth}
                         screenHeight={computer?.screenHeight}
                       />
+                      {screenLive ? null : (
+                        <div className="absolute inset-0 grid place-items-center px-8 text-center text-sm text-muted-foreground/80">
+                          {wakingLook}
+                        </div>
+                      )}
                     </>
+                  ) : screenWakeBotId === computerBot.id && !computerScreenError ? (
+                    <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80">
+                      {wakingLook}
+                    </div>
+                  ) : screenSleep?.botId === computerBot.id && !computerScreenError ? (
+                    <button
+                      type="button"
+                      data-testid="computer-screen-wake"
+                      disabled={screenSleep.waiting}
+                      className="grid h-full w-full place-items-center px-8 text-center text-sm enabled:cursor-pointer"
+                      onClick={() => screenWake.wake(computerBot.id)}
+                    >
+                      <ComputerPlaceholder
+                        bot={computerBot}
+                        state={computer?.state}
+                        booting={false}
+                        label={computerLabel(computer?.mode, computerBot.name)}
+                        sleep={screenSleep}
+                        asleepText={t`Computer is asleep`}
+                      />
+                    </button>
                   ) : (
                     <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80">
                       {computerScreenError ??
@@ -8660,20 +8770,29 @@ function computerPlaceholder(
 }
 
 /** Grok-style card body for a computer with no screen: the bot's glyph over its state. */
-function ComputerPlaceholder({
+export function ComputerPlaceholder({
   bot,
   state,
   booting,
   label,
+  sleep,
+  asleepText,
 }: {
   bot: Bot;
   state: ComputerStatus["state"] | undefined;
   booting: boolean;
   label: string;
+  /** No screen is free: shown asleep like a sleeping computer, or waiting after a Wake. */
+  sleep?: { waiting: boolean } | null;
+  asleepText?: string;
 }) {
-  const text = computerPlaceholder(state, booting, label);
-  const waking = state === "booting" || booting;
-  const asleep = !waking && state === "suspended";
+  const waking = !sleep && (state === "booting" || booting);
+  const asleep = !waking && (Boolean(sleep) || state === "suspended");
+  const text = sleep?.waiting
+    ? t`Waiting for a free screen…`
+    : asleep && asleepText
+      ? asleepText
+      : computerPlaceholder(sleep ? "suspended" : state, booting, label);
   return (
     <div className="flex flex-col items-center leading-[14px]">
       {waking || asleep ? (

@@ -5430,6 +5430,10 @@ msgstr ""
 msgid "Wait a moment and test again."
 msgstr "请稍候并重新测试。"
 
+#: src/pages/Shell.tsx
+msgid "Waiting for a free screen…"
+msgstr "正在等待空闲屏幕…"
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "正在等待 API 恢复…"

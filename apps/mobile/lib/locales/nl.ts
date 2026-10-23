@@ -742,6 +742,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Computer failed to boot": "De computer kon niet opstarten",
   "Computer is asleep. Take control to wake it.":
     "De computer is in slaapstand. Neem de controle over om hem te laten ontwaken.",
+  "Waiting for a free screen…": "Wachten op een vrij scherm…",
   "Computer is stopped": "De computer is gestopt",
   "Team Computer": "Teamcomputer",
   "{name} is using it": "{name} gebruikt het",

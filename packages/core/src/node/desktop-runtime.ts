@@ -462,6 +462,88 @@ export function ensureScreenCommand(
   return renderEnsureScreenCommand(index, screenId, viewToken, env);
 }
 
+/**
+ * Keyboard and pointer state on a bot display, over the raw X11 protocol so it needs only
+ * python3. "release" lets go of every key and button still held; "no-repeat" turns keyboard
+ * autorepeat off. An input process killed between a key press and its release leaves the key
+ * held, and autorepeat would type it into whichever window has focus next: another bot's
+ * browser once the screen changes hands.
+ */
+const X_INPUT_STATE = `
+import socket, struct, sys
+display, mode = sys.argv[1], sys.argv[2]
+s = socket.socket(socket.AF_UNIX)
+# A stopped or wedged X server must not hold the screen lock: give up as "not released".
+s.settimeout(2)
+try:
+    s.connect("/tmp/.X11-unix/X" + display.lstrip(":"))
+except (FileNotFoundError, ConnectionRefusedError):
+    sys.exit(0)
+def recv(n):
+    data = b""
+    while len(data) < n:
+        chunk = s.recv(n - len(data))
+        if not chunk:
+            sys.exit(1)
+        data += chunk
+    return data
+def reply():
+    while True:
+        head = recv(32)
+        if head[0] == 1:
+            return head + recv(struct.unpack("<I", head[4:8])[0] * 4)
+        if head[0] == 0:
+            sys.exit(1)
+s.sendall(struct.pack("<BxHHHHxx", 0x6C, 11, 0, 0, 0))
+head = recv(8)
+setup = recv(struct.unpack("<H", head[6:8])[0] * 4)
+if head[0] != 1:
+    sys.exit(1)
+if mode == "no-repeat":
+    s.sendall(struct.pack("<BxHII", 102, 3, 0x80, 0))
+else:
+    name = b"XTEST"
+    pad = b"\\0" * (-len(name) % 4)
+    s.sendall(struct.pack("<BxHHxx", 98, (8 + len(name) + len(pad)) // 4, len(name)) + name + pad)
+    extension = reply()
+    if not extension[8]:
+        sys.exit(1)
+    def fake(kind, detail):
+        s.sendall(struct.pack("<BBHBBxxII8xhh7xB", extension[9], 2, 9, kind, detail, 0, 0, 0, 0, 0))
+    s.sendall(struct.pack("<BxH", 44, 1))
+    keys = reply()[8:40]
+    for keycode in range(8, 256):
+        if keys[keycode // 8] >> (keycode % 8) & 1:
+            fake(3, keycode)
+    vendor = struct.unpack("<H", setup[16:18])[0]
+    root_at = 32 + vendor + (-vendor % 4) + 8 * setup[21]
+    s.sendall(struct.pack("<BxHI", 38, 2, struct.unpack("<I", setup[root_at:root_at + 4])[0]))
+    buttons = struct.unpack("<H", reply()[24:26])[0]
+    for button in range(1, 6):
+        if buttons & (1 << (7 + button)):
+            fake(5, button)
+s.sendall(struct.pack("<BxH", 43, 1))
+reply()
+`;
+
+/** Let go of every key and pointer button still held on the display. */
+export function releaseHeldKeysCommand(display: string) {
+  return `python3 -c ${shellQuote(X_INPUT_STATE)} ${shellQuote(display)} release || echo 'held input not released' >&2`;
+}
+
+/**
+ * The screen changes hands: a new input generation stops the previous owner's batch between
+ * steps (control.py), its synthetic typing is killed, and anything still held is let go, so no
+ * key from the screen's last user can reach the next one.
+ */
+export function releaseDisplayInputCommand(display: string) {
+  return [
+    `mkdir -p /tmp/rakazo && printf '%s-%s' "$$" "$(date +%s%N)" >/tmp/rakazo/input-generation-${display.replace(/^:/, "")}`,
+    `for pid in $(pgrep -x xdotool || true); do if tr '\\0' '\\n' </proc/$pid/environ 2>/dev/null | grep -qx ${shellQuote(`DISPLAY=${display}`)}; then kill -KILL "$pid" 2>/dev/null || true; fi; done`,
+    releaseHeldKeysCommand(display),
+  ].join("\n");
+}
+
 function renderStopScreenTransportsCommand(index: number | undefined, env = DEFAULT_DESKTOP_ENV) {
   const layout = commandLayout(index, env);
   return [
@@ -473,6 +555,7 @@ function renderStopScreenTransportsCommand(index: number | undefined, env = DEFA
     stopVncCommand("control", layout),
     stopTerminalCommand(layout),
     `rm -f /tmp/rakazo/control-token-${layout.displayNumber}`,
+    releaseDisplayInputCommand(layout.display),
   ].join("\n");
 }
 
@@ -588,6 +671,8 @@ function renderEnsureScreenCommand(
     ...browserRunningFunction(profile, pidFile),
     `printf %s ${shellQuote(profile)} >/tmp/rakazo/browser-profile-${layout.displayNumber}`,
     "if ! browser_running; then",
+    // A held key must never autorepeat into the browser that takes this display.
+    `  python3 -c ${shellQuote(X_INPUT_STATE)} ${shellQuote(layout.display)} no-repeat || true`,
     prepareBrowserProfileCommand(screenId, env),
     `  rm -f ${shellQuote(profile)}/SingletonLock ${shellQuote(profile)}/SingletonCookie ${shellQuote(profile)}/SingletonSocket`,
     `  nohup ${browserLauncherPath(layout.displayNumber)} 8>&- 9>&- </dev/null >${log}-browser.log 2>&1 & printf %s "$!" >${pidFile}`,
@@ -618,6 +703,8 @@ export function interactiveScreenCommand(
     // The terminal belongs to the control lease and ends with it.
     stopTerminalCommand(layout),
     `rm -f ${tokenFile}`,
+    // A key the person was holding as control ended stays held otherwise.
+    releaseDisplayInputCommand(layout.display),
   ].join("\n");
   if (!interactive) {
     if (!controlToken) return stopProcesses;

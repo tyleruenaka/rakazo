@@ -269,6 +269,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         interactive: request.interactive === true,
         controlToken: request.controlToken,
         revokeControl: false,
+        ...(request.wake ? { wake: true } : {}),
       }),
       signal: context.signal,
     });

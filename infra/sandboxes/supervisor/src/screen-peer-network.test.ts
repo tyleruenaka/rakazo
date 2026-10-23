@@ -110,7 +110,8 @@ async function openScreen() {
       "x-rakazo-space-id": "space",
       "x-rakazo-screen-id": "writer",
     },
-    body: JSON.stringify({ interactive: false }),
+    // A viewer's read opens the screen; a revoke never does.
+    body: JSON.stringify({ interactive: false, revokeControl: false }),
   });
 }
 

@@ -55,6 +55,9 @@ export default function Computer() {
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
   const [screenUrl, setScreenUrl] = useState<string | null>(null);
   const [screenError, setScreenError] = useState<string | null>(null);
+  // Every screen is taken: the computer shows asleep, or waits after a Wake.
+  const [screenSleep, setScreenSleep] = useState<"asleep" | "waiting" | null>(null);
+  const wakeScreen = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [readyBotId, setReadyBotId] = useState<string | null>(null);
   const [bootingCount, setBootingCount] = useState(0);
@@ -127,9 +130,19 @@ export default function Computer() {
       createComputerRefresh({
         readStatus: () => rpc<ComputerStatus>("computer/status", { botId }),
         readScreen: (attempts) =>
-          readScreenUrl(() => rpc<{ url: string | null }>("computer/screenUrl", { botId }), {
-            attempts,
-          }),
+          readScreenUrl(
+            async () => {
+              const wake = wakeScreen.current;
+              const screen = await rpc<{ url: string | null; unavailable?: boolean }>(
+                "computer/screenUrl",
+                wake ? { botId, wake } : { botId },
+              );
+              if (!screen.unavailable) wakeScreen.current = false;
+              setScreenSleep(screen.unavailable ? (wake ? "waiting" : "asleep") : null);
+              return screen;
+            },
+            { attempts },
+          ),
         onStatus: (status) => {
           setComputer(status);
           // Another client may have started it since this one failed.
@@ -150,6 +163,8 @@ export default function Computer() {
     setComputer(null);
     setScreenUrl(null);
     setScreenError(null);
+    setScreenSleep(null);
+    wakeScreen.current = false;
     setError(null);
     setReadyBotId(null);
     setBootingCount(0);
@@ -232,6 +247,11 @@ export default function Computer() {
     }).catch(() => undefined);
   }, [readyBotId, botId, computer?.state]);
 
+  // Nothing announces a freed screen, so a waiting screen asks again on each status poll.
+  useEffect(() => {
+    if (screenSleep === "waiting" && computer) refreshController.invalidateScreen();
+  }, [screenSleep, computer, refreshController]);
+
   const reloadScreen = useCallback(async () => {
     await refresh().catch(() => undefined);
     heldScreenUrl.current = null;
@@ -266,6 +286,7 @@ export default function Computer() {
   async function openComputer({ takeControl }: { takeControl: boolean }) {
     if (!botId) return;
     const needsTakeover = takeControl && !hasControl;
+    if (screenSleep) wakeScreen.current = true;
     try {
       const opened = await bootComputer({
         takeControl: needsTakeover,
@@ -296,7 +317,15 @@ export default function Computer() {
   }
 
   const placeholder =
-    screenError ?? previewPlaceholder(computer?.state, booting, name, computer?.mode);
+    screenError ??
+    (screenSleep === "waiting"
+      ? t("Waiting for a free screen…")
+      : previewPlaceholder(
+          screenSleep ? "suspended" : computer?.state,
+          booting,
+          name,
+          computer?.mode,
+        ));
   // Booting shows in the preview; the header and Back stay, and leaving lets the boot finish.
   const bootPending = booting || computer?.state === "booting";
   const canRetry = !bootPending && (bootFailed || computer?.state === "error");

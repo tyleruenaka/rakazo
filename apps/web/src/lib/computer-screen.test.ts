@@ -4,7 +4,19 @@ import {
   embeddableScreenUrl,
   loadComputerScreen,
   screenIframeSandbox,
+  screenPageState,
 } from "./computer-screen";
+
+describe("screen page messages", () => {
+  it("accepts only the screen page's own states", () => {
+    expect(screenPageState({ type: "rakazo-screen", state: "painted" })).toBe("painted");
+    expect(screenPageState({ type: "rakazo-screen", state: "closed" })).toBe("closed");
+    expect(screenPageState({ type: "rakazo-screen", state: "other" })).toBeNull();
+    expect(screenPageState({ type: "other", state: "closed" })).toBeNull();
+    expect(screenPageState("closed")).toBeNull();
+    expect(screenPageState(null)).toBeNull();
+  });
+});
 
 describe("computer screen requests", () => {
   it("shows connection failures and lets a successful retry clear them", async () => {

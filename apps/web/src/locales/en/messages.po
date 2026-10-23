@@ -5430,6 +5430,10 @@ msgstr "Voice chat"
 msgid "Wait a moment and test again."
 msgstr "Wait a moment and test again."
 
+#: src/pages/Shell.tsx
+msgid "Waiting for a free screen…"
+msgstr "Waiting for a free screen…"
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "Waiting for the API to come back…"

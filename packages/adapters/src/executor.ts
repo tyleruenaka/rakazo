@@ -91,6 +91,7 @@ import {
   nextCronDateAcross,
   nextFence,
   outboundSiteGate,
+  peerReplyAddressesUser,
   planActionGate,
   promptInvokesSkill,
   redactSecrets,
@@ -7158,7 +7159,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               deps,
               run,
               "bot",
-              [{ kind: "text", text }],
+              [{ kind: "text", text, toUser: true }],
               true,
               userProgressClientNonce(run.id, midTurnProgressCount++),
             );
@@ -8188,7 +8189,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             markUnread: completionMarksUnread(
               run.trigger,
               text,
-              peerMessage?.repliesToRequest === true,
+              peerReplyAddressesUser(peerMessage?.intent),
             ),
           });
           if (!completed) return;
@@ -9364,7 +9365,7 @@ export function completionMarksUnread(
   text: string,
   userFacingPeerReply = false,
 ): boolean {
-  if (trigger === "bot_message") return userFacingPeerReply;
+  if (trigger === "bot_message") return userFacingPeerReply && Boolean(text);
   if (isBackgroundRunTrigger(trigger)) return false;
   return (trigger !== "routine" && trigger !== "reaction") || Boolean(text);
 }

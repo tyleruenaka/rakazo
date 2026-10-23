@@ -3,11 +3,13 @@ import { errorText } from "./user-error";
 export interface ComputerScreenResult {
   url: string | null;
   error: string | null;
+  /** Every screen on the computer is taken; the bot's computer shows asleep. */
+  unavailable?: true;
 }
 
 /** Only the latest request for the visible computer may replace its screen or error. */
 export async function loadComputerScreen(options: {
-  load: () => Promise<{ url: string | null }>;
+  load: () => Promise<{ url: string | null; unavailable?: boolean }>;
   isCurrent: () => boolean;
   commit: (result: ComputerScreenResult) => void;
   fallbackError: string;
@@ -15,7 +17,7 @@ export async function loadComputerScreen(options: {
   let result: ComputerScreenResult;
   try {
     const screen = await options.load();
-    result = { url: screen.url, error: null };
+    result = { url: screen.url, error: null, ...(screen.unavailable ? { unavailable: true } : {}) };
   } catch (error) {
     result = {
       url: null,
@@ -25,6 +27,17 @@ export async function loadComputerScreen(options: {
   if (!options.isCurrent()) return null;
   options.commit(result);
   return result.url;
+}
+
+/**
+ * What a proxied screen page reports to the app: its first drawn frame, or that a live
+ * connection closed (the screen was taken, or the stream dropped).
+ */
+export function screenPageState(data: unknown): "painted" | "closed" | null {
+  if (!data || typeof data !== "object") return null;
+  const message = data as { type?: unknown; state?: unknown };
+  if (message.type !== "rakazo-screen") return null;
+  return message.state === "painted" || message.state === "closed" ? message.state : null;
 }
 
 export function embeddableScreenUrl(url: string | null): string | null {

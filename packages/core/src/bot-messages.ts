@@ -60,6 +60,15 @@ export function botMessageAllowsSilence(
   return intent === "fyi" && !repliesToRequest;
 }
 
+/**
+ * Whether a run woken by a bot message writes its reply to the user: a result or status is
+ * relayed to the user. A reply to a request or question goes back to the asking bot, and an
+ * FYI usually needs no reply.
+ */
+export function peerReplyAddressesUser(intent: BotMessageIntent | undefined): boolean {
+  return intent === "result" || intent === "status";
+}
+
 /** Resolve a target by id first, then by exact name, then case-insensitively. */
 export function resolveBotAddress<T extends BotAddress>(
   bots: readonly T[],

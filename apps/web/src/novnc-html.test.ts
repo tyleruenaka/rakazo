@@ -63,14 +63,68 @@ describe("noVNC storage shim gate", () => {
   function runShim() {
     const script = injectNovncStorageShim("<head>").match(/<script>([\s\S]*)<\/script>/)?.[1] ?? "";
     const listeners: ((event: unknown) => void)[] = [];
+    const pageListeners = new Map<string, () => void>();
+    const reports: unknown[] = [];
+    class FakeContext {
+      constructor(readonly canvas: { isConnected: boolean }) {}
+      drawImage() {}
+      putImageData() {}
+    }
+    class FakeSocket {
+      private readonly handlers = new Map<string, () => void>();
+      addEventListener(type: string, handler: () => void) {
+        this.handlers.set(type, handler);
+      }
+      emit(type: string) {
+        this.handlers.get(type)?.();
+      }
+    }
     const window = {
-      addEventListener: (_type: string, listener: (event: unknown) => void) => {
-        listeners.push(listener);
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        if (type === "error") listeners.push(listener);
+        else pageListeners.set(type, listener as () => void);
       },
-    } as unknown as { localStorage: Storage; sessionStorage: Storage };
+      parent: { postMessage: (message: unknown) => reports.push(message) },
+      requestAnimationFrame: (callback: () => void) => callback(),
+      CanvasRenderingContext2D: FakeContext,
+      WebSocket: FakeSocket,
+    } as unknown as {
+      localStorage: Storage;
+      sessionStorage: Storage;
+      CanvasRenderingContext2D: typeof FakeContext;
+      WebSocket: typeof FakeSocket;
+    };
     new Function("window", script)(window);
-    return { window, listeners };
+    return { window, listeners, pageListeners, reports, FakeSocket };
   }
+
+  it("reports the first drawn frame once, ignoring offscreen canvases", () => {
+    const { window, reports } = runShim();
+    new window.CanvasRenderingContext2D({ isConnected: false }).drawImage();
+    expect(reports).toEqual([]);
+    const screen = new window.CanvasRenderingContext2D({ isConnected: true });
+    screen.putImageData();
+    screen.drawImage();
+    expect(reports).toEqual([{ type: "rakazo-screen", state: "painted" }]);
+  });
+
+  it("reports a live connection closing, but not a failed connect or leaving the page", () => {
+    const { window, pageListeners, reports, FakeSocket } = runShim();
+    // noVNC rejects anything but a genuine WebSocket.
+    expect(new window.WebSocket()).toBeInstanceOf(FakeSocket);
+    expect(Object.getPrototypeOf(new window.WebSocket())).toBe(FakeSocket.prototype);
+    new window.WebSocket().emit("close");
+    expect(reports).toEqual([]);
+    const live = new window.WebSocket();
+    live.emit("open");
+    live.emit("close");
+    expect(reports).toEqual([{ type: "rakazo-screen", state: "closed" }]);
+    const leaving = new window.WebSocket();
+    leaving.emit("open");
+    pageListeners.get("pagehide")?.();
+    leaving.emit("close");
+    expect(reports).toHaveLength(1);
+  });
 
   it("keeps values for the life of the page in both storages", () => {
     const { window } = runShim();

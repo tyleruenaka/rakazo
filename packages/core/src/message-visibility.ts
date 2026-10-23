@@ -1,4 +1,5 @@
 import type { MessageBlock } from "@rakazo/contracts";
+import { botMessageContext, peerReplyAddressesUser } from "./bot-messages.js";
 import { messageReaction } from "./message-reactions.js";
 
 type PresentableMessage = {
@@ -51,6 +52,10 @@ function isPeerInputBlock(block: MessageBlock): boolean {
   return isBackgroundInputBlock(block) || block.kind === "choice";
 }
 
+function isToUserBlock(block: MessageBlock): boolean {
+  return block.kind === "text" && block.toUser === true;
+}
+
 function isAskBlock(block: MessageBlock): boolean {
   return block.kind === "ask";
 }
@@ -65,7 +70,8 @@ export type FoldedTranscript<T> = {
 
 /**
  * Drop peer-run activity; optionally keep sent/received receipt rows. With receipts kept, a
- * peer run's bot text replies fold under its received marker; its user-input cards stay inline.
+ * peer run's bot text replies fold under its received marker unless they are written for the
+ * user (peerReplyAddressesUser, or a message_user update); its user-input cards stay inline.
  */
 export function foldPeerReplies<T extends PresentableMessage>(
   messages: readonly T[],
@@ -73,13 +79,12 @@ export function foldPeerReplies<T extends PresentableMessage>(
 ): FoldedTranscript<T> {
   const includePeerReceipts = options.includePeerReceipts === true;
   const markerByRunId = new Map<string, string>();
+  const userAddressedRunIds = new Set<string>();
   for (const message of messages) {
-    if (
-      message.runId &&
-      !markerByRunId.has(message.runId) &&
-      message.blocks.some((block) => block.kind === "bot_message_received")
-    ) {
+    const received = botMessageContext(message.blocks);
+    if (message.runId && !markerByRunId.has(message.runId) && received) {
       markerByRunId.set(message.runId, message.id);
+      if (peerReplyAddressesUser(received.intent)) userAddressedRunIds.add(message.runId);
     }
   }
   const peerRunIds = new Set([...(options.knownPeerRunIds ?? []), ...markerByRunId.keys()]);
@@ -120,6 +125,8 @@ export function foldPeerReplies<T extends PresentableMessage>(
       return false;
     // Only bot replies fold: a person's answer, steering or reaction in the run stays inline.
     if (message.role !== "bot") return true;
+    // A reply or message_user update written for the user, not returned to a bot, stays inline.
+    if (userAddressedRunIds.has(message.runId) || message.blocks.some(isToUserBlock)) return true;
     const markerId = includePeerReceipts ? markerByRunId.get(message.runId) : undefined;
     // A reply whose marker is outside the loaded page stays inline.
     if (markerId === undefined) return true;

@@ -12,6 +12,7 @@ import {
   resolveSupervisorToken,
   uploadSizeFromEnv,
 } from "@rakazo/core";
+import { releaseHeldKeysCommand, shellQuote } from "@rakazo/core/node/desktop-runtime";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { getLogger, SERVICE_NAMES } from "@rakazo/logging";
 import { createRootLogger } from "@rakazo/logging/axiom";
@@ -78,17 +79,19 @@ import {
   interactiveScreenCommand,
   isComputerControlUnavailable,
   nextScreenIndex,
+  nextViewScreenIndex,
   normalizeWorkspaceRelative,
-  oldestIdleScreen,
   parseObservation,
   preferComputerControl,
   quiesceBrowserProfilesCommand,
   releaseAssignedScreen,
+  releaseScreenControl,
   resetManagedScreensCommand,
   type ScreenAssignment,
   sandboxCommandTimedOut,
   sandboxTimeoutCommand,
   screenReleaseStopCommand,
+  screenToEvict,
   shouldReplayComputerActions,
   stopExtraScreenCommand,
   teardownReleasedScreen,
@@ -644,14 +647,18 @@ app.post("/computers/:id/actions", async (c) => {
       settleMs: z.number().min(0).max(5_000).optional(),
     })
     .parse(await c.req.json());
+  let acting:
+    | { container: Docker.Container; display: string; screenKey: string; index: number }
+    | undefined;
   try {
-    const { container, info, layout, browserProfile } = await managedScreen(
+    const { container, info, layout, browserProfile, screenKey, index } = await managedScreen(
       c.req.param("id"),
       c.req.header("x-rakazo-bot-id"),
       c.req.header("x-rakazo-space-id"),
       c.req.header("x-rakazo-screen-id"),
       c.req.header("x-rakazo-screen-lease-id"),
     );
+    acting = { container, display: layout.display, screenKey, index };
     const control = computerControlEndpoint(info);
     const attempt = await attemptComputerControl(
       control
@@ -682,6 +689,21 @@ app.post("/computers/:id/actions", async (c) => {
           }),
     });
   } catch (error) {
+    // A step cut off mid-key (a timed-out type) leaves that key held on the screen. Only let
+    // go of held keys, on this screen while it is still this bot's: another request on it may
+    // be typing, and a screen that changed hands was already released.
+    const failed = acting;
+    if (failed) {
+      await withComputerScreenLock(c.req.param("id"), async () => {
+        const slot = computerScreens.get(c.req.param("id"))?.get(failed.screenKey);
+        if (!slot || slot.releasing || slot.index !== failed.index) return;
+        await runContainerCommand(failed.container, [
+          "bash",
+          "-c",
+          releaseHeldKeysCommand(failed.display),
+        ]);
+      }).catch(() => undefined);
+    }
     const message = error instanceof Error ? error.message : String(error);
     return c.json({ error: message }, 500);
   }
@@ -781,6 +803,7 @@ app.get("/computers/:id/screen", async (c) => {
       c.req.header("x-rakazo-screen-id"),
       c.req.header("x-rakazo-screen-lease-id"),
       false,
+      { wake: false },
     );
     const screenUrl = await publishedScreenUrl(container, info, layout.viewPort);
     return c.redirect(screenUrlWithToken(screenUrl, viewToken));
@@ -798,6 +821,7 @@ app.post("/computers/:id/screen-mode", async (c) => {
         .regex(/^[A-Za-z0-9_-]{1,128}$/)
         .optional(),
       revokeControl: z.boolean().optional(),
+      wake: z.boolean().optional(),
     })
     .refine((value) => !value.interactive || value.controlToken, {
       message: "interactive screen requires a control token",
@@ -810,14 +834,30 @@ app.post("/computers/:id/screen-mode", async (c) => {
     const screenId = c.req.header("x-rakazo-screen-id");
     const screenLeaseId = c.req.header("x-rakazo-screen-lease-id");
     const { container, info } = await managedContainer(id, botId, spaceId);
-    const { layout, viewToken } = await withComputerScreenLock(id, async () => {
+    const viewing = !body.interactive && body.revokeControl === false;
+    const revoking = !body.interactive && body.revokeControl !== false;
+    const screen = await withComputerScreenLock(id, async () => {
+      if (revoking) {
+        const assigned = currentComputerScreens(
+          computerScreens,
+          computerScreenBoots,
+          id,
+          (await container.inspect()).State?.StartedAt,
+        );
+        // A revoke never opens a screen: one taken since then already lost its control session.
+        if (!assigned?.has(screenId || botId || id)) {
+          await revokeUnassignedControl(container, body.controlToken);
+          return undefined;
+        }
+      }
       const screen = await ensureManagedScreen(
         id,
         container,
         botId,
         screenId,
         screenLeaseId,
-        !body.interactive && body.revokeControl === false,
+        viewing,
+        viewing ? { wake: body.wake === true } : undefined,
       );
       if (body.interactive || body.revokeControl !== false) {
         const changed = await setInteractiveScreen(
@@ -832,13 +872,14 @@ app.post("/computers/:id/screen-mode", async (c) => {
             slot.controlled = true;
             slot.controlToken = body.controlToken;
           } else {
-            delete slot.controlled;
-            delete slot.controlToken;
+            releaseScreenControl(slot);
           }
         }
       }
       return screen;
     });
+    if (!screen) return c.json({});
+    const { layout, viewToken } = screen;
     const screenUrl = await publishedScreenUrl(
       container,
       info,
@@ -1316,12 +1357,16 @@ async function managedScreen(
   screenId: string | undefined,
   screenLeaseId: string | undefined,
   restoreControl = true,
+  view?: ScreenView,
 ) {
   const { container } = await managedContainer(id, botId, spaceId);
   return withComputerScreenLock(id, () =>
-    ensureManagedScreen(id, container, botId, screenId, screenLeaseId, restoreControl),
+    ensureManagedScreen(id, container, botId, screenId, screenLeaseId, restoreControl, view),
   );
 }
+
+/** A person looking at a bot's screen, as opposed to a run or a person controlling it. */
+type ScreenView = { wake: boolean };
 
 async function ensureManagedScreen(
   id: string,
@@ -1330,6 +1375,7 @@ async function ensureManagedScreen(
   screenId: string | undefined,
   screenLeaseId: string | undefined,
   restoreControl = true,
+  view?: ScreenView,
 ) {
   // Docker can restart independently of the supervisor's screen lock.
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -1340,6 +1386,7 @@ async function ensureManagedScreen(
       screenId,
       screenLeaseId,
       restoreControl,
+      view,
     );
     const info = await container.inspect();
     if (info.State?.StartedAt === screen.info.State?.StartedAt) {
@@ -1364,6 +1411,7 @@ async function ensureManagedScreenAttempt(
   screenId: string | undefined,
   screenLeaseId: string | undefined,
   restoreControl = true,
+  view?: ScreenView,
 ) {
   // Callers hold the screen lock: an inspection before waiting can describe an older boot.
   const info = await container.inspect();
@@ -1386,29 +1434,28 @@ async function ensureManagedScreenAttempt(
     if (info.State?.StartedAt) computerScreenBoots.set(id, info.State.StartedAt);
   }
   const screenKey = screenId || botId || id;
-  if (!assigned.has(screenKey)) {
-    const usedIndexes = new Set([...assigned.values()].map((slot) => slot.index));
-    const hasFreeIndex = Array.from({ length: teamScreenLimit }, (_, index) => index).some(
-      (index) => !usedIndexes.has(index),
-    );
-    if (!hasFreeIndex) {
-      const evictedScreenId = oldestIdleScreen(assigned, teamScreenLimit);
-      const evicted = evictedScreenId ? assigned.get(evictedScreenId) : undefined;
-      if (evictedScreenId && evicted) {
-        const evictedIndex = releaseAssignedScreen(assigned, evictedScreenId, evicted.leaseId);
-        if (evictedIndex !== undefined) {
-          await teardownReleasedScreen(assigned, evictedScreenId, evictedIndex, () =>
-            runContainerCommand(container, [
-              "bash",
-              "-c",
-              stopExtraScreenCommand(evictedIndex, evictedScreenId),
-            ]),
-          );
-        }
-      }
+  // Only waking a screen on purpose takes another bot's idle spot; looking at one never does.
+  const now = Date.now();
+  const evictedScreenId =
+    view && !view.wake
+      ? undefined
+      : screenToEvict(assigned, screenKey, teamScreenLimit, view ? now : undefined);
+  const evicted = evictedScreenId ? assigned.get(evictedScreenId) : undefined;
+  if (evictedScreenId && evicted) {
+    const evictedIndex = releaseAssignedScreen(assigned, evictedScreenId, evicted.leaseId);
+    if (evictedIndex !== undefined) {
+      await teardownReleasedScreen(assigned, evictedScreenId, evictedIndex, () =>
+        runContainerCommand(container, [
+          "bash",
+          "-c",
+          stopExtraScreenCommand(evictedIndex, evictedScreenId),
+        ]),
+      );
     }
   }
-  const index = nextScreenIndex(assigned, screenKey, screenLeaseId, teamScreenLimit);
+  const index = view
+    ? nextViewScreenIndex(assigned, screenKey, teamScreenLimit, now, view.wake)
+    : nextScreenIndex(assigned, screenKey, screenLeaseId, teamScreenLimit);
   const layout = screenPorts(index);
   const slot = assigned.get(screenKey)!;
   slot.viewToken ??= randomUUID();
@@ -1608,6 +1655,24 @@ async function rejoinComputerNetwork(info: Docker.ContainerInspectInfo) {
   const runtime = supervisorInfo ?? (await inspectSupervisorContainer());
   const networkName = info.HostConfig.NetworkMode;
   if (runtime && networkName) await connectComposeScreenPeers(networkName, runtime);
+}
+
+/**
+ * Revoke a control token on a screen the registry no longer has, without opening one. A screen
+ * that was taken lost its token with its transports; after a supervisor restart the session can
+ * still be running, so it is stopped wherever the token still names it.
+ */
+async function revokeUnassignedControl(container: Docker.Container, controlToken?: string) {
+  if (!controlToken) return;
+  const found = await runContainerCommand(container, [
+    "bash",
+    "-c",
+    `for f in /tmp/rakazo/control-token-*; do [ -f "$f" ] && [ "$(cat "$f")" = ${shellQuote(controlToken)} ] && echo "\${f##*-}"; done; true`,
+  ]);
+  for (const displayNumber of found.stdout.split("\n").filter((line) => /^\d+$/.test(line))) {
+    const layout = screenPorts(Number(displayNumber) - screenPorts(0).displayNumber);
+    await setInteractiveScreen(container, false, controlToken, layout);
+  }
 }
 
 async function setInteractiveScreen(

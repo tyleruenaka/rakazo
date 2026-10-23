@@ -8,7 +8,6 @@ import { SecretStoreUnavailableError } from "@rakazo/adapter-kit";
 import type { McpOAuthSummary } from "@rakazo/adapters";
 import * as adapters from "@rakazo/adapters";
 import {
-  COMPUTER_SCREEN_UNAVAILABLE,
   CodexCatalogCache,
   ComputerBusyError,
   ComputerScreenUnavailableError,
@@ -2666,7 +2665,11 @@ describe("computer screen url", () => {
     controlRunId: null,
   };
 
-  const callScreenUrl = async (connectScreen: () => Promise<unknown>, updateMany = vi.fn()) => {
+  const callScreenUrl = async (
+    connectScreen: (...args: unknown[]) => Promise<unknown>,
+    updateMany = vi.fn(),
+    input: Record<string, unknown> = {},
+  ) => {
     const prisma = {
       bot: {
         findFirst: vi.fn().mockResolvedValue({
@@ -2697,7 +2700,7 @@ describe("computer screen url", () => {
       new Request("http://127.0.0.1/rpc/computer/screenUrl", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ json: { botId: "bot-1" } }),
+        body: JSON.stringify({ json: { botId: "bot-1", ...input } }),
       }),
       { prefix: "/rpc", context: { actor } },
     );
@@ -2758,18 +2761,22 @@ describe("computer screen url", () => {
     expect(updateMany).not.toHaveBeenCalled();
   });
 
-  it("returns a recoverable conflict when the screen is temporarily busy", async () => {
+  it("reports no free screen instead of an error, and leaves the row alone", async () => {
     const { response, updateMany } = await callScreenUrl(() =>
       Promise.reject(new ComputerScreenUnavailableError()),
     );
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({
-      json: expect.objectContaining({
-        code: "CONFLICT",
-        message: COMPUTER_SCREEN_UNAVAILABLE,
-      }),
-    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ json: { url: null, unavailable: true } });
     expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it("asks the provider to wake the screen only when the viewer asked", async () => {
+    const connectScreen = vi.fn().mockResolvedValue({ url: "https://screen.example/vnc.html" });
+    await callScreenUrl(connectScreen);
+    await callScreenUrl(connectScreen, vi.fn(), { wake: true });
+    expect(
+      connectScreen.mock.calls.map(([, request]) => (request as { wake?: boolean }).wake),
+    ).toEqual([undefined, true]);
   });
 });
 
