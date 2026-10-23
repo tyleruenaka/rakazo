@@ -113,9 +113,10 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await expect(settings.getByRole("switch", { name: "Read replies aloud" })).toBeHidden();
   await expect(settings.getByRole("switch", { name: "Manage nested bots" })).toBeHidden();
   await expect(modelSelect).toHaveCount(0);
-  // Open work stays hidden until there is some.
-  await expect(openWork).toHaveCount(0);
-  // Save, Export and Clear stay together in Tyler's bottom row.
+  // Open work shows its heading and + even when empty, so the first item can be added.
+  await expect(openWork.getByRole("heading", { name: "Open work", exact: true })).toBeVisible();
+  await expect(openWork.getByRole("button", { name: "Add open work" })).toBeVisible();
+  // Save, Export and Clear stay together in the bottom row.
   await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   await expect(settings.getByRole("button", { name: "Export", exact: true })).toBeVisible();
   await expect(settings.getByRole("button", { name: "Recover computer" })).toHaveCount(0);
@@ -149,24 +150,26 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await expandAdvancedSection(advancedSection);
   await expect(modelSelect).toBeVisible();
   await captureScreenshot(page, testInfo, "bot-settings-sections-advanced");
+  await openWork.getByRole("button", { name: "Add open work" }).click();
+  await openWork.getByRole("textbox", { name: "New open-work item" }).fill("First fixture task");
+  await openWork.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(openWork.getByText("First fixture task", { exact: true })).toBeVisible();
   await rpc(page, "scratchpad/create", {
     botId: deletedBotPath.split("/").at(-1),
-    title: "First fixture task",
+    title: "Second fixture task",
   });
   await page.getByRole("button", { name: "Close panel" }).click();
   await openBotSettings(page, "Researcher");
   await expandAdvancedSection(advancedSection);
-  await expect(openWork.getByText("First fixture task", { exact: true })).toBeVisible();
-  await openWork.getByRole("button", { name: "Add open work" }).click();
-  await openWork.getByRole("textbox", { name: "New open-work item" }).fill("Second fixture task");
-  await openWork.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(openWork.getByText("Second fixture task", { exact: true })).toBeVisible();
   const workRows = openWork.locator(".group");
   await expect(workRows).toHaveCount(2);
   for (let index = 0; index < 2; index += 1) {
     await workRows.first().hover();
     await workRows.first().getByRole("button", { name: "Remove" }).click();
   }
-  await expect(openWork).toHaveCount(0);
+  await expect(workRows).toHaveCount(0);
+  await expect(openWork.getByRole("button", { name: "Add open work" })).toBeVisible();
   const disabledTools = settings.getByLabel("Disable a tool");
   await expect(disabledTools).toBeVisible();
   await disabledTools.selectOption("web_search");

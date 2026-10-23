@@ -13,7 +13,20 @@ vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
 vi.mock("./native", () => ({ native: {}, useMobileTokens: () => ({}) }));
 vi.mock("./user-error", () => ({ errorText: (error: Error) => error.message }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
-vi.mock("../components/profile-edit-dialog", () => ({ ProfileEditDialog: () => null }));
+vi.mock("../components/profile-edit-dialog", () => ({
+  ProfileEditDialog: ({
+    editLabel,
+    onCommit,
+  }: {
+    editLabel: string;
+    onCommit: (value: string) => Promise<void>;
+  }) =>
+    createElement("button", {
+      type: "button",
+      "aria-label": editLabel,
+      onClick: () => void onCommit("First task"),
+    }),
+}));
 vi.mock("../components/bot-card", () => {
   const view = ({ children }: { children?: ReactNode }) => createElement("div", null, children);
   return {
@@ -58,7 +71,7 @@ async function render(botId = "bot-a") {
 
 describe("bot context cards", () => {
   it.each([
-    ["scratchpad/list", "Memory", "notes.md", "Open work"],
+    ["scratchpad/list", "Memory", "notes.md", "Review draft"],
     ["memory/list", "Open work", "Review draft", "Memory"],
   ])("renders the other section when %s fails", async (failed, heading, item, hidden) => {
     rpc.mockImplementation(async (method: string) => {
@@ -85,12 +98,27 @@ describe("bot context cards", () => {
     expect(container.textContent).toContain(item);
   });
 
-  it("hides empty work and placeholder-only memory", async () => {
+  it("keeps the Open work heading and + when empty, and hides placeholder-only memory", async () => {
     rpc.mockImplementation(async (method: string) =>
       method === "scratchpad/list" ? [] : [{ id: "memory-a", path: "MEMORY.md", content: "" }],
     );
     await render();
-    expect(container.textContent).toBe("");
+    expect(container.textContent).toBe("Open work");
+    expect(container.querySelector('[aria-label="Add open work"]')).not.toBeNull();
+  });
+
+  it("adds the first open-work item from an empty list", async () => {
+    const created = { id: "work-first", title: "First task", notes: "", status: "open" };
+    rpc.mockImplementation(async (method: string) => {
+      if (method === "scratchpad/create") return created;
+      return [];
+    });
+    await render();
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Add open work"]')!.click(),
+    );
+    expect(rpc).toHaveBeenCalledWith("scratchpad/create", { botId: "bot-a", title: "First task" });
+    expect(container.textContent).toContain("First task");
   });
 
   it("ignores results from the previous bot", async () => {
@@ -106,6 +134,6 @@ describe("bot context cards", () => {
     await render();
     await render("bot-b");
     await act(async () => resolveWork(work));
-    expect(container.textContent).toBe("");
+    expect(container.textContent).not.toContain("Review draft");
   });
 });

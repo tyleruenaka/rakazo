@@ -74,7 +74,7 @@ for (const [failing, intact] of [
     const settings = page.getByTestId("bot-settings");
     await expect(settings.getByText("Could not load", { exact: true })).toBeVisible();
     await expect(settings.getByTestId(intact)).toBeVisible();
-    // Tyler's Save row stays in place next to Export and Clear.
+    // The Save row stays in place next to Export and Clear.
     await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
     await expect(composer).toHaveValue("Keep this draft");
   });

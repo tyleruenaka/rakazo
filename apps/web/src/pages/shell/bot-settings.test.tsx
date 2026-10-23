@@ -480,7 +480,7 @@ it("omits projected identity values on unrelated saves but keeps explicit edits"
   );
   expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty("name");
   expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty("title");
-  // Tyler's panel keeps Name and Title as fields that save when they lose focus.
+  // Name and Title are fields that save when they lose focus.
   for (const [field, value] of [
     ["-name", "SupportBot2026"],
     ["-title", "Support"],

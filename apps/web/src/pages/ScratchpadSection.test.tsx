@@ -6,7 +6,9 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 
 vi.mock("../lib/rpc", () => ({
-  rpc: { scratchpad: { list: vi.fn().mockResolvedValue([]), remove: vi.fn() } },
+  rpc: {
+    scratchpad: { list: vi.fn().mockResolvedValue([]), create: vi.fn(), remove: vi.fn() },
+  },
 }));
 vi.mock("@lingui/react/macro", () => ({
   useLingui: () => ({ t: (parts: TemplateStringsArray) => parts.join("") }),
@@ -16,14 +18,48 @@ vi.mock("@lingui/react/macro", () => ({
 import { rpc } from "../lib/rpc";
 import { ScratchpadSection } from "./ScratchpadSection";
 
-it("hides the entire empty section", async () => {
+it("keeps the heading and + on an empty list so the first item can be added", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const created = {
+    id: "work-first",
+    botId: "bot-fixture",
+    title: "First task",
+    notes: "",
+    status: "open" as const,
+    createdAt: "",
+    updatedAt: "",
+  };
+  vi.mocked(rpc.scratchpad.create).mockResolvedValueOnce(created);
+  vi.mocked(rpc.scratchpad.list).mockResolvedValueOnce([]).mockResolvedValueOnce([created]);
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   try {
     await act(async () => root.render(<ScratchpadSection botId="bot-fixture" />));
-    expect(container.querySelector('[data-testid="bot-scratchpad"]')).toBeNull();
+    const section = container.querySelector('[data-testid="bot-scratchpad"]')!;
+    expect(section).not.toBeNull();
+    expect(section.textContent).toContain("Open work");
+    // No empty card under the heading until there is something to show.
+    expect(section.children).toHaveLength(1);
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Add open work"]')!.click(),
+    );
+    const input = container.querySelector<HTMLInputElement>('[aria-label="New open-work item"]')!;
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setValue.call(input, "First task");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      [...container.querySelectorAll("button")].find((node) => node.textContent === "Add")!.click(),
+    );
+    expect(rpc.scratchpad.create).toHaveBeenCalledWith({
+      botId: "bot-fixture",
+      title: "First task",
+    });
+    expect(container.textContent).toContain("First task");
+    expect(container.querySelector('[aria-label="New open-work item"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();

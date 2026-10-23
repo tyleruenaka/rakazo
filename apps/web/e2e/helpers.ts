@@ -125,7 +125,7 @@ export async function waitForSidebarTransitions(page: Page) {
 
 /**
  * The chat header toggles the bot profile; the gear switches the open panel to settings.
- * Tyler's panel opens on the profile, so settings tests go through the gear.
+ * The panel opens on the profile, so settings tests go through the gear.
  */
 export async function openBotSettings(page: Page, name: string | RegExp) {
   const gear = page.getByRole("button", { name: "Show settings" });

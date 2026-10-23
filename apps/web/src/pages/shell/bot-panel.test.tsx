@@ -261,7 +261,7 @@ it("shows the main sections and keeps only rare controls in Advanced", async () 
     { id: "fixture-voice", label: "Fixture voice" },
   ]);
   await render("Billing", {}, true);
-  // Tyler's panel keeps Name and Title as fields at the top, with Save beside Export and Clear.
+  // Name and Title are fields at the top, with Save beside Export and Clear.
   expect(container.querySelector<HTMLInputElement>('input[id$="-name"]')?.value).toBe("Ada");
   expect(container.querySelector('[id$="-description"]')).toBeNull();
   expect(container.querySelector('[id$="-disabled-tools"]')).toBeNull();

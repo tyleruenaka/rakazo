@@ -103,8 +103,8 @@ export function ScratchpadSection({ botId }: { botId: string }) {
     }
   }
 
-  // Nothing to show until the bot (or someone) records open work.
-  if (!items.length && !error) return null;
+  // With no items the group is just its heading and +, so the first item can still be added.
+  const hasBody = items.length > 0 || adding || Boolean(error);
 
   return (
     <SettingsGroup
@@ -123,76 +123,82 @@ export function ScratchpadSection({ botId }: { botId: string }) {
       }
       testId="bot-scratchpad"
     >
-      {(showAll ? items : items.slice(0, 5)).map((item) => (
-        <div key={item.id} className="group flex items-start gap-2.5 px-3.5 py-2.5">
-          <Checkbox
-            aria-label={item.status === "done" ? t`Reopen` : t`Complete`}
-            checked={item.status === "done"}
-            disabled={busy}
-            onCheckedChange={(checked) => void setStatus(item, checked ? "done" : "open")}
-            className="mt-0.5"
-          />
-          <div className="min-w-0 flex-1">
-            <div
-              className={`text-start text-[12.5px] leading-[19px] ${item.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}
-              dir="auto"
-            >
-              {item.title}
+      {hasBody ? (
+        <>
+          {(showAll ? items : items.slice(0, 5)).map((item) => (
+            <div key={item.id} className="group flex items-start gap-2.5 px-3.5 py-2.5">
+              <Checkbox
+                aria-label={item.status === "done" ? t`Reopen` : t`Complete`}
+                checked={item.status === "done"}
+                disabled={busy}
+                onCheckedChange={(checked) => void setStatus(item, checked ? "done" : "open")}
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <div
+                  className={`text-start text-[12.5px] leading-[19px] ${item.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}
+                  dir="auto"
+                >
+                  {item.title}
+                </div>
+                {item.notes ? <ClampedNotes text={item.notes} /> : null}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={t`Remove`}
+                disabled={busy}
+                onClick={() => void removeItem(item)}
+                className="-my-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              >
+                <X />
+              </Button>
             </div>
-            {item.notes ? <ClampedNotes text={item.notes} /> : null}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={t`Remove`}
-            disabled={busy}
-            onClick={() => void removeItem(item)}
-            className="-my-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
-          >
-            <X />
-          </Button>
-        </div>
-      ))}
-      {items.length > 5 && !showAll ? (
-        <div className="px-3.5 py-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-muted-foreground"
-            onClick={() => setShowAll(true)}
-          >
-            <Trans>Show more</Trans>
-          </Button>
-        </div>
+          ))}
+          {items.length > 5 && !showAll ? (
+            <div className="px-3.5 py-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={() => setShowAll(true)}
+              >
+                <Trans>Show more</Trans>
+              </Button>
+            </div>
+          ) : null}
+          {adding ? (
+            <form
+              className="flex items-center gap-2 px-3.5 py-2.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void addItem();
+              }}
+            >
+              <Input
+                autoFocus
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder={t`Add item`}
+                aria-label={t`New open-work item`}
+                maxLength={200}
+                className="min-w-0 flex-1"
+              />
+              <Button
+                variant="secondary"
+                className={`rounded-full ${settingsPillClass}`}
+                disabled={busy || !draft.trim()}
+                onClick={() => void addItem()}
+              >
+                <Trans>Add</Trans>
+              </Button>
+            </form>
+          ) : null}
+          {error ? (
+            <div className="px-3.5 pb-2.5 text-[12.5px] text-destructive">{error}</div>
+          ) : null}
+        </>
       ) : null}
-      {adding ? (
-        <form
-          className="flex items-center gap-2 px-3.5 py-2.5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void addItem();
-          }}
-        >
-          <Input
-            autoFocus
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t`Add item`}
-            aria-label={t`New open-work item`}
-            maxLength={200}
-            className="min-w-0 flex-1"
-          />
-          <Button
-            variant="secondary"
-            className={`rounded-full ${settingsPillClass}`}
-            disabled={busy || !draft.trim()}
-            onClick={() => void addItem()}
-          >
-            <Trans>Add</Trans>
-          </Button>
-        </form>
-      ) : null}
-      {error ? <div className="px-3.5 pb-2.5 text-[12.5px] text-destructive">{error}</div> : null}
     </SettingsGroup>
   );
 }

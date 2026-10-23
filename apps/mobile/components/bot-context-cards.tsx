@@ -10,7 +10,10 @@ import { BotCard, BotCardLabel, BotCardRow } from "./bot-card";
 import { NativeSymbol } from "./native-symbol";
 import { ProfileEditDialog } from "./profile-edit-dialog";
 
-/** Open work and memory on the bot settings page; each card hides until it has rows. */
+/**
+ * Open work and memory on the bot settings page. Open work always shows its heading and +,
+ * so the first item can be added; its card and the Memory card hide until they have rows.
+ */
 export function BotContextCards({ botId }: { botId: string }) {
   const { t } = useI18n();
   const tokens = useMobileTokens();
@@ -52,30 +55,30 @@ export function BotContextCards({ botId }: { botId: string }) {
   );
   return (
     <>
-      {work.length ? (
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <BotCardLabel>{t("Open work")}</BotCardLabel>
-            <ProfileEditDialog
-              value=""
-              label={t("Add open work")}
-              editLabel={t("Add open work")}
-              maxLength={200}
-              icon="plus"
-              onCommit={async (title) => {
-                if (!title || busy) return;
-                setBusy(true);
-                try {
-                  const item = await rpc<ScratchpadItem>("scratchpad/create", { botId, title });
-                  setWork((items) => [item, ...items]);
-                } catch (err) {
-                  setError(errorText(err));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-          </View>
+      <View style={styles.section}>
+        <View style={styles.labelRow}>
+          <BotCardLabel>{t("Open work")}</BotCardLabel>
+          <ProfileEditDialog
+            value=""
+            label={t("Add open work")}
+            editLabel={t("Add open work")}
+            maxLength={200}
+            icon="plus"
+            onCommit={async (title) => {
+              if (!title || busy) return;
+              setBusy(true);
+              try {
+                const item = await rpc<ScratchpadItem>("scratchpad/create", { botId, title });
+                setWork((items) => [item, ...items]);
+              } catch (err) {
+                setError(errorText(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </View>
+        {work.length ? (
           <BotCard>
             {(allWork ? work : work.slice(0, 5)).map((item) => (
               <View key={item.id} style={styles.workRow}>
@@ -116,8 +119,8 @@ export function BotContextCards({ botId }: { botId: string }) {
             ))}
             {!allWork && work.length > 5 ? showMore(() => setAllWork(true)) : null}
           </BotCard>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
       {docs.length ? (
         <View style={styles.section}>
           <BotCardLabel>{t("Memory")}</BotCardLabel>
