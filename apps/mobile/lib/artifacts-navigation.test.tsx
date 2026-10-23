@@ -124,6 +124,7 @@ it.each(["android", "ios"])("omits Artifacts from the %s fallback header", (plat
     tokens: {},
     Platform: { OS: platform },
     openCreateChooser: vi.fn(),
+    createButton: { current: null },
     appearance: "light",
     runCreateAction: vi.fn(),
   });
