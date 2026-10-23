@@ -51,12 +51,15 @@ export function BotCardRow({
   value,
   icon,
   chevron = true,
+  destructive = false,
   ...props
 }: Omit<PressableProps, "children" | "style"> & {
   title: string;
   value?: string;
   icon?: ComponentProps<typeof NativeSymbol>;
   chevron?: boolean;
+  /** Red title and icon, for actions like clearing a conversation. */
+  destructive?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
   return (
@@ -67,10 +70,17 @@ export function BotCardRow({
     >
       {icon ? (
         <View style={styles.icon}>
-          <NativeSymbol color={native.secondaryLabel} size={19} {...icon} />
+          <NativeSymbol
+            color={destructive ? mobileTokens().destructive : native.secondaryLabel}
+            size={19}
+            {...icon}
+          />
         </View>
       ) : null}
-      <Text numberOfLines={1} style={styles.title}>
+      <Text
+        numberOfLines={1}
+        style={[styles.title, destructive && { color: mobileTokens().destructive }]}
+      >
         {title}
       </Text>
       {value ? (

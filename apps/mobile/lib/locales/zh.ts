@@ -1,4 +1,8 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  Export: "导出",
+  "Add open work": "添加待办事项",
+  "How other bots see it": "其他机器人如何了解它",
+  "Open work": "待办事项",
   "To:": "收件人：",
   Next: "下一步",
   "Ex: Project Falcon": "例如：猎鹰计划",
@@ -238,6 +242,7 @@ export const ZH_MESSAGES: Record<string, string> = {
   Code: "验证码",
   Color: "颜色",
   "Color {number}": "颜色 {number}",
+  Complete: "完成",
   Completed: "已完成",
   Computer: "电脑",
   "Confirm password": "确认密码",

@@ -490,6 +490,10 @@ msgstr "Ajouter un élément"
 msgid "Add MCP server"
 msgstr "Ajouter un serveur MCP"
 
+#: src/pages/ScratchpadSection.tsx
+msgid "Add open work"
+msgstr "Ajouter une tâche en cours"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add OpenAPI"
 msgstr "Ajouter OpenAPI"
@@ -2205,8 +2209,8 @@ msgid "Direct MCP"
 msgstr "MCP direct"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Disabled tools"
-msgstr ""
+msgid "Disable a tool"
+msgstr "Désactiver un outil"
 
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
@@ -2288,6 +2292,7 @@ msgid "Done"
 msgstr "Terminé"
 
 #: src/components/ArtifactPreviewPane.tsx
+#: src/pages/KnowledgeSection.tsx
 msgid "Download"
 msgstr "Télécharger"
 
@@ -2299,10 +2304,6 @@ msgstr "Télécharger {0}"
 #: src/components/ArtifactFileCard.tsx
 msgid "Download {name}"
 msgstr "Télécharger {name}"
-
-#: src/pages/KnowledgeSection.tsx
-msgid "Download as markdown"
-msgstr "Télécharger en markdown"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Download Executor"
@@ -2371,6 +2372,15 @@ msgstr "Cette adresse e-mail ne peut pas s’inscrire"
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "Vérification de l’e-mail requise"
+
+#. placeholder {0}: humanizeTool(toolName)
+#: src/pages/shell/bot-panel.tsx
+msgid "Enable {0}"
+msgstr "Activer {0}"
+
+#: src/pages/shell/bot-credentials.tsx
+msgid "Encrypted and never shown again"
+msgstr "Chiffré et jamais affiché à nouveau"
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
@@ -2639,10 +2649,6 @@ msgstr "Général"
 msgid "Get credentials"
 msgstr "Obtenir les identifiants"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "Soyez averti lorsque ce bot termine ou a besoin d'une saisie"
-
 #: src/components/SidebarFooter.tsx
 msgid "Get the mobile app"
 msgstr "Obtenir l’application mobile"
@@ -2750,6 +2756,10 @@ msgstr "heures"
 #: src/pages/RoutineSchedule.tsx
 msgid "How often"
 msgstr "Fréquence"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "How other bots see it"
+msgstr "Comment les autres bots le voient"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "How to check"
@@ -2905,11 +2915,6 @@ msgstr "Conserver les mémoires"
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "clé"
-
-#: src/pages/KnowledgeSection.tsx
-#: src/pages/shell/bot-panel.tsx
-msgid "Knowledge"
-msgstr "Connaissances"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Language"
@@ -3310,6 +3315,10 @@ msgstr "Modèle"
 msgid "Model \"{modelId}\" was not listed."
 msgstr "Le modèle \"{modelId}\" n'est pas dans la liste."
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Model connections"
+msgstr "Connexions aux modèles"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -3506,10 +3515,6 @@ msgstr "Aucun bot ne correspond"
 msgid "No chat apps linked yet."
 msgstr "Aucune application de discussion connectée pour le moment."
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "No credentials saved for this bot."
-msgstr ""
-
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr "Aucune conversation de groupe pour le moment."
@@ -3600,10 +3605,6 @@ msgstr "Aucun outil disponible."
 msgid "No trigger"
 msgstr "Aucun déclencheur"
 
-#: src/pages/ScratchpadSection.tsx
-msgid "None yet"
-msgstr "Aucun pour le moment"
-
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr ""
@@ -3691,7 +3692,6 @@ msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Seuls les espaces vides peuvent être supprimés. Supprimez d'abord ses bots et groupes."
 
 #: src/components/markdown-link-prompt.tsx
-#: src/pages/ScratchpadSection.tsx
 #: src/pages/Shell.tsx
 msgid "Open"
 msgstr "Ouvrir"
@@ -3810,10 +3810,6 @@ msgstr "Propriétaire"
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
 msgstr "Incident PagerDuty"
-
-#: src/pages/ScratchpadSection.tsx
-msgid "Park"
-msgstr "Mettre en attente"
 
 #: src/components/PasskeySettings.tsx
 msgid "Passkey"
@@ -4341,11 +4337,6 @@ msgstr "Réessayer l'écran"
 msgid "Return to Rakazo"
 msgstr "Retour à Rakazo"
 
-#. placeholder {0}: doc.revision
-#: src/pages/KnowledgeSection.tsx
-msgid "rev {0}"
-msgstr "rév. {0}"
-
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
 msgstr "Vérifiez les paramètres du fournisseur et testez à nouveau."
@@ -4659,10 +4650,6 @@ msgstr "Conversation partagée avec {GROUP_MEMBER_MIN} à {GROUP_MEMBER_MAX} bot
 msgid "Shared documents"
 msgstr "Documents partagés"
 
-#: src/pages/KnowledgeSection.tsx
-msgid "Shared skills"
-msgstr "Compétences partagées"
-
 #: src/pages/GroupPanel.tsx
 msgid "Show all"
 msgstr ""
@@ -4676,6 +4663,7 @@ msgstr "Afficher les bots"
 msgid "Show list"
 msgstr "Afficher la liste"
 
+#: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Show more"
@@ -4745,6 +4733,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Skill {0}"
 msgstr "Compétence {0}"
+
+#: src/pages/KnowledgeSection.tsx
+msgid "Skills"
+msgstr "Compétences"
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
@@ -5156,6 +5148,7 @@ msgid "Tool sources"
 msgstr "Sources d'outils"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
 msgid "Tools"
 msgstr "Outils"
 
@@ -5230,10 +5223,6 @@ msgstr "Annuler"
 #: src/pages/PluginsOverlay.tsx
 msgid "Uninstall"
 msgstr "Désinstaller"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Unknown tool"
-msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Unlink"
@@ -5406,10 +5395,6 @@ msgstr ""
 msgid "Value"
 msgstr "Valeur"
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "Values are encrypted and never shown again."
-msgstr "Les valeurs sont chiffrées et ne sont plus affichées."
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Vérifier et ajouter"
@@ -5514,6 +5499,10 @@ msgstr "Élément à surveiller"
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
 msgstr "Lorsqu'un webhook se déclenche"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When it finishes or needs input"
+msgstr "Quand le bot a terminé ou attend une réponse"
 
 #: src/pages/RoutineEditor.tsx
 msgid "When something changes"

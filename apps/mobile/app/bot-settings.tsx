@@ -17,9 +17,19 @@ import {
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { Voice } from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
 import { BotCard, BotCardLabel, BotCardRow } from "../components/bot-card";
+import { BotContextCards } from "../components/bot-context-cards";
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import { floatingHeaderOptions } from "../components/glass-title";
 import { InfoButton } from "../components/info-button";
@@ -55,7 +65,14 @@ export default function BotSettingsScreen() {
     botId,
     model: pickedModel,
     avatar: pickedAvatar,
-  } = useLocalSearchParams<{ botId: string; model?: string; avatar?: string }>();
+    focus,
+  } = useLocalSearchParams<{
+    botId: string;
+    model?: string;
+    avatar?: string;
+    /** "model" opens Advanced, for the run error's model link. */
+    focus?: string;
+  }>();
   const [bot, setBot] = useState<BotSettingsRecord | null>(null);
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
@@ -63,7 +80,7 @@ export default function BotSettingsScreen() {
   const [instructions, setInstructions] = useState("");
   const [color, setColor] = useState<string>(BOT_COLORS[0]);
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(focus === "model");
   const [modelKey, setModelKey] = useState("");
   const [thinkingLevel, setThinkingLevel] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(false);
@@ -505,6 +522,54 @@ export default function BotSettingsScreen() {
           </View>
         ) : null}
         <View style={styles.section}>
+          <BotCardLabel>{t("Instructions")}</BotCardLabel>
+          <BotCard>
+            <TextInput
+              key="instructions"
+              accessibilityLabel={t("Instructions")}
+              multiline
+              maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
+              value={instructions}
+              onChangeText={setInstructions}
+              style={[fieldStyle, styles.multilineField]}
+            />
+          </BotCard>
+          {bot?.instructionHistory?.length && instructions === bot.instructions ? (
+            <MenuPicker
+              plain
+              label={t("Instruction history")}
+              value=""
+              choices={bot.instructionHistory.map((version) => ({
+                key: version.id,
+                label: `${new Date(version.createdAt).toLocaleString()} · ${version.reason}`,
+              }))}
+              onChange={(versionId) => {
+                if (pending || instructions !== bot.instructions) return;
+                const version = bot.instructionHistory?.find((item) => item.id === versionId);
+                if (version)
+                  Alert.alert(t("Restore"), version.instructions, [
+                    { text: t("Cancel"), style: "cancel" },
+                    {
+                      text: t("Restore"),
+                      onPress: () => {
+                        void rpc<MobileBot>("bots/restoreInstructions", {
+                          botId: bot.id,
+                          versionId,
+                          expectedInstructions: bot.instructions,
+                        })
+                          .then((updated) => {
+                            setBot(updated);
+                            setInstructions(updated.instructions ?? "");
+                          })
+                          .catch((err) => setError(errorText(err)));
+                      },
+                    },
+                  ]);
+              }}
+            />
+          ) : null}
+        </View>
+        <View style={styles.section}>
           <BotCardLabel>{t("Voice")}</BotCardLabel>
           <BotCard separatorInset={18}>
             {deviceVoiceEnabled ? (
@@ -533,6 +598,7 @@ export default function BotSettingsScreen() {
             </View>
           </BotCard>
         </View>
+        {botId ? <BotContextCards key={botId} botId={botId} /> : null}
         <View style={styles.section}>
           <BotCard>
             <Pressable
@@ -550,74 +616,7 @@ export default function BotSettingsScreen() {
         </View>
         {advancedOpen ? (
           <View style={{ gap: 16, paddingTop: 16 }}>
-            <View>
-              <BotCardLabel>{t("Description")}</BotCardLabel>
-              <BotCard>
-                <TextInput
-                  key="description"
-                  accessibilityLabel={t("Description")}
-                  value={description}
-                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-                  onChangeText={setDescription}
-                  placeholder={t("What this bot is for")}
-                  placeholderTextColor={native.secondaryLabel}
-                  multiline
-                  style={[fieldStyle, styles.multilineField]}
-                />
-              </BotCard>
-            </View>
-            <View>
-              <BotCardLabel>{t("Instructions")}</BotCardLabel>
-              <BotCard>
-                <TextInput
-                  key="instructions"
-                  accessibilityLabel={t("Instructions")}
-                  multiline
-                  maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
-                  value={instructions}
-                  onChangeText={setInstructions}
-                  style={[fieldStyle, styles.multilineField]}
-                />
-              </BotCard>
-              {bot?.instructionHistory?.length && instructions === bot.instructions ? (
-                <MenuPicker
-                  plain
-                  label={t("Instruction history")}
-                  value=""
-                  choices={bot.instructionHistory.map((version) => ({
-                    key: version.id,
-                    label: `${new Date(version.createdAt).toLocaleString()} · ${version.reason}`,
-                  }))}
-                  onChange={(versionId) => {
-                    if (pending || instructions !== bot.instructions) return;
-                    const version = bot.instructionHistory?.find((item) => item.id === versionId);
-                    if (version)
-                      Alert.alert(t("Restore"), version.instructions, [
-                        { text: t("Cancel"), style: "cancel" },
-                        {
-                          text: t("Restore"),
-                          onPress: () => {
-                            void rpc<MobileBot>("bots/restoreInstructions", {
-                              botId: bot.id,
-                              versionId,
-                              expectedInstructions: bot.instructions,
-                            })
-                              .then((updated) => {
-                                setBot(updated);
-                                setInstructions(updated.instructions ?? "");
-                              })
-                              .catch((err) => setError(errorText(err)));
-                          },
-                        },
-                      ]);
-                  }}
-                />
-              ) : null}
-            </View>
             <BotCard>
-              <View key="computer" style={[styles.advancedCard, styles.advancedComputer]}>
-                <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
-              </View>
               <View key="model" style={styles.advancedCard}>
                 <MenuPicker
                   plain
@@ -658,6 +657,9 @@ export default function BotSettingsScreen() {
                   {modelMetaError}
                 </Text>
               ) : null}
+              <View key="computer" style={[styles.advancedCard, styles.advancedComputer]}>
+                <ComputerModePicker plain value={computerMode} onChange={setComputerMode} />
+              </View>
               <View key="fleet" style={[styles.row, styles.advancedCard, { minHeight: 49 }]}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
                   <Text style={[styles.fleetLabel, { color: tokens.mutedForeground }]}>
@@ -681,6 +683,67 @@ export default function BotSettingsScreen() {
                 />
               </View>
             </BotCard>
+            <View>
+              <BotCardLabel>{t("Description")}</BotCardLabel>
+              <Text style={styles.caption}>{t("How other bots see it")}</Text>
+              <BotCard>
+                <TextInput
+                  key="description"
+                  accessibilityLabel={t("Description")}
+                  value={description}
+                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+                  onChangeText={setDescription}
+                  placeholder={t("What this bot is for")}
+                  placeholderTextColor={native.secondaryLabel}
+                  multiline
+                  style={[fieldStyle, styles.multilineField]}
+                />
+              </BotCard>
+            </View>
+            {botId ? (
+              <BotCard>
+                <BotCardRow
+                  key="export"
+                  title={t("Export")}
+                  chevron={false}
+                  icon={{ ios: "square.and.arrow.up", android: "share-outline" }}
+                  onPress={() => {
+                    void rpc("export/bot", { botId })
+                      .then((manifest) =>
+                        Share.share({ message: JSON.stringify(manifest, null, 2) }),
+                      )
+                      .catch((err) => setError(errorText(err)));
+                  }}
+                />
+                <BotCardRow
+                  key="clear"
+                  title={t("Clear conversation")}
+                  chevron={false}
+                  destructive
+                  icon={{ ios: "eraser", android: "trash-outline" }}
+                  onPress={() =>
+                    Alert.alert(
+                      t("Clear conversation?"),
+                      t(
+                        "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
+                      ),
+                      [
+                        { text: t("Cancel"), style: "cancel" },
+                        {
+                          text: t("Clear"),
+                          style: "destructive",
+                          onPress: () => {
+                            void rpc("threads/clear", { botId })
+                              .then(() => router.back())
+                              .catch((err) => setError(errorText(err)));
+                          },
+                        },
+                      ],
+                    )
+                  }
+                />
+              </BotCard>
+            ) : null}
           </View>
         ) : null}
         {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
@@ -737,5 +800,6 @@ const styles = StyleSheet.create({
   },
   rowLabel: { flex: 1, color: native.label, fontSize: 17 },
   fleetLabel: { fontSize: 14, flexShrink: 1 },
+  caption: { color: native.secondaryLabel, fontSize: 13, paddingStart: 18, marginBottom: 7.5 },
   rowValue: { flexShrink: 1, color: native.secondaryLabel, fontSize: 17, textAlign: "right" },
 });

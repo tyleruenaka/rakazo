@@ -6,6 +6,7 @@ import {
   chooseOption,
   completeOnboarding,
   createNamedBot,
+  expandAdvancedSection,
   realSandboxTimeout,
   rpc,
   signup,
@@ -294,10 +295,7 @@ async function setComputerMode(
   await page.getByRole("button", { name: botName, exact: true }).last().click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings.locator("label:has-text('Name') input")).toHaveValue(botName);
-  const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
   await chooseOption(
     settings.getByRole("combobox", { name: "Computer", exact: true }),
     mode === "team" ? "Team" : "Private",

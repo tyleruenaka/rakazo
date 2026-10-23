@@ -14,6 +14,7 @@ import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
+  BUILTIN_TOOL_NAMES,
   isBuiltinToolName,
 } from "@rakazo/contracts";
 import {
@@ -28,6 +29,8 @@ import {
 import {
   Button,
   Input,
+  NativeSelect,
+  NativeSelectOption,
   Switch,
   Textarea,
   Toggle,
@@ -35,13 +38,24 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@rakazo/ui-web";
-import { Download, Eraser, X } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@rakazo/ui-web/components/ui/collapsible";
+import { ChevronRight, Download, Eraser, Settings, X } from "lucide-react";
 import { Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
 import { InfoTooltip } from "../../components/InfoTooltip";
 import { InstructionSettings } from "../../components/InstructionSettings";
 import { ListboxSelect } from "../../components/ListboxSelect";
-import { SettingsCard, SettingsGroup, SettingsRow } from "../../components/SettingsLayout";
+import {
+  SettingsCard,
+  SettingsDescription,
+  SettingsGroup,
+  SettingsRow,
+  settingsNativeSelectClass,
+} from "../../components/SettingsLayout";
 import { botProfilePatch } from "../../lib/bot-profile-patch";
 import { thinkingLevelLabel } from "../../lib/model-catalog";
 import { lazyComponent } from "../../lib/preload-recovery";
@@ -215,8 +229,13 @@ export function BotSettings({
   onSave,
   onExport,
   onClear,
+  focusModel = 0,
+  onOpenConnections,
 }: {
   bot: Bot;
+  /** Changes each time something asks to open Advanced at the model row. */
+  focusModel?: number;
+  onOpenConnections?: () => void;
   onSkillsChange: (skills: AgentSkillCatalogEntry[]) => void;
   memoryProviderConfigured: boolean;
   onSave: (patch: {
@@ -240,8 +259,18 @@ export function BotSettings({
   onClear: () => void;
 }) {
   const { t } = useLingui();
-  const [advancedOpened, setAdvancedOpened] = useState(false);
   const ids = useId();
+  const [advancedOpen, setAdvancedOpen] = useState(Boolean(focusModel));
+  const modelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusModel) setAdvancedOpen(true);
+  }, [focusModel]);
+  useEffect(() => {
+    if (focusModel && advancedOpen) {
+      modelRef.current?.scrollIntoView?.({ block: "nearest" });
+      modelRef.current?.querySelector<HTMLElement>('[data-testid="bot-model-select"]')?.focus();
+    }
+  }, [advancedOpen, focusModel]);
   const [name, setName] = useState(bot.name);
   const [title, setTitle] = useState(bot.title);
   const savedNameRef = useRef(bot.name);
@@ -254,6 +283,11 @@ export function BotSettings({
   const savedDescriptionRef = useRef(bot.description ?? "");
   const [color, setColor] = useState(bot.color);
   const [notifyOnFinish, setNotifyOnFinish] = useState(bot.notifyOnFinish ?? true);
+  const acceptedAutomatic = useRef({
+    color: bot.color,
+    notifyOnFinish: bot.notifyOnFinish ?? true,
+  });
+  const automaticRevision = useRef({ color: 0, notifyOnFinish: 0 });
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [memoryScope, setMemoryScope] = useState(bot.memoryScope);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
@@ -281,7 +315,6 @@ export function BotSettings({
     persistedDisabledToolsRef.current = next;
     if (pendingSavesRef.current === 0) setDisabledBuiltinTools(next);
   }, [bot.disabledBuiltinTools]);
-  const [toolNameDraft, setToolNameDraft] = useState("");
   const [credentials, setCredentials] = useState<ModelCredential[]>([]);
   const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
   const [me, setMe] = useState<Me | null>(null);
@@ -290,16 +323,19 @@ export function BotSettings({
   const [error, setError] = useState<string | null>(null);
   const saveQueueRef = useRef(Promise.resolve());
   const executeSaveRef = useRef<
-    (patchOverrides?: {
-      name?: string;
-      title?: string;
-      description?: string;
-      color?: string;
-      notifyOnFinish?: boolean;
-      fleetManagement?: boolean;
-      disabledBuiltinTools?: string[];
-      baseDisabledBuiltinTools?: string[];
-    }) => Promise<void>
+    (
+      patchOverrides?: {
+        name?: string;
+        title?: string;
+        description?: string;
+        color?: string;
+        notifyOnFinish?: boolean;
+        fleetManagement?: boolean;
+        disabledBuiltinTools?: string[];
+        baseDisabledBuiltinTools?: string[];
+      },
+      revisions?: { color: number; notifyOnFinish: number },
+    ) => Promise<void>
   >(async () => undefined);
   useEffect(() => {
     void rpc.voice
@@ -356,16 +392,19 @@ export function BotSettings({
   ).filter((level) => level !== "off");
   const defaultThinkingLevel = effectiveCredential?.thinkingLevel ?? "medium";
 
-  async function executeSave(patchOverrides?: {
-    name?: string;
-    title?: string;
-    description?: string;
-    color?: string;
-    notifyOnFinish?: boolean;
-    fleetManagement?: boolean;
-    disabledBuiltinTools?: string[];
-    baseDisabledBuiltinTools?: string[];
-  }) {
+  async function executeSave(
+    patchOverrides?: {
+      name?: string;
+      title?: string;
+      description?: string;
+      color?: string;
+      notifyOnFinish?: boolean;
+      fleetManagement?: boolean;
+      disabledBuiltinTools?: string[];
+      baseDisabledBuiltinTools?: string[];
+    },
+    revisions?: { color: number; notifyOnFinish: number },
+  ) {
     try {
       setSaving(true);
       setError(null);
@@ -394,7 +433,7 @@ export function BotSettings({
         // Keep untouched profile fields off the wire.
         ...botProfilePatch(savedDescriptionRef.current, nextDescription),
         // Unchanged color stays off the wire so a legacy named value cannot fail a name save.
-        ...(nextColor !== bot.color ? { color: nextColor } : {}),
+        ...(nextColor !== acceptedAutomatic.current.color ? { color: nextColor } : {}),
         notifyOnFinish: nextNotify,
         computerMode,
         memoryScope,
@@ -448,7 +487,19 @@ export function BotSettings({
       if (nextName) savedNameRef.current = nextName;
       savedTitleRef.current = nextTitle;
       savedDescriptionRef.current = nextDescription;
+      acceptedAutomatic.current = { color: nextColor, notifyOnFinish: nextNotify };
     } catch (err) {
+      // Roll back only when no newer edit of the same field is queued.
+      if (
+        patchOverrides?.color !== undefined &&
+        revisions?.color === automaticRevision.current.color
+      )
+        setColor(acceptedAutomatic.current.color);
+      if (
+        patchOverrides?.notifyOnFinish !== undefined &&
+        revisions?.notifyOnFinish === automaticRevision.current.notifyOnFinish
+      )
+        setNotifyOnFinish(acceptedAutomatic.current.notifyOnFinish);
       if (patchOverrides?.fleetManagement !== undefined)
         setFleetManagement(!patchOverrides.fleetManagement);
       setError(errorText(err, t`Could not save`));
@@ -465,11 +516,7 @@ export function BotSettings({
   function disableBuiltinTool(raw: string) {
     const name = raw.trim();
     if (!name) return;
-    if (!isBuiltinToolName(name)) {
-      setError(t`Unknown tool`);
-      return;
-    }
-    setToolNameDraft("");
+    if (!isBuiltinToolName(name)) return;
     setError(null);
     if (disabledBuiltinTools.includes(name)) return;
     const next = [...disabledBuiltinTools, name];
@@ -490,6 +537,9 @@ export function BotSettings({
     // finish after a newer one and clobber fields. Always call through a ref so
     // queued work reads the latest field values, not a stale render closure.
     pendingSavesRef.current += 1;
+    if (patchOverrides?.color !== undefined) automaticRevision.current.color += 1;
+    if (patchOverrides?.notifyOnFinish !== undefined) automaticRevision.current.notifyOnFinish += 1;
+    const revisions = { ...automaticRevision.current };
     const queuedPatch =
       patchOverrides?.disabledBuiltinTools === undefined
         ? patchOverrides
@@ -499,275 +549,304 @@ export function BotSettings({
           };
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
-      .then(() => executeSaveRef.current(queuedPatch));
+      .then(() => executeSaveRef.current(queuedPatch, revisions));
     return saveQueueRef.current;
   }
 
   return (
     <div data-testid="bot-settings">
-      <div className="flex justify-center py-4">
-        <AvatarStudioPopover
-          value={color}
-          identity={bot.id}
-          status={bot.status}
-          size={76}
-          onChange={(newColor) => {
-            setColor(newColor);
-            void enqueueSave({ color: newColor });
-          }}
-        />
-      </div>
-      <label htmlFor={`${ids}-name`} className={fieldLabelClass}>
-        <Trans>Name</Trans>
-        <Input
-          id={`${ids}-name`}
-          value={name}
-          maxLength={BOT_NAME_MAX_LENGTH}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => void enqueueSave()}
-          className="mt-1.5"
-        />
-      </label>
-      <label htmlFor={`${ids}-title`} className={fieldLabelClass}>
-        <Trans>Title</Trans>
-        <Input
-          id={`${ids}-title`}
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => void enqueueSave()}
-          placeholder={t`e.g. Hivenet Agent, Presales, Timesheets bot`}
-          className="mt-1.5"
-        />
-      </label>
-      <label htmlFor={`${ids}-description`} className={fieldLabelClass}>
-        <Trans>Description</Trans>
-        <Textarea
-          id={`${ids}-description`}
-          value={description}
-          maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={() => void enqueueSave()}
-          rows={3}
-          className="mt-1.5"
-        />
-      </label>
-      <div className="mt-6 flex items-center justify-between pt-4 border-t border-border/20">
-        <div className="flex items-center gap-1 pe-4">
-          <div id={`${ids}-notify-finish-label`} className="text-[14px] text-muted-foreground">
-            <Trans>Notifications</Trans>
-          </div>
-          <InfoTooltip label={t`Notifications`}>
-            {t`Get notified when this Bot finishes or needs input`}
-          </InfoTooltip>
+      <div data-testid="bot-profile-header">
+        <div className="flex justify-center py-4">
+          <AvatarStudioPopover
+            value={color}
+            identity={bot.id}
+            status={bot.status}
+            size={76}
+            onChange={(newColor) => {
+              setColor(newColor);
+              void enqueueSave({ color: newColor });
+            }}
+          />
         </div>
-        <Switch
-          id={`${ids}-notify-finish`}
-          checked={notifyOnFinish}
-          aria-labelledby={`${ids}-notify-finish-label`}
-          onCheckedChange={(checked) => {
-            setNotifyOnFinish(checked);
-            void enqueueSave({ notifyOnFinish: checked });
-          }}
-        />
+        <label htmlFor={`${ids}-name`} className={fieldLabelClass}>
+          <Trans>Name</Trans>
+          <Input
+            id={`${ids}-name`}
+            value={name}
+            maxLength={BOT_NAME_MAX_LENGTH}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void enqueueSave()}
+            className="mt-1.5"
+          />
+        </label>
+        <label htmlFor={`${ids}-title`} className={fieldLabelClass}>
+          <Trans>Title</Trans>
+          <Input
+            id={`${ids}-title`}
+            value={title}
+            maxLength={BOT_TITLE_MAX_LENGTH}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => void enqueueSave()}
+            placeholder={t`e.g. Hivenet Agent, Presales, Timesheets bot`}
+            className="mt-1.5"
+          />
+        </label>
       </div>
-      <details
-        data-testid="bot-settings-advanced"
-        className="group mt-5"
-        onToggle={(event) => {
-          if (event.currentTarget.open) setAdvancedOpened(true);
-        }}
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[14px] text-muted-foreground">
-          <span className="text-muted-foreground">
-            <Trans>Advanced</Trans>
-          </span>
-          <span aria-hidden="true" className="transition-transform group-open:rotate-90">
-            ›
-          </span>
-        </summary>
-        <div className="mt-4 space-y-7">
-          <InstructionSettings key={bot.id} bot={bot} />
-          <SettingsCard>
-            <SettingsRow label={<Trans>Computer</Trans>}>
-              <ListboxSelect
-                label={t`Computer`}
-                options={BOT_COMPUTER_MODES.map((mode) => ({
-                  value: mode,
-                  label: mode === "team" ? t`Team` : t`Private`,
-                }))}
-                value={computerMode}
-                onChange={setComputerMode}
+      <div className="mt-6 space-y-7">
+        <InstructionSettings key={bot.id} bot={bot} />
+        <SettingsGroup label={<Trans>Notifications</Trans>}>
+          <SettingsRow
+            label={<Trans>When it finishes or needs input</Trans>}
+            labelId={`${ids}-notify-finish-label`}
+            htmlFor={`${ids}-notify-finish`}
+          >
+            <Switch
+              id={`${ids}-notify-finish`}
+              checked={notifyOnFinish}
+              aria-labelledby={`${ids}-notify-finish-label`}
+              onCheckedChange={(checked) => {
+                setNotifyOnFinish(checked);
+                void enqueueSave({ notifyOnFinish: checked });
+              }}
+            />
+          </SettingsRow>
+        </SettingsGroup>
+        <ErrorBoundary fallback={<SectionLoadFailed />}>
+          <Suspense fallback={null}>
+            <ScratchpadSection botId={bot.id} />
+          </Suspense>
+        </ErrorBoundary>
+        <ErrorBoundary fallback={<SectionLoadFailed />}>
+          <Suspense fallback={null}>
+            <KnowledgeSection botId={bot.id} onSkillsChange={onSkillsChange} />
+          </Suspense>
+        </ErrorBoundary>
+        <Collapsible
+          open={advancedOpen}
+          onOpenChange={setAdvancedOpen}
+          data-testid="bot-settings-advanced"
+        >
+          <h3 className="px-2 text-[12px] leading-4 text-muted-foreground">
+            <CollapsibleTrigger className="group flex w-fit cursor-pointer items-center gap-1 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring">
+              <Trans>Advanced</Trans>
+              <ChevronRight
+                aria-hidden="true"
+                className="size-3 transition-transform group-aria-expanded:rotate-90 motion-reduce:transition-none"
               />
-            </SettingsRow>
-            <SettingsRow label={<Trans>Model</Trans>}>
-              <ListboxSelect
-                label={t`Model`}
-                options={modelChoices.map((choice) => ({
-                  value: choice.key,
-                  label: choice.label,
-                  detail: choice.detail,
-                }))}
-                value={selectedModelKey}
-                onChange={(next) => {
-                  setModelKey(next);
-                  setThinkingLevel("");
-                }}
-                search={
-                  modelChoices.length > MODEL_SEARCH_THRESHOLD
-                    ? {
-                        placeholder: t`Search models`,
-                        clearLabel: t`Clear`,
-                        className: "w-[320px]",
-                      }
-                    : undefined
+            </CollapsibleTrigger>
+          </h3>
+          <CollapsibleContent>
+            <div className="space-y-7 pt-4">
+              <div ref={modelRef}>
+                <SettingsCard>
+                  <SettingsRow label={<Trans>Model</Trans>}>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <ListboxSelect
+                        label={t`Model`}
+                        testId="bot-model-select"
+                        options={modelChoices.map((choice) => ({
+                          value: choice.key,
+                          label: choice.label,
+                          detail: choice.detail,
+                        }))}
+                        value={selectedModelKey}
+                        onChange={(next) => {
+                          setModelKey(next);
+                          setThinkingLevel("");
+                        }}
+                        search={
+                          modelChoices.length > MODEL_SEARCH_THRESHOLD
+                            ? {
+                                placeholder: t`Search models`,
+                                clearLabel: t`Clear`,
+                                className: "w-[320px]",
+                              }
+                            : undefined
+                        }
+                      />
+                      {onOpenConnections ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label={t`Model connections`}
+                                onClick={onOpenConnections}
+                                className="shrink-0 text-muted-foreground"
+                              />
+                            }
+                          >
+                            <Settings size={14} strokeWidth={1.6} />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{t`Model connections`}</TooltipContent>
+                        </Tooltip>
+                      ) : null}
+                    </div>
+                  </SettingsRow>
+                  {thinkingOptions.length ? (
+                    <SettingsRow label={<Trans>Thinking</Trans>}>
+                      <ListboxSelect
+                        label={t`Thinking`}
+                        options={[
+                          {
+                            value: "",
+                            label: t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`,
+                          },
+                          ...thinkingOptions.map((level) => ({
+                            value: level,
+                            label: thinkingLevelLabel(level),
+                          })),
+                        ]}
+                        value={thinkingLevel}
+                        onChange={setThinkingLevel}
+                      />
+                    </SettingsRow>
+                  ) : null}
+                  <SettingsRow label={<Trans>Computer</Trans>}>
+                    <ListboxSelect
+                      label={t`Computer`}
+                      options={BOT_COMPUTER_MODES.map((mode) => ({
+                        value: mode,
+                        label: mode === "team" ? t`Team` : t`Private`,
+                      }))}
+                      value={computerMode}
+                      onChange={setComputerMode}
+                    />
+                  </SettingsRow>
+                  {memoryProviderConfigured ? (
+                    <SettingsRow label={<Trans>Memory scope</Trans>}>
+                      <ListboxSelect
+                        label={t`Memory scope`}
+                        options={[
+                          { value: "inherit", label: t`Inherit default` },
+                          { value: "isolated", label: t`Isolated` },
+                          { value: "shared", label: t`Shared` },
+                        ]}
+                        value={memoryScope ?? "inherit"}
+                        onChange={(next) => setMemoryScope(next === "inherit" ? null : next)}
+                      />
+                    </SettingsRow>
+                  ) : null}
+                </SettingsCard>
+              </div>
+              <SettingsCard>
+                <SettingsRow
+                  label={<Trans>Read replies aloud</Trans>}
+                  htmlFor={`${ids}-auto-speak`}
+                >
+                  <Switch
+                    id={`${ids}-auto-speak`}
+                    checked={autoSpeak}
+                    onCheckedChange={(checked) => setAutoSpeak(checked)}
+                  />
+                </SettingsRow>
+                {voices.length ? (
+                  <SettingsRow label={<Trans>Voice</Trans>}>
+                    <ListboxSelect
+                      label={t`Voice`}
+                      options={[
+                        { value: "", label: t`Account default` },
+                        ...voices.map((voice) => ({ value: voice.id, label: voice.label })),
+                      ]}
+                      value={voiceId}
+                      onChange={setVoiceId}
+                    />
+                  </SettingsRow>
+                ) : null}
+                <SettingsRow
+                  label={
+                    <span className="flex items-center gap-1">
+                      <label htmlFor={`${ids}-fleet-management`}>{fleetLabel}</label>
+                      <InfoTooltip label={fleetLabel}>
+                        {t`Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.`}
+                      </InfoTooltip>
+                    </span>
+                  }
+                >
+                  <Switch
+                    id={`${ids}-fleet-management`}
+                    checked={fleetManagement}
+                    disabled={saving}
+                    onCheckedChange={(checked) => {
+                      setFleetManagement(checked);
+                      void enqueueSave({ fleetManagement: checked });
+                    }}
+                  />
+                </SettingsRow>
+              </SettingsCard>
+              <SettingsGroup
+                label={
+                  <label htmlFor={`${ids}-description`}>
+                    <Trans>Description</Trans>
+                  </label>
                 }
-              />
-            </SettingsRow>
-            {thinkingOptions.length ? (
-              <SettingsRow label={<Trans>Thinking</Trans>}>
-                <ListboxSelect
-                  label={t`Thinking`}
-                  options={[
-                    {
-                      value: "",
-                      label: t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`,
-                    },
-                    ...thinkingOptions.map((level) => ({
-                      value: level,
-                      label: thinkingLevelLabel(level),
-                    })),
-                  ]}
-                  value={thinkingLevel}
-                  onChange={setThinkingLevel}
-                />
-              </SettingsRow>
-            ) : null}
-            {memoryProviderConfigured ? (
-              <SettingsRow label={<Trans>Memory scope</Trans>}>
-                <ListboxSelect
-                  label={t`Memory scope`}
-                  options={[
-                    { value: "inherit", label: t`Inherit default` },
-                    { value: "isolated", label: t`Isolated` },
-                    { value: "shared", label: t`Shared` },
-                  ]}
-                  value={memoryScope ?? "inherit"}
-                  onChange={(next) => setMemoryScope(next === "inherit" ? null : next)}
-                />
-              </SettingsRow>
-            ) : null}
-          </SettingsCard>
-          <SettingsCard>
-            <SettingsRow label={<Trans>Read replies aloud</Trans>} htmlFor={`${ids}-auto-speak`}>
-              <Switch
-                id={`${ids}-auto-speak`}
-                checked={autoSpeak}
-                onCheckedChange={(checked) => setAutoSpeak(checked)}
-              />
-            </SettingsRow>
-            {voices.length ? (
-              <SettingsRow label={<Trans>Voice</Trans>}>
-                <ListboxSelect
-                  label={t`Voice`}
-                  options={[
-                    { value: "", label: t`Account default` },
-                    ...voices.map((voice) => ({ value: voice.id, label: voice.label })),
-                  ]}
-                  value={voiceId}
-                  onChange={setVoiceId}
-                />
-              </SettingsRow>
-            ) : null}
-            <SettingsRow
-              label={
-                <span className="flex items-center gap-1">
-                  <label htmlFor={`${ids}-fleet-management`}>{fleetLabel}</label>
-                  <InfoTooltip label={fleetLabel}>
-                    {t`Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.`}
-                  </InfoTooltip>
-                </span>
-              }
-            >
-              <Switch
-                id={`${ids}-fleet-management`}
-                checked={fleetManagement}
-                disabled={saving}
-                onCheckedChange={(checked) => {
-                  setFleetManagement(checked);
-                  void enqueueSave({ fleetManagement: checked });
-                }}
-              />
-            </SettingsRow>
-          </SettingsCard>
-          <ErrorBoundary fallback={<SectionLoadFailed />}>
-            <Suspense fallback={null}>
-              <ScratchpadSection botId={bot.id} />
-            </Suspense>
-          </ErrorBoundary>
-          {advancedOpened ? (
-            <SettingsGroup label={<Trans>Knowledge</Trans>}>
+              >
+                <div className="px-3.5 py-2.5">
+                  <SettingsDescription>
+                    <Trans>How other bots see it</Trans>
+                  </SettingsDescription>
+                  <Textarea
+                    id={`${ids}-description`}
+                    value={description}
+                    maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={() => void enqueueSave()}
+                    placeholder={t`What this bot is for`}
+                    rows={2}
+                    className="mt-2 min-h-16 resize-none field-sizing-content"
+                  />
+                </div>
+              </SettingsGroup>
+              <SettingsGroup label={<Trans>Tools</Trans>} testId="bot-settings-tools">
+                <div className="px-3.5 py-2.5">
+                  <NativeSelect
+                    id={`${ids}-disabled-tools`}
+                    aria-label={t`Disable a tool`}
+                    value=""
+                    onChange={(event) => disableBuiltinTool(event.target.value)}
+                    className={`w-full ${settingsNativeSelectClass}`}
+                  >
+                    <NativeSelectOption value="">{t`Disable a tool`}</NativeSelectOption>
+                    {BUILTIN_TOOL_NAMES.filter(
+                      (toolName) => !disabledBuiltinTools.includes(toolName),
+                    ).map((toolName) => (
+                      <NativeSelectOption key={toolName} value={toolName}>
+                        {humanizeTool(toolName)}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </div>
+                {disabledBuiltinTools.map((toolName) => (
+                  <SettingsRow key={toolName} label={humanizeTool(toolName)}>
+                    <Button
+                      id={`${ids}-disabled-${toolName}`}
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t`Enable ${humanizeTool(toolName)}`}
+                      title={t`Enable ${humanizeTool(toolName)}`}
+                      className="text-muted-foreground"
+                      onClick={() => {
+                        const next = disabledBuiltinTools.filter((entry) => entry !== toolName);
+                        setDisabledBuiltinTools(next);
+                        void enqueueSave({ disabledBuiltinTools: next });
+                      }}
+                    >
+                      <X />
+                    </Button>
+                  </SettingsRow>
+                ))}
+              </SettingsGroup>
+              <BotCredentialsSection botId={bot.id} />
               <ErrorBoundary fallback={<SectionLoadFailed />}>
                 <Suspense fallback={null}>
-                  <KnowledgeSection botId={bot.id} onSkillsChange={onSkillsChange} />
+                  <KnowledgeSection botId={bot.id} onSkillsChange={onSkillsChange} skillsOnly />
                 </Suspense>
               </ErrorBoundary>
-            </SettingsGroup>
-          ) : null}
-          <SettingsGroup
-            label={
-              <label htmlFor={`${ids}-disabled-tools`}>
-                <Trans>Disabled tools</Trans>
-              </label>
-            }
-          >
-            <div className="px-3.5 py-2.5">
-              <Input
-                id={`${ids}-disabled-tools`}
-                value={toolNameDraft}
-                placeholder="web_search"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                onChange={(event) => {
-                  setToolNameDraft(event.target.value);
-                  // This message is about the name being typed. Leave other save errors alone.
-                  setError((current) => (current === t`Unknown tool` ? null : current));
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  disableBuiltinTool(event.currentTarget.value);
-                }}
-                onBlur={(event) => {
-                  if (event.currentTarget.value.trim())
-                    disableBuiltinTool(event.currentTarget.value);
-                }}
-                className="font-mono"
-              />
             </div>
-            {disabledBuiltinTools.map((toolName) => (
-              <SettingsRow
-                key={toolName}
-                label={<span className="font-mono">{toolName}</span>}
-                htmlFor={`${ids}-disabled-${toolName}`}
-              >
-                <Switch
-                  id={`${ids}-disabled-${toolName}`}
-                  checked
-                  onCheckedChange={(checked) => {
-                    if (checked) return;
-                    const next = disabledBuiltinTools.filter((entry) => entry !== toolName);
-                    setDisabledBuiltinTools(next);
-                    void enqueueSave({ disabledBuiltinTools: next });
-                  }}
-                />
-              </SettingsRow>
-            ))}
-          </SettingsGroup>
-          {advancedOpened ? <BotCredentialsSection botId={bot.id} /> : null}
-        </div>
-      </details>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
       {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
       <div className="mt-5 flex items-center gap-3">
         <Button
@@ -833,4 +912,9 @@ function catalogLabel(
 ) {
   if (!provider) return undefined;
   return catalog.find((entry) => entry.provider === provider && entry.id === modelId)?.label;
+}
+
+function humanizeTool(name: string) {
+  const words = name.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }

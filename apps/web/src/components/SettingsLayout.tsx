@@ -1,20 +1,30 @@
 import type { ReactNode } from "react";
 
-/** A settings card with its section label above it. */
+/** A settings card with its section label above it, and an optional small action beside the label. */
 export function SettingsGroup({
   label,
+  action,
   testId,
   children,
 }: {
   label?: ReactNode;
+  action?: ReactNode;
   testId?: string;
   children: ReactNode;
 }) {
+  const heading = label ? (
+    <h3 className="mb-2 px-2 text-[12px] leading-4 text-muted-foreground">{label}</h3>
+  ) : null;
   return (
     <section data-testid={testId}>
-      {label ? (
-        <h3 className="mb-2 px-2 text-[12px] leading-4 text-muted-foreground">{label}</h3>
-      ) : null}
+      {action ? (
+        <div className="flex items-start justify-between gap-2 pe-1">
+          {heading}
+          <div className="-mt-1 flex shrink-0 items-center">{action}</div>
+        </div>
+      ) : (
+        heading
+      )}
       <SettingsCard>{children}</SettingsCard>
     </section>
   );

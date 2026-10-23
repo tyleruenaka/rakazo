@@ -1,4 +1,8 @@
 export const RU_MESSAGES: Record<string, string> = {
+  Export: "Экспорт",
+  "Add open work": "Добавить задачу",
+  "How other bots see it": "Как его видят другие боты",
+  "Open work": "Открытые задачи",
   "To:": "Кому:",
   Next: "Далее",
   "Ex: Project Falcon": "Например: проект «Сокол»",
@@ -258,6 +262,7 @@ export const RU_MESSAGES: Record<string, string> = {
   Code: "Код",
   Color: "Цвет",
   "Color {number}": "Цвет {number}",
+  Complete: "Завершить",
   Completed: "Завершено",
   Computer: "Компьютер",
   "Confirm password": "Подтвердите пароль",

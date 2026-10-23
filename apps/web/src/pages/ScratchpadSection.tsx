@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ScratchpadItem } from "@rakazo/contracts";
 import { Button, Checkbox, Input } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SettingsGroup, settingsPillClass } from "../components/SettingsLayout";
 import { rpc } from "../lib/rpc";
@@ -9,6 +9,8 @@ import { rpc } from "../lib/rpc";
 export function ScratchpadSection({ botId }: { botId: string }) {
   const { t } = useLingui();
   const [items, setItems] = useState<ScratchpadItem[]>([]);
+  const [showAll, setShowAll] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export function ScratchpadSection({ botId }: { botId: string }) {
     try {
       const created = await rpc.scratchpad.create({ botId, title });
       setDraft("");
+      setAdding(false);
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       try {
         await refresh();
@@ -100,96 +103,95 @@ export function ScratchpadSection({ botId }: { botId: string }) {
     }
   }
 
+  // Nothing to show until the bot (or someone) records open work.
+  if (!items.length && !error) return null;
+
   return (
-    <SettingsGroup label={<Trans>Open work</Trans>} testId="bot-scratchpad">
-      {items.length === 0 ? (
-        <div className="px-3.5 py-2.5 text-[12.5px] leading-[19px] text-description">
-          <Trans>None yet</Trans>
-        </div>
-      ) : (
-        items.map((item) => (
-          <div key={item.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
-            <Checkbox
-              aria-label={item.status === "done" ? t`Reopen` : t`Complete`}
-              checked={item.status === "done"}
-              disabled={busy}
-              onCheckedChange={(checked) => void setStatus(item, checked ? "done" : "open")}
-              className="mt-0.5"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start gap-1">
-                <div
-                  className={`min-w-0 flex-1 text-start text-[12.5px] leading-[19px] ${item.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}
-                  dir="auto"
-                >
-                  {item.title}
-                </div>
-                <span className="shrink-0 text-[12px] leading-[19px] text-muted-foreground">
-                  {item.status}
-                </span>
-                {item.status === "open" ? (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label={t`Park`}
-                    disabled={busy}
-                    onClick={() => void setStatus(item, "parked")}
-                    className="-my-0.5 shrink-0 text-muted-foreground"
-                  >
-                    <Trans>Park</Trans>
-                  </Button>
-                ) : item.status === "parked" ? (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label={t`Reopen`}
-                    disabled={busy}
-                    onClick={() => void setStatus(item, "open")}
-                    className="-my-0.5 shrink-0 text-muted-foreground"
-                  >
-                    <Trans>Open</Trans>
-                  </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t`Remove`}
-                  disabled={busy}
-                  onClick={() => void removeItem(item)}
-                  className="-my-0.5 shrink-0 text-muted-foreground"
-                >
-                  <X />
-                </Button>
-              </div>
-              {item.notes ? <ClampedNotes text={item.notes} /> : null}
-            </div>
-          </div>
-        ))
-      )}
-      <form
-        className="flex items-center gap-2 px-3.5 py-2.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void addItem();
-        }}
-      >
-        <Input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={t`Add item`}
-          aria-label={t`New open-work item`}
-          maxLength={200}
-          className="min-w-0 flex-1"
-        />
+    <SettingsGroup
+      label={<Trans>Open work</Trans>}
+      action={
         <Button
-          variant="secondary"
-          className={`rounded-full ${settingsPillClass}`}
-          disabled={busy || !draft.trim()}
-          onClick={() => void addItem()}
+          variant="ghost"
+          size="icon-xs"
+          aria-label={t`Add open work`}
+          title={t`Add open work`}
+          onClick={() => setAdding((value) => !value)}
+          className="text-muted-foreground"
         >
-          <Trans>Add</Trans>
+          <Plus size={14} strokeWidth={1.6} />
         </Button>
-      </form>
+      }
+      testId="bot-scratchpad"
+    >
+      {(showAll ? items : items.slice(0, 5)).map((item) => (
+        <div key={item.id} className="group flex items-start gap-2.5 px-3.5 py-2.5">
+          <Checkbox
+            aria-label={item.status === "done" ? t`Reopen` : t`Complete`}
+            checked={item.status === "done"}
+            disabled={busy}
+            onCheckedChange={(checked) => void setStatus(item, checked ? "done" : "open")}
+            className="mt-0.5"
+          />
+          <div className="min-w-0 flex-1">
+            <div
+              className={`text-start text-[12.5px] leading-[19px] ${item.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}
+              dir="auto"
+            >
+              {item.title}
+            </div>
+            {item.notes ? <ClampedNotes text={item.notes} /> : null}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t`Remove`}
+            disabled={busy}
+            onClick={() => void removeItem(item)}
+            className="-my-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
+          >
+            <X />
+          </Button>
+        </div>
+      ))}
+      {items.length > 5 && !showAll ? (
+        <div className="px-3.5 py-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => setShowAll(true)}
+          >
+            <Trans>Show more</Trans>
+          </Button>
+        </div>
+      ) : null}
+      {adding ? (
+        <form
+          className="flex items-center gap-2 px-3.5 py-2.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void addItem();
+          }}
+        >
+          <Input
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={t`Add item`}
+            aria-label={t`New open-work item`}
+            maxLength={200}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            variant="secondary"
+            className={`rounded-full ${settingsPillClass}`}
+            disabled={busy || !draft.trim()}
+            onClick={() => void addItem()}
+          >
+            <Trans>Add</Trans>
+          </Button>
+        </form>
+      ) : null}
       {error ? <div className="px-3.5 pb-2.5 text-[12.5px] text-destructive">{error}</div> : null}
     </SettingsGroup>
   );

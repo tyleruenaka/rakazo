@@ -1,4 +1,8 @@
 export const DE_MESSAGES: Record<string, string> = {
+  Export: "Exportieren",
+  "Add open work": "Offene Aufgabe hinzufügen",
+  "How other bots see it": "So sehen andere Bots ihn",
+  "Open work": "Offene Aufgaben",
   "To:": "An:",
   Next: "Weiter",
   "Ex: Project Falcon": "Z. B. Projekt Falcon",
@@ -216,6 +220,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Cloud agent": "Cloud-Agent",
   Code: "Code",
   "Command variable": "Befehlsvariable",
+  Complete: "Abschließen",
   Completed: "Abgeschlossen",
   Copy: "Kopieren",
   "Could not archive bot": "Bot konnte nicht archiviert werden",
