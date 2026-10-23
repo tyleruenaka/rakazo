@@ -70,6 +70,16 @@ tags:
 - extendedWaitUntil:
     visible: "Researcher"
     timeout: 10000
+# The menu opens under +, so a quick double tap closes it instead of landing on New Bot.
+- doubleTapOn: "Create"
+- waitForAnimationToEnd
+- assertNotVisible: "Create New Bot"
+- runFlow:
+    when:
+      visible: "New Space"
+    commands:
+      - back
+- assertVisible: "Researcher"
 
 - tapOn:
     id: "home-search-button"

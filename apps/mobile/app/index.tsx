@@ -24,7 +24,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { GestureResponderEvent } from "react-native";
 import {
   ActivityIndicator,
   Alert,
@@ -707,8 +706,9 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
   );
 
   // Android: the long-press menu card, since an Alert keeps only its first three buttons.
-  const openCreateChooser = useCallback(
-    (event: GestureResponderEvent) => {
+  const createButton = useRef<View>(null);
+  const openCreateChooser = useCallback(() => {
+    createButton.current?.measureInWindow((x, y, width, height) => {
       presentMessageMenu({
         reactions: [],
         groups: [
@@ -744,11 +744,11 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             },
           ],
         ],
-        anchor: { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY },
+        // Under +, so a quick double tap closes the menu instead of hitting New Bot.
+        anchor: { x: x + width / 2, y: y + height, below: true },
       });
-    },
-    [activityMode, runCreateAction, toggleActivityMode, t],
-  );
+    });
+  }, [activityMode, runCreateAction, toggleActivityMode, t]);
 
   useLayoutEffect(() => {
     if (!nativeHeader) return;
@@ -1277,7 +1277,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
               <Text style={styles.profileInitials}>{initials}</Text>
             </HeaderButton>
           </View>
-          <View style={styles.circleButton}>
+          <View ref={createButton} collapsable={false} style={styles.circleButton}>
             {Platform.OS === "android" ? (
               // A plain button: the native Android menu trigger collapses to zero width when the
               // installed app binary is older than the JS update, which hid the only way to create.
@@ -1749,7 +1749,7 @@ function HeaderButton({
   accent = false,
 }: {
   children: ReactNode;
-  onPress: (event: GestureResponderEvent) => void;
+  onPress: () => void;
   accessibilityLabel: string;
   testID?: string;
   active?: boolean;

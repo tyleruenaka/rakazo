@@ -19,8 +19,11 @@ export type MessageMenuSpec = {
   reactions: { emoji: string; selected?: boolean; onPress: () => void }[];
   /** Groups of actions, drawn as separate rounded blocks. */
   groups: MessageMenuItem[][];
-  /** Where the finger was, so the Android menu opens next to the message. */
-  anchor: { x: number; y: number };
+  /**
+   * Where the finger was, so the Android menu opens next to the message. With `below`, `y` is a
+   * button's bottom edge and the menu opens under it, so a quick second tap can't land on a row.
+   */
+  anchor: { x: number; y: number; below?: boolean };
 };
 
 let current: MessageMenuSpec | null = null;

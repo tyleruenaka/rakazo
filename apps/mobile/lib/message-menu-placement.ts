@@ -10,7 +10,7 @@ export function messageMenuPlacement({
   width: number;
   height: number;
   insets: { top: number; bottom: number; left: number; right: number };
-  anchor: { x: number; y: number };
+  anchor: { x: number; y: number; below?: boolean };
   measuredHeight: number;
   maxWidth: number;
 }) {
@@ -26,7 +26,10 @@ export function messageMenuPlacement({
   );
   const top = Math.max(
     topEdge,
-    Math.min(anchor.y - menuHeight / 3, height - insets.bottom - edge - menuHeight),
+    Math.min(
+      anchor.below ? anchor.y + 8 : anchor.y - menuHeight / 3,
+      height - insets.bottom - edge - menuHeight,
+    ),
   );
   return { left, top, menuWidth, maxHeight };
 }
