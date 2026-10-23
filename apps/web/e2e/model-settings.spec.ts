@@ -876,7 +876,8 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
 
   const search = page.getByRole("combobox", { name: "Search models" });
   await expect(search).toBeFocused();
-  const options = page.locator('[data-slot="command-list"]').getByRole("option");
+  const list = page.getByRole("listbox", { name: "Model", exact: true });
+  const options = list.getByRole("option");
   await expect(options).toHaveCount(openRouter.length + 1);
   // Rows show names, so this provider prefix can only match the model ids.
   const anthropicIds = openRouter.filter((entry) => entry.id.includes("anthropic/")).length;
@@ -885,17 +886,16 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
   await expect(options).toHaveCount(anthropicIds);
   await captureScreenshot(page, testInfo, "chat-settings-model-search");
 
+  // With no match the dropdown shows no rows and stays open on the search.
   await search.fill("no model is called this");
   await expect(options).toHaveCount(0);
-  await expect(page.getByText("No matching models")).toBeVisible();
+  await expect(search).toBeVisible();
+  await expect(search).toBeFocused();
   await captureScreenshot(page, testInfo, "chat-settings-model-search-empty");
 
   await search.fill(target.id);
   const targetLabel = `${target.providerName ?? target.provider} · ${target.label}`;
-  await page
-    .locator('[data-slot="command-list"]')
-    .getByRole("option", { name: targetLabel, exact: true })
-    .click();
+  await list.getByRole("option", { name: targetLabel, exact: true }).click();
   await expect(search).toBeHidden();
   await expect(model).toHaveText(targetLabel);
   const saved = page.waitForResponse(
