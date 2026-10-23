@@ -14,9 +14,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { mobileTokens } from "../lib/appearance";
 import { useFloatingHeaderInset } from "../lib/floating-header";
 import { useI18n } from "../lib/i18n";
 import { native, useThemedStyles } from "../lib/native";
+import { NativeSymbol } from "./native-symbol";
 import { Checkmark } from "./row-accessories";
 import { SettingsLabel, SettingsRow } from "./settings-group";
 
@@ -207,17 +209,25 @@ export function ModelPickerList({
       )}
       ListHeaderComponent={
         Platform.OS === "android" ? (
-          <TextInput
-            accessibilityLabel={t("Search")}
-            placeholder={t("Search")}
-            placeholderTextColor={native.secondaryLabel}
-            value={query}
-            onChangeText={changeQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            style={styles.search}
-          />
+          <View style={styles.search}>
+            <NativeSymbol
+              android="search"
+              color={mobileTokens().sheetLabel}
+              ios="magnifyingglass"
+              size={18}
+            />
+            <TextInput
+              accessibilityLabel={t("Search")}
+              placeholder={t("Search")}
+              placeholderTextColor={mobileTokens().sheetLabel}
+              value={query}
+              onChangeText={changeQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={styles.searchInput}
+            />
+          </View>
         ) : null
       }
       ListEmptyComponent={
@@ -253,28 +263,47 @@ export function ModelPickerList({
   );
 }
 
+// Cells match the settings cards: grey fill, a thin border around the group and full-width dividers.
 function createStyles() {
+  const tokens = mobileTokens();
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: native.page },
     content: { paddingHorizontal: 16 },
     sectionHeading: { paddingBottom: 7 },
     sectionGap: { height: 20 },
-    cell: { backgroundColor: native.fill, overflow: "hidden" },
-    first: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderCurve: "continuous" },
-    last: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16, borderCurve: "continuous" },
-    separator: {
-      height: StyleSheet.hairlineWidth,
-      marginStart: 16,
-      backgroundColor: native.separator,
+    cell: {
+      backgroundColor: tokens.sheetCell,
+      borderColor: tokens.sheetBorder,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      overflow: "hidden",
     },
+    first: {
+      borderTopWidth: 1,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderCurve: "continuous",
+    },
+    last: {
+      borderBottomWidth: 1,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+      borderCurve: "continuous",
+    },
+    separator: { height: 1, marginStart: 18, backgroundColor: tokens.sheetBorder },
     search: {
-      color: native.label,
-      backgroundColor: native.fill,
-      borderRadius: 10,
-      padding: 12,
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 1,
+      borderColor: tokens.sheetBorder,
+      backgroundColor: tokens.catalogField,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
       marginBottom: 16,
-      fontSize: 17,
     },
+    searchInput: { flex: 1, height: "100%", color: native.label, fontSize: 17 },
     empty: {
       color: native.secondaryLabel,
       fontSize: 15,
