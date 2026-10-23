@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { groupBotsForSidebar, nestRosterByParent, reorderBotTo } from "./bot-sections.js";
+import {
+  groupBotsForSidebar,
+  listedSectionId,
+  movesWithParent,
+  nestRosterByParent,
+  reorderBotTo,
+} from "./bot-sections.js";
 
 const sections = [
   { id: "work", name: "Work" },
@@ -77,6 +83,76 @@ describe("nested bots and the pinned area", () => {
       ["pinned", ["chief"]],
       ["section:work", ["scout"]],
     ]);
+  });
+});
+
+describe("where a nested bot lists", () => {
+  const listed = (bots: Parameters<typeof groupBotsForSidebar>[0]) =>
+    groupBotsForSidebar(bots, sections).map((group) => [
+      group.key,
+      group.bots.map((bot) => bot.id),
+    ]);
+
+  it("lists under an unpinned parent even when the nested bot has no section", () => {
+    // A bot spawned without a section, nested under a parent that sits in a section.
+    expect(
+      listed([
+        { id: "remy", pinned: false, sectionId: "work", parentBotId: null },
+        { id: "wren", pinned: false, sectionId: null, parentBotId: "remy" },
+      ]),
+    ).toEqual([["section:work", ["remy", "wren"]]]);
+  });
+
+  it("lists under an unpinned parent whatever section the nested bot has", () => {
+    expect(
+      listed([
+        { id: "chief", pinned: false, sectionId: "work", parentBotId: null },
+        { id: "scout", pinned: false, sectionId: "home", parentBotId: "chief" },
+        { id: "gone", pinned: false, sectionId: "missing", parentBotId: "chief" },
+      ]),
+    ).toEqual([["section:work", ["chief", "scout", "gone"]]]);
+  });
+
+  it("follows an unpinned parent into the unassigned list", () => {
+    expect(
+      listed([
+        { id: "chief", pinned: false, sectionId: null, parentBotId: null },
+        { id: "scout", pinned: false, sectionId: "home", parentBotId: "chief" },
+      ]),
+    ).toEqual([["unassigned", ["chief", "scout"]]]);
+  });
+
+  it("lists in its own section while the parent is pinned, and returns on unpin", () => {
+    const parent = { id: "chief", pinned: true, sectionId: "work", parentBotId: null };
+    const nested = [
+      { id: "scout", pinned: false, sectionId: "home", parentBotId: "chief" },
+      { id: "loose", pinned: false, sectionId: null, parentBotId: "chief" },
+    ];
+    expect(listed([parent, ...nested])).toEqual([
+      ["pinned", ["chief"]],
+      ["section:home", ["scout"]],
+      ["unassigned", ["loose"]],
+    ]);
+    expect(listed([{ ...parent, pinned: false }, ...nested])).toEqual([
+      ["section:work", ["chief", "scout", "loose"]],
+    ]);
+  });
+
+  it("lists in its own section when the parent is not in the list", () => {
+    expect(
+      listed([{ id: "scout", pinned: false, sectionId: "home", parentBotId: "filtered" }]),
+    ).toEqual([["section:home", ["scout"]]]);
+  });
+
+  it("reports the section a bot lists in", () => {
+    const bots = [
+      { id: "chief", pinned: false, sectionId: "work", parentBotId: null },
+      { id: "star", pinned: true, sectionId: "work", parentBotId: null },
+      { id: "scout", pinned: false, sectionId: null, parentBotId: "chief" },
+      { id: "aide", pinned: false, sectionId: "home", parentBotId: "star" },
+    ];
+    expect(bots.map((bot) => listedSectionId(bot, bots))).toEqual(["work", "work", "work", "home"]);
+    expect(bots.map((bot) => movesWithParent(bot, bots))).toEqual([false, false, true, false]);
   });
 });
 

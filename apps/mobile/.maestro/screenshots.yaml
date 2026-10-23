@@ -34,6 +34,7 @@ tags:
 - takeScreenshot: "03-server"
 - runFlow: helpers/server.yaml
 
+- runFlow: helpers/use-password.yaml
 - tapOn: "Email"
 - inputText: ${RAKAZO_SCREENSHOT_EMAIL}
 - tapOn: "Password"

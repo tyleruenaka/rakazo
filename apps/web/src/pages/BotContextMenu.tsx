@@ -44,6 +44,7 @@ export function BotContextMenu({
   onClose,
   onTogglePinned,
   sections,
+  canMove = true,
   onMoveToSection,
   onCreateSection,
   onRenameSection,
@@ -64,6 +65,8 @@ export function BotContextMenu({
   onClose: () => void;
   onTogglePinned: () => void;
   sections: BotSection[];
+  /** False for a bot nested under an unpinned parent: it moves with the parent. */
+  canMove?: boolean;
   onMoveToSection: (sectionId: string | null) => void;
   onCreateSection: () => void;
   onRenameSection?: (sectionId: string) => void;
@@ -115,35 +118,37 @@ export function BotContextMenu({
             {bot.pinned ? t`Unpin` : t`Pin`}
           </DropdownMenuItem>
         )}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Folder />
-            {t`Move to`}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-[min(420px,calc(100vh-16px))]">
-            {sections.map((section) => (
-              <DropdownMenuItem key={section.id} onClick={() => onMoveToSection(section.id)}>
-                {bot.sectionId === section.id ? <Check /> : <Folder />}
-                <span dir="auto">{section.name}</span>
+        {canMove ? (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Folder />
+              {t`Move to`}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[min(420px,calc(100vh-16px))]">
+              {sections.map((section) => (
+                <DropdownMenuItem key={section.id} onClick={() => onMoveToSection(section.id)}>
+                  {bot.sectionId === section.id ? <Check /> : <Folder />}
+                  <span dir="auto">{section.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem onClick={() => onMoveToSection(null)}>
+                {bot.sectionId === null ? <Check /> : <Folder />}
+                {t`Unassigned`}
               </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem onClick={() => onMoveToSection(null)}>
-              {bot.sectionId === null ? <Check /> : <Folder />}
-              {t`Unassigned`}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onCreateSection}>
-              <FolderPlus />
-              {t`New section`}
-            </DropdownMenuItem>
-            {bot.sectionId && onRenameSection ? (
-              <DropdownMenuItem onClick={() => onRenameSection(bot.sectionId!)}>
-                <Pencil />
-                {t`Rename section`}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onCreateSection}>
+                <FolderPlus />
+                {t`New section`}
               </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+              {bot.sectionId && onRenameSection ? (
+                <DropdownMenuItem onClick={() => onRenameSection(bot.sectionId!)}>
+                  <Pencil />
+                  {t`Rename section`}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ) : null}
         {nestTargets.length > 0 && onNest ? (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>

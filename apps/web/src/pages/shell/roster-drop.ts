@@ -1,5 +1,6 @@
 import { GROUP_MEMBER_MAX } from "@rakazo/contracts";
 
+/** `sectionId` is the section the row lists in (see listedSectionId), not always its own. */
 type DraggedBot = {
   id: string;
   sectionId: string | null;
@@ -24,7 +25,9 @@ export type RosterDropTarget =
   | { kind: "pinned" };
 
 export type RosterDropAction =
-  | { action: "reorder"; targetBotId: string; unnest: boolean }
+  /** A nested bot moved out beside a top-level row also takes that row's section. */
+  | { action: "reorder"; targetBotId: string; unnest: false }
+  | { action: "reorder"; targetBotId: string; unnest: true; sectionId: string | null }
   | { action: "move"; sectionId: string | null; unpin: boolean; unnest: boolean }
   | { action: "pin"; unnest: boolean }
   | { action: "nest"; parentBotId: string }
@@ -75,7 +78,7 @@ export function resolveRosterDrop(input: {
       if (!sameList) return null;
       if (input.sameParent) return { action: "reorder", targetBotId: chat.id, unnest: false };
       if (unnest && chat.parentBotId === null) {
-        return { action: "reorder", targetBotId: chat.id, unnest: true };
+        return { action: "reorder", targetBotId: chat.id, unnest: true, sectionId: chat.sectionId };
       }
       return null;
     }
@@ -95,25 +98,27 @@ export function resolveRosterDrop(input: {
 
 /**
  * The bots as the server will store them after a drop, so the row lands in the same frame the
- * ghost leaves. Mirrors setBotParent: a nested bot takes its parent's section and is never pinned.
+ * ghost leaves. Mirrors setBotParent and setBotSection: a nested bot keeps its own section and
+ * is never pinned, and an unpinned parent moved to a section takes its nested bots' sections along.
  */
 export function applyRosterDrop<
   T extends { id: string; sectionId: string | null; pinned: boolean; parentBotId: string | null },
 >(bots: readonly T[], botId: string, action: RosterDropAction): readonly T[] {
   if (action.action === "join" || (action.action === "reorder" && !action.unnest)) return bots;
-  const parent =
-    action.action === "nest" ? bots.find((bot) => bot.id === action.parentBotId) : undefined;
+  const moved = bots.find((bot) => bot.id === botId);
+  // Moving an unpinned top-level bot carries its nested bots' own sections along.
+  const carriesNested =
+    action.action === "move" && moved !== undefined && !moved.pinned && !moved.parentBotId;
   return bots.map((bot): T => {
-    if (bot.id !== botId) return bot;
+    if (bot.id !== botId) {
+      return carriesNested && action.action === "move" && bot.parentBotId === botId
+        ? { ...bot, sectionId: action.sectionId }
+        : bot;
+    }
     const unnested = { parentBotId: null, pinned: false };
     switch (action.action) {
       case "nest":
-        return {
-          ...bot,
-          parentBotId: action.parentBotId,
-          sectionId: parent?.sectionId ?? bot.sectionId,
-          pinned: false,
-        };
+        return { ...bot, parentBotId: action.parentBotId, pinned: false };
       case "move":
         return {
           ...bot,
@@ -125,7 +130,11 @@ export function applyRosterDrop<
         return { ...bot, ...(action.unnest ? unnested : {}), pinned: true };
       default:
         // A reorder that moves a nested bot out; plain reorders and joins returned above.
-        return { ...bot, ...unnested };
+        return {
+          ...bot,
+          ...unnested,
+          ...(action.unnest ? { sectionId: action.sectionId } : {}),
+        };
     }
   });
 }

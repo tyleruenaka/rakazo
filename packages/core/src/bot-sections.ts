@@ -15,7 +15,33 @@ export function shownPinned(chat: { pinned: boolean; parentBotId?: string | null
   return chat.pinned && !chat.parentBotId;
 }
 
-export function groupBotsForSidebar<T extends SectionedBot>(
+type ListedBot = SectionedBot & { id?: string };
+
+/**
+ * The section a bot lists in. A nested bot lists under its parent while the parent is
+ * not pinned, so the parent's section wins over its own, even when it has none. While
+ * the parent is pinned, or not in `bots` (filtered out), it lists in its own section.
+ */
+export function listedSectionId(bot: ListedBot, bots: readonly ListedBot[]): string | null {
+  const parent = listedParent(bot, bots);
+  return parent ? parent.sectionId : bot.sectionId;
+}
+
+/**
+ * True for a nested bot that lists under its parent (present in `bots`, not pinned). It
+ * moves with the parent, so it offers no "Move to" of its own.
+ */
+export function movesWithParent(bot: ListedBot, bots: readonly ListedBot[]): boolean {
+  return listedParent(bot, bots) !== null;
+}
+
+function listedParent(bot: ListedBot, bots: readonly ListedBot[]): ListedBot | null {
+  if (!bot.parentBotId || bot.parentBotId === bot.id) return null;
+  const parent = bots.find((item) => item.id === bot.parentBotId);
+  return parent && !shownPinned(parent) ? parent : null;
+}
+
+export function groupBotsForSidebar<T extends ListedBot>(
   bots: readonly T[],
   sections: readonly Section[],
   options: { includeEmptySections?: boolean; labels?: { pinned: string; unassigned: string } } = {},
@@ -27,12 +53,13 @@ export function groupBotsForSidebar<T extends SectionedBot>(
   const grouped: BotListSection<T>[] = [];
 
   for (const bot of bots) {
+    const sectionId = listedSectionId(bot, bots);
     if (shownPinned(bot)) {
       pinned.push(bot);
-    } else if (bot.sectionId && knownSectionIds.has(bot.sectionId)) {
-      const members = sectionMembers.get(bot.sectionId) ?? [];
+    } else if (sectionId && knownSectionIds.has(sectionId)) {
+      const members = sectionMembers.get(sectionId) ?? [];
       members.push(bot);
-      sectionMembers.set(bot.sectionId, members);
+      sectionMembers.set(sectionId, members);
     } else {
       unassigned.push(bot);
     }

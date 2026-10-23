@@ -30,6 +30,7 @@ export type BotOrganizationUpdate = {
 export function BotOrganizeModal({
   bot,
   sections,
+  canMove = true,
   onClose,
   onUpdate,
   onCreateSection,
@@ -37,8 +38,10 @@ export function BotOrganizeModal({
   onDeleteSection,
 }: {
   bot: Pick<MobileBot, "name" | "pinned" | "sectionId"> &
-    Partial<Pick<MobileBot, "notifyOnFinish">>;
+    Partial<Pick<MobileBot, "notifyOnFinish" | "parentBotId">>;
   sections: MobileBotSection[];
+  /** False for a bot nested under an unpinned parent: it moves with the parent. */
+  canMove?: boolean;
   onClose: () => void;
   onUpdate: (update: BotOrganizationUpdate) => Promise<void>;
   onCreateSection: (name: string) => Promise<void>;
@@ -103,19 +106,21 @@ export function BotOrganizeModal({
           <Text style={styles.title} numberOfLines={1}>
             {bot.name}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={saving}
-            onPress={() => void save(() => onUpdate({ pinned: !bot.pinned }))}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          >
-            <NativeSymbol
-              ios={bot.pinned ? "pin.slash" : "pin"}
-              android={bot.pinned ? "pin-outline" : "pin"}
-              size={18}
-            />
-            <Text style={styles.actionLabel}>{bot.pinned ? t("Unpin") : t("Pin")}</Text>
-          </Pressable>
+          {bot.parentBotId ? null : (
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => void save(() => onUpdate({ pinned: !bot.pinned }))}
+              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+            >
+              <NativeSymbol
+                ios={bot.pinned ? "pin.slash" : "pin"}
+                android={bot.pinned ? "pin-outline" : "pin"}
+                size={18}
+              />
+              <Text style={styles.actionLabel}>{bot.pinned ? t("Unpin") : t("Pin")}</Text>
+            </Pressable>
+          )}
           {typeof bot.notifyOnFinish === "boolean" ? (
             <Pressable
               accessibilityRole="button"
@@ -133,97 +138,101 @@ export function BotOrganizeModal({
               </Text>
             </Pressable>
           ) : null}
-          <Text style={styles.sectionLabel}>{t("Move to")}</Text>
-          <ScrollView style={styles.sectionOptions} keyboardShouldPersistTaps="handled">
-            {sections.map((section) => (
-              <SectionOption
-                key={section.id}
-                label={section.name}
-                selected={bot.sectionId === section.id}
-                disabled={saving || bot.sectionId === section.id}
-                onPress={() => void save(() => onUpdate({ sectionId: section.id }))}
-              />
-            ))}
-            <SectionOption
-              label={t("Unassigned")}
-              selected={bot.sectionId === null}
-              disabled={saving || bot.sectionId === null}
-              onPress={() => void save(() => onUpdate({ sectionId: null }))}
-            />
-          </ScrollView>
-          {mode === "create" || mode === "rename" ? (
-            <View style={styles.newSectionRow}>
-              <TextInput
-                autoFocus
-                value={name}
-                onChangeText={setName}
-                maxLength={60}
-                placeholder={t("Section name")}
-                placeholderTextColor={native.secondaryLabel}
-                style={styles.newSectionInput}
-              />
-              <NativeActionButton
-                label={mode === "rename" ? t("Save") : t("Create")}
-                accessibilityLabel={
-                  mode === "rename" ? t("Save section name") : t("Create section")
-                }
-                fill={false}
-                style={{ alignSelf: "center" }}
-                disabled={
-                  saving ||
-                  !name.trim() ||
-                  (mode === "rename" && name.trim() === currentSection?.name)
-                }
-                onPress={() => {
-                  const trimmed = name.trim();
-                  if (mode === "rename" && currentSection) {
-                    void save(() => onRenameSection(currentSection.id, trimmed));
-                    return;
-                  }
-                  void save(() => onCreateSection(trimmed));
-                }}
-              />
-            </View>
-          ) : (
+          {canMove ? (
             <>
-              <Pressable
-                disabled={saving}
-                onPress={startCreate}
-                style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-              >
-                <NativeSymbol ios="folder.badge.plus" android="folder-outline" size={18} />
-                <Text style={styles.actionLabel}>{t("New section")}</Text>
-              </Pressable>
-              {currentSection ? (
-                <Pressable
-                  disabled={saving}
-                  onPress={startRename}
-                  style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-                >
-                  <NativeSymbol ios="pencil" android="pencil-outline" size={18} />
-                  <Text style={styles.actionLabel}>{t("Rename section")}</Text>
-                </Pressable>
-              ) : null}
-              {currentSection ? (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={saving}
-                  onPress={confirmDelete}
-                  style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-                >
-                  <NativeSymbol
-                    ios="trash"
-                    android="trash-outline"
-                    size={18}
-                    color={mobileTokens().destructive}
+              <Text style={styles.sectionLabel}>{t("Move to")}</Text>
+              <ScrollView style={styles.sectionOptions} keyboardShouldPersistTaps="handled">
+                {sections.map((section) => (
+                  <SectionOption
+                    key={section.id}
+                    label={section.name}
+                    selected={bot.sectionId === section.id}
+                    disabled={saving || bot.sectionId === section.id}
+                    onPress={() => void save(() => onUpdate({ sectionId: section.id }))}
                   />
-                  <Text style={[styles.actionLabel, styles.destructive]}>
-                    {t("Delete section")}
-                  </Text>
-                </Pressable>
-              ) : null}
+                ))}
+                <SectionOption
+                  label={t("Unassigned")}
+                  selected={bot.sectionId === null}
+                  disabled={saving || bot.sectionId === null}
+                  onPress={() => void save(() => onUpdate({ sectionId: null }))}
+                />
+              </ScrollView>
+              {mode === "create" || mode === "rename" ? (
+                <View style={styles.newSectionRow}>
+                  <TextInput
+                    autoFocus
+                    value={name}
+                    onChangeText={setName}
+                    maxLength={60}
+                    placeholder={t("Section name")}
+                    placeholderTextColor={native.secondaryLabel}
+                    style={styles.newSectionInput}
+                  />
+                  <NativeActionButton
+                    label={mode === "rename" ? t("Save") : t("Create")}
+                    accessibilityLabel={
+                      mode === "rename" ? t("Save section name") : t("Create section")
+                    }
+                    fill={false}
+                    style={{ alignSelf: "center" }}
+                    disabled={
+                      saving ||
+                      !name.trim() ||
+                      (mode === "rename" && name.trim() === currentSection?.name)
+                    }
+                    onPress={() => {
+                      const trimmed = name.trim();
+                      if (mode === "rename" && currentSection) {
+                        void save(() => onRenameSection(currentSection.id, trimmed));
+                        return;
+                      }
+                      void save(() => onCreateSection(trimmed));
+                    }}
+                  />
+                </View>
+              ) : (
+                <>
+                  <Pressable
+                    disabled={saving}
+                    onPress={startCreate}
+                    style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+                  >
+                    <NativeSymbol ios="folder.badge.plus" android="folder-outline" size={18} />
+                    <Text style={styles.actionLabel}>{t("New section")}</Text>
+                  </Pressable>
+                  {currentSection ? (
+                    <Pressable
+                      disabled={saving}
+                      onPress={startRename}
+                      style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+                    >
+                      <NativeSymbol ios="pencil" android="pencil-outline" size={18} />
+                      <Text style={styles.actionLabel}>{t("Rename section")}</Text>
+                    </Pressable>
+                  ) : null}
+                  {currentSection ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={saving}
+                      onPress={confirmDelete}
+                      style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+                    >
+                      <NativeSymbol
+                        ios="trash"
+                        android="trash-outline"
+                        size={18}
+                        color={mobileTokens().destructive}
+                      />
+                      <Text style={[styles.actionLabel, styles.destructive]}>
+                        {t("Delete section")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              )}
             </>
-          )}
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <NativeActionButton
             label={t("Cancel")}

@@ -2053,6 +2053,10 @@ export function createRouter(deps: RouterDeps) {
             throw new ORPCError("BAD_REQUEST", { message: error.message });
           });
         }
+        // Before any pin change below: an unpinned parent's nested bots move with it.
+        if (input.sectionId !== undefined) {
+          await repos.setBotSection(context.actor, input.botId, input.sectionId);
+        }
         if (input.primary) {
           const appended = await repos.setBotPrimary(context.actor, input.botId);
           await Promise.all(
@@ -2077,7 +2081,6 @@ export function createRouter(deps: RouterDeps) {
             color: input.color,
             pinned: input.pinned,
             memoryScope: input.memoryScope,
-            sectionId: input.sectionId,
             voiceId: input.voiceId,
             autoSpeak: input.autoSpeak,
             ...(input.modelProvider !== undefined

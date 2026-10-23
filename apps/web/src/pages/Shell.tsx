@@ -53,8 +53,10 @@ import {
   isRunTerminalEvent,
   isRunWorking,
   isToolActivityBlock,
+  listedSectionId,
   MODEL_REQUIRED_SEND_ERROR,
   mentionChipKey,
+  movesWithParent,
   nestRosterByParent,
   normalizeRunError,
   plainTextFromMarkdown,
@@ -2020,12 +2022,13 @@ function SpaceShell() {
     [userId],
   );
   // Drags only act on bots of the active space; other spaces are read-only here.
+  // Drops compare the section a row lists in: a nested bot lists under an unpinned parent.
   const rosterDragSource = (botId: string) => {
     const bot = bots.find((item) => item.id === botId);
     if (!bot) return null;
     return {
       id: bot.id,
-      sectionId: bot.sectionId,
+      sectionId: listedSectionId(bot, bots),
       pinned: bot.pinned,
       parentBotId: bot.parentBotId,
       hasChildren: [...bots, ...archivedBots].some((item) => item.parentBotId === bot.id),
@@ -2056,7 +2059,11 @@ function SpaceShell() {
       const group = kind === "group" ? groups.find((item) => item.id === id) : undefined;
       if (bot && canNestBot(dragged, bot)) resting = rowKey;
       const target: RosterDropTarget | null = bot
-        ? { kind: "bot", chat: bot, nest: heldKey === rowKey }
+        ? {
+            kind: "bot",
+            chat: { ...bot, sectionId: listedSectionId(bot, bots) },
+            nest: heldKey === rowKey,
+          }
         : group
           ? { kind: "group", chat: { id: group.id, memberIds: group.members.map((m) => m.botId) } }
           : null;
@@ -2114,7 +2121,12 @@ function SpaceShell() {
     }
     if (action.action === "reorder") reorderRosterBot(botId, action.targetBotId, hover.listBotIds);
     if (action.action === "reorder" && !action.unnest) return;
-    const unnest = "unnest" in action && action.unnest ? { parentBotId: null } : {};
+    const unnest =
+      action.action === "reorder" && action.unnest
+        ? { parentBotId: null, sectionId: action.sectionId }
+        : "unnest" in action && action.unnest
+          ? { parentBotId: null }
+          : {};
     const request =
       action.action === "join"
         ? rpc.groups.update({
@@ -3611,6 +3623,7 @@ function SpaceShell() {
         position={botMenu.position}
         onClose={closeBotMenu}
         sections={botSections}
+        canMove={!contextBot || !movesWithParent(contextBot, bots)}
         onTogglePinned={() => {
           setBotMenu(null);
           const request = contextBot
