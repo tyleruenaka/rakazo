@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { darkTokens } from "@rakazo/ui-tokens";
 import type { Rolldown } from "vite";
 import { describe, expect, it } from "vitest";
@@ -67,5 +69,23 @@ describe("PWA build", () => {
       theme_color: darkTokens.background,
     });
     expect(manifest.icons.filter((icon) => icon.purpose === "maskable")).toHaveLength(2);
+  });
+
+  it("matches the page it installs: theme color, name and the shipped icons", () => {
+    const web = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
+    const html = readFileSync(web("../../index.html"), "utf8");
+    const manifest = webManifest();
+    const themeColor = html.match(/<meta name="theme-color" content="([^"]+)"/)?.[1];
+    expect(themeColor).toBe("#121212");
+    expect(manifest.theme_color.toLowerCase()).toBe(themeColor);
+    expect(manifest.background_color.toLowerCase()).toBe(themeColor);
+    expect(manifest.name).toBe("Rakazo");
+    expect(html).toContain(
+      `<meta name="apple-mobile-web-app-title" content="${manifest.short_name}" />`,
+    );
+    expect(html).toContain(`<title>${manifest.name}</title>`);
+    for (const icon of manifest.icons) {
+      expect(existsSync(web(`../../public${icon.src}`))).toBe(true);
+    }
   });
 });
