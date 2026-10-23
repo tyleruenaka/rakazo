@@ -24,6 +24,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import type { GestureResponderEvent } from "react-native";
 import {
   ActivityIndicator,
   Alert,
@@ -54,6 +55,7 @@ import { GlassSurface } from "../components/glass-surface";
 import { GroupAvatar } from "../components/group-avatar";
 import { HomeErrorState } from "../components/home-error-state";
 import { InboxPinnedMenu, InboxSwipeRow } from "../components/inbox-swipe-row";
+import { presentMessageMenu } from "../components/message-action-menu";
 import { NativeSymbol } from "../components/native-symbol";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {
@@ -704,19 +706,49 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     [router],
   );
 
-  const openCreateChooser = useCallback(() => {
-    Alert.alert(
-      t("Create"),
-      undefined,
-      [
-        { text: t("New Bot"), onPress: () => runCreateAction("bot") },
-        { text: t("New Group Chat"), onPress: () => runCreateAction("group") },
-        { text: t("New Space"), onPress: () => runCreateAction("space") },
-        { text: t("Activity"), onPress: toggleActivityMode },
-      ],
-      { cancelable: true },
-    );
-  }, [runCreateAction, toggleActivityMode, t]);
+  // Android: the long-press menu card, since an Alert keeps only its first three buttons.
+  const openCreateChooser = useCallback(
+    (event: GestureResponderEvent) => {
+      presentMessageMenu({
+        reactions: [],
+        groups: [
+          [
+            {
+              name: "bot",
+              text: t("New Bot"),
+              icon: { ios: "person.badge.plus", android: "person-add-outline" },
+              onPress: () => runCreateAction("bot"),
+            },
+            {
+              name: "group",
+              text: t("New Group Chat"),
+              icon: { ios: "person.2", android: "people-outline" },
+              onPress: () => runCreateAction("group"),
+            },
+            {
+              name: "space",
+              text: t("New Space"),
+              icon: { ios: "square.grid.2x2", android: "grid-outline" },
+              onPress: () => runCreateAction("space"),
+            },
+          ],
+          [
+            {
+              name: "activity",
+              text: t("Activity"),
+              // A check while it's on, like the iOS menu's state.
+              icon: activityMode
+                ? { ios: "checkmark", android: "checkmark" }
+                : { ios: "waveform", android: "pulse-outline" },
+              onPress: toggleActivityMode,
+            },
+          ],
+        ],
+        anchor: { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY },
+      });
+    },
+    [activityMode, runCreateAction, toggleActivityMode, t],
+  );
 
   useLayoutEffect(() => {
     if (!nativeHeader) return;
@@ -1717,7 +1749,7 @@ function HeaderButton({
   accent = false,
 }: {
   children: ReactNode;
-  onPress: () => void;
+  onPress: (event: GestureResponderEvent) => void;
   accessibilityLabel: string;
   testID?: string;
   active?: boolean;
