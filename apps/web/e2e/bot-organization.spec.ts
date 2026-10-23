@@ -402,7 +402,24 @@ test("a nested bot lists under its unpinned parent, and in its own section while
   const targets = page.getByRole("menu", { name: "Nest under", exact: true });
   await expect(targets.getByRole("menuitem", { name: "Lead", exact: true })).toBeVisible();
   await expect(targets.getByRole("menuitem", { name: "Helper", exact: true })).toHaveCount(0);
+  // The first Escape closes the submenu, the second the menu.
   await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+
+  // Moving out keeps the bot where it was listed, the parent's section, not its own.
+  await togglePin(lead.id, "Pin");
+  await moveTo(helper.id, "Research");
+  await togglePin(lead.id, "Unpin");
+  await expect(listed("unassigned", helper.id)).toHaveAttribute("data-roster-depth", "1");
+  await menu(helper.id);
+  await page.getByRole("menuitem", { name: "Move out of Lead", exact: true }).click();
+  await expect(listed("unassigned", helper.id)).toBeVisible();
+  await expect(listed("unassigned", helper.id)).not.toHaveAttribute("data-roster-depth", "1");
+  await captureScreenshot(page, testInfo, "moved-out-stays-in-parent-section");
+  // From there it moves like any top-level bot.
+  await moveTo(helper.id, "Research");
+  await expect(listed(`section:${research.id}`, helper.id)).toBeVisible();
 });
 
 test("one bot at a time is the Primary, with the star and no Delete", async ({

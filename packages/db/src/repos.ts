@@ -760,7 +760,8 @@ export function createRepos(
      * the top level. Nesting gives the parent's fleet tools reach over it. The bot
      * keeps its own section and is never pinned: it lists under its parent while the
      * parent is unpinned, and as an ordinary row in its own section while the parent
-     * is pinned.
+     * is pinned. Moving it out keeps it where it was listed, so out from under an unpinned
+     * parent it takes the parent's section.
      */
     async setBotParent(actor: Actor, botId: string, parentBotId: string | null): Promise<void> {
       if (parentBotId === botId) throw new BotParentError("A bot can't be nested under itself");
@@ -790,11 +791,29 @@ export function createRepos(
           throw new IsolationError();
         }
         if (!parent) {
-          // A nested bot is never shown pinned, so moving it out leaves it unpinned too.
-          const nested = rows.some((row) => row.id === botId && row.parentBotId);
+          const oldParentId = rows.find((row) => row.id === botId)?.parentBotId;
+          if (!oldParentId) {
+            await tx.bot.update({ where: { id: botId }, data: { parentBotId: null } });
+            return;
+          }
+          // Moving out keeps the bot where the sidebar lists it, and unpinned as it was shown:
+          // under an unpinned parent that is the parent's section, under a pinned one its own.
+          const oldParent = await tx.bot.findFirst({
+            where: {
+              id: oldParentId,
+              spaceId: actor.spaceId,
+              userId: actor.userId,
+              archivedAt: null,
+            },
+            select: { pinned: true, sectionId: true },
+          });
           await tx.bot.update({
             where: { id: botId },
-            data: nested ? { parentBotId: null, pinned: false } : { parentBotId: null },
+            data: {
+              parentBotId: null,
+              pinned: false,
+              ...(oldParent && !oldParent.pinned ? { sectionId: oldParent.sectionId } : {}),
+            },
           });
           return;
         }

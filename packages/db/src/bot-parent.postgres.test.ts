@@ -121,6 +121,50 @@ describePostgres("setBotParent (PostgreSQL)", () => {
       });
     }));
 
+  it("moving out keeps the bot where it was listed: an unpinned parent's section", () =>
+    runAsTenant(owners[0]!, async () => {
+      const repos = createRepos(prisma);
+      const actor = actorOf(owners[0]!);
+      const parent = await create(owners[0]!, "Out parent");
+      const child = await create(owners[0]!, "Out child");
+      const parentSection = await repos.createBotSection(actor, {
+        botId: parent.id,
+        name: "Out parent section",
+      });
+      const childSection = await repos.createBotSection(actor, {
+        botId: child.id,
+        name: "Out child section",
+      });
+
+      // Unpinned parent: the child listed in the parent's section, so it stays there.
+      await repos.setBotParent(actor, child.id, parent.id);
+      await repos.setBotParent(actor, child.id, null);
+      expect(await read(child.id)).toMatchObject({
+        parentBotId: null,
+        sectionId: parentSection.id,
+        pinned: false,
+      });
+
+      // Pinned parent: the child listed in its own section, so it keeps that one.
+      await repos.setBotSection(actor, child.id, childSection.id);
+      await prisma.bot.update({ where: { id: parent.id }, data: { pinned: true } });
+      await repos.setBotParent(actor, child.id, parent.id);
+      await repos.setBotParent(actor, child.id, null);
+      expect(await read(child.id)).toMatchObject({
+        parentBotId: null,
+        sectionId: childSection.id,
+      });
+
+      // A parent with no section: the child lands in unassigned with it.
+      await prisma.bot.update({
+        where: { id: parent.id },
+        data: { pinned: false, sectionId: null },
+      });
+      await repos.setBotParent(actor, child.id, parent.id);
+      await repos.setBotParent(actor, child.id, null);
+      expect((await read(child.id)).sectionId).toBeNull();
+    }));
+
   it("moves an unpinned parent's nested bots with it, and leaves a pinned parent's alone", () =>
     runAsTenant(owners[0]!, async () => {
       const repos = createRepos(prisma);
