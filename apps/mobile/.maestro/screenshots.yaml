@@ -247,6 +247,11 @@ tags:
 - assertVisible: "👍"
 - assertVisible: "Speak message"
 - back
+# Closing the menu must not bring the keyboard back, so the next hold opens the menu again.
+- longPressOn: "The fixture launch plan is ready."
+- assertVisible: "Reply"
+- takeScreenshot: "19c-group-thread-menu-again"
+- back
 
 - openLink: "rakazo:///group-settings?groupId=${RAKAZO_SCREENSHOT_GROUP_ID}"
 - extendedWaitUntil:
