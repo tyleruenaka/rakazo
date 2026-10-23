@@ -1,6 +1,7 @@
 import type Ionicons from "@react-native-vector-icons/ionicons";
 import type { ComponentProps } from "react";
 import { useSyncExternalStore } from "react";
+import { Keyboard, Platform } from "react-native";
 import { MessageMenuSheet } from "./message-menu-sheet";
 
 export type MessageMenuItem = {
@@ -34,6 +35,9 @@ function setMenu(next: MessageMenuSpec | null) {
 
 /** Opens the reaction and action sheet for a long-pressed message. */
 export function presentMessageMenu(spec: MessageMenuSpec) {
+  // The Android menu is its own window. If the message box keeps focus behind it, Android
+  // shows the keyboard again when the menu closes, and the next press only hides it.
+  if (Platform.OS === "android") Keyboard.dismiss();
   opened += 1;
   setMenu(spec);
 }

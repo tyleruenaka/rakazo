@@ -165,8 +165,6 @@ tags:
 - assertVisible: "Read-only"
 - takeScreenshot: "15f-thread-peer-exchange"
 - back
-# Menus come before typing: closing one while the message box has focus brings its
-# keyboard back, and the next press then only closes the keyboard.
 # Holding a message opens the reaction row and grouped actions next to it.
 - longPressOn: "The fixture workspace is ready."
 - assertVisible: "Reply"
