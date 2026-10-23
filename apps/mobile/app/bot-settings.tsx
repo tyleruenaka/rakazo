@@ -616,6 +616,22 @@ export default function BotSettingsScreen() {
         </View>
         {advancedOpen ? (
           <View style={{ gap: 16, paddingTop: 16 }}>
+            <View>
+              <BotCardLabel>{t("Description")}</BotCardLabel>
+              <BotCard>
+                <TextInput
+                  key="description"
+                  accessibilityLabel={t("Description")}
+                  value={description}
+                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+                  onChangeText={setDescription}
+                  placeholder={t("What this bot is for")}
+                  placeholderTextColor={native.secondaryLabel}
+                  multiline
+                  style={[fieldStyle, styles.multilineField]}
+                />
+              </BotCard>
+            </View>
             <BotCard>
               <View key="model" style={styles.advancedCard}>
                 <MenuPicker
@@ -683,23 +699,6 @@ export default function BotSettingsScreen() {
                 />
               </View>
             </BotCard>
-            <View>
-              <BotCardLabel>{t("Description")}</BotCardLabel>
-              <Text style={styles.caption}>{t("How other bots see it")}</Text>
-              <BotCard>
-                <TextInput
-                  key="description"
-                  accessibilityLabel={t("Description")}
-                  value={description}
-                  maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-                  onChangeText={setDescription}
-                  placeholder={t("What this bot is for")}
-                  placeholderTextColor={native.secondaryLabel}
-                  multiline
-                  style={[fieldStyle, styles.multilineField]}
-                />
-              </BotCard>
-            </View>
             {botId ? (
               <BotCard>
                 <BotCardRow
@@ -800,6 +799,5 @@ const styles = StyleSheet.create({
   },
   rowLabel: { flex: 1, color: native.label, fontSize: 17 },
   fleetLabel: { fontSize: 14, flexShrink: 1 },
-  caption: { color: native.secondaryLabel, fontSize: 13, paddingStart: 18, marginBottom: 7.5 },
   rowValue: { flexShrink: 1, color: native.secondaryLabel, fontSize: 17, textAlign: "right" },
 });

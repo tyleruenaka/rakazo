@@ -2757,10 +2757,6 @@ msgstr "hours"
 msgid "How often"
 msgstr "How often"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "How other bots see it"
-msgstr "How other bots see it"
-
 #: src/components/teach/SkillDraftCard.tsx
 msgid "How to check"
 msgstr "How to check"

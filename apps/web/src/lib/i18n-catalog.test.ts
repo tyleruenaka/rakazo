@@ -74,7 +74,6 @@ describe("lingui catalogs", () => {
         "Disable a tool",
         "Enable {0}",
         "Encrypted and never shown again",
-        "How other bots see it",
         "Model connections",
         "Skills",
       ]) {

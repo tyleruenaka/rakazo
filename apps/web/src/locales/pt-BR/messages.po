@@ -2757,10 +2757,6 @@ msgstr "horas"
 msgid "How often"
 msgstr "Com que frequência"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "How other bots see it"
-msgstr "Como outros bots o veem"
-
 #: src/components/teach/SkillDraftCard.tsx
 msgid "How to check"
 msgstr "Como verificar"

@@ -68,15 +68,13 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await openBotSettings(page, "New Bot");
   const nameInput = page.locator("label:has-text('Name') input");
   const titleInput = page.locator("label:has-text('Title') input");
-  // Description now lives under Advanced, labelled by its section heading.
-  const descriptionInput = page.getByRole("textbox", { name: "Description", exact: true });
+  const descriptionInput = page.locator("label:has-text('Description') textarea");
   const advancedSection = page.getByTestId("bot-settings").getByTestId("bot-settings-advanced");
   const longTitle = `Market researcher ${"and source verifier ".repeat(9)}`;
   const normalizedLongTitle = longTitle.trim();
   expect(longTitle.length).toBeGreaterThan(160);
   await nameInput.fill("Researcher");
   await titleInput.fill(longTitle);
-  await expandAdvancedSection(advancedSection);
   await descriptionInput.fill("Finds reliable sources and turns them into concise briefs.");
   await page.getByTestId("avatar-studio-trigger").click();
   const studio = page.getByTestId("avatar-studio");
@@ -92,7 +90,6 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await openBotSettings(page, "Researcher");
   await expect(nameInput).toHaveValue("Researcher");
   await expect(titleInput).toHaveValue(normalizedLongTitle);
-  await expandAdvancedSection(advancedSection);
   await expect(descriptionInput).toHaveValue(
     "Finds reliable sources and turns them into concise briefs.",
   );
@@ -104,8 +101,10 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
     "true",
   );
   await page.keyboard.press("Escape");
-  // Collapse Advanced again to check what the panel shows by default.
-  await settings.getByRole("button", { name: "Advanced", exact: true }).click();
+  // Description sits with Name and Title at the top, outside Advanced.
+  await expect(settings.getByTestId("bot-profile-header").locator(descriptionInput)).toBeVisible();
+  await expect(advancedSection.locator(descriptionInput)).toHaveCount(0);
+  await expect(settings.getByText("How other bots see it")).toHaveCount(0);
   const modelSelect = settings.getByRole("combobox", { name: "Model", exact: true });
   const teamComputer = settings.getByRole("combobox", { name: "Computer", exact: true });
   const openWork = settings.getByTestId("bot-scratchpad");
@@ -203,7 +202,6 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
 
   await nameInput.fill("Atlas");
   await titleInput.fill("Research lead");
-  await expandAdvancedSection(advancedSection);
   await descriptionInput.fill("Builds durable, source-backed research briefs.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(botList.getByRole("button", { name: /^Atlas/ })).toBeVisible();
@@ -216,7 +214,6 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await openBotSettings(page, "Atlas");
   await expect(nameInput).toHaveValue("Atlas");
   await expect(titleInput).toHaveValue("Research lead");
-  await expandAdvancedSection(advancedSection);
   await expect(descriptionInput).toHaveValue("Builds durable, source-backed research briefs.");
   await captureScreenshot(page, testInfo, "29-reloaded-bot-profile");
 

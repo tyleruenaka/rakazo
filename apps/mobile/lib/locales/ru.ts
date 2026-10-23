@@ -1,7 +1,6 @@
 export const RU_MESSAGES: Record<string, string> = {
   Export: "Экспорт",
   "Add open work": "Добавить задачу",
-  "How other bots see it": "Как его видят другие боты",
   "Open work": "Открытые задачи",
   "To:": "Кому:",
   Next: "Далее",

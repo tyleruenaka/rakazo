@@ -2757,10 +2757,6 @@ msgstr "小时"
 msgid "How often"
 msgstr "频率"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "How other bots see it"
-msgstr "其他机器人如何了解它"
-
 #: src/components/teach/SkillDraftCard.tsx
 msgid "How to check"
 msgstr "如何检查"

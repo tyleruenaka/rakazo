@@ -23,7 +23,6 @@ describe("bot settings layout", () => {
       "readAloud",
       "voice",
       "fleetManagement",
-      "description",
       "disabledTools",
       "credentials",
       "skills",

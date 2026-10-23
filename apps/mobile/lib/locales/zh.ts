@@ -1,7 +1,6 @@
 export const ZH_MESSAGES: Record<string, string> = {
   Export: "导出",
   "Add open work": "添加待办事项",
-  "How other bots see it": "其他机器人如何了解它",
   "Open work": "待办事项",
   "To:": "收件人：",
   Next: "下一步",

@@ -215,11 +215,6 @@ function descriptionField(): HTMLTextAreaElement {
 }
 
 async function setDescription(value: string) {
-  if (
-    container.querySelector('[data-testid="bot-settings"]') &&
-    !container.querySelector('[id$="-description"]')
-  )
-    await expandAdvanced();
   const textarea = descriptionField();
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
@@ -261,9 +256,12 @@ it("shows the main sections and keeps only rare controls in Advanced", async () 
     { id: "fixture-voice", label: "Fixture voice" },
   ]);
   await render("Billing", {}, true);
-  // Name and Title are fields at the top, with Save beside Export and Clear.
+  // Name, Title and Description are fields at the top, with Save beside Export and Clear.
   expect(container.querySelector<HTMLInputElement>('input[id$="-name"]')?.value).toBe("Ada");
-  expect(container.querySelector('[id$="-description"]')).toBeNull();
+  const description = container.querySelector<HTMLTextAreaElement>('textarea[id$="-description"]');
+  expect(description?.value).toBe("Billing");
+  expect(description?.closest('[data-testid="bot-profile-header"]')).not.toBeNull();
+  expect(container.textContent).not.toContain("How other bots see it");
   expect(container.querySelector('[id$="-disabled-tools"]')).toBeNull();
   const advanced = container.querySelector<HTMLElement>('[data-testid="bot-settings-advanced"]')!;
   expect(advanced.querySelector("button[aria-expanded]")?.getAttribute("aria-expanded")).toBe(
@@ -285,6 +283,7 @@ it("shows the main sections and keeps only rare controls in Advanced", async () 
       ?.closest("section")
       ?.getAttribute("data-testid"),
   ).toBe("bot-settings-tools");
+  expect(advanced.querySelector('[id$="-description"]')).toBeNull();
   const labels = {
     model: "Model",
     computer: "Computer",

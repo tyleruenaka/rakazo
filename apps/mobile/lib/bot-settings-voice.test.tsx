@@ -798,14 +798,15 @@ describe("bot settings sections", () => {
     expect(container.textContent).toContain("Manage nested bots");
   });
 
-  it("puts Description, then Export and Clear conversation, at the end of Advanced", async () => {
+  it("keeps Description first in Advanced, and Export and Clear conversation at the end", async () => {
     await act(async () => root.render(<BotSettingsScreen />));
     expect(button("Export")).toBeUndefined();
+    expect(container.textContent).not.toContain("Description");
     await act(async () => button("Advanced")!.click());
     const text = container.textContent ?? "";
-    expect(text.indexOf("Manage nested bots")).toBeLessThan(text.indexOf("Description"));
-    expect(text).toContain("How other bots see it");
-    expect(text.indexOf("Description")).toBeLessThan(text.indexOf("Export"));
+    expect(text.indexOf("Advanced")).toBeLessThan(text.indexOf("Description"));
+    expect(text.indexOf("Description")).toBeLessThan(text.indexOf("Model"));
+    expect(text.indexOf("Manage nested bots")).toBeLessThan(text.indexOf("Export"));
     expect(text.indexOf("Export")).toBeLessThan(text.indexOf("Clear conversation"));
     await act(async () => button("Export")!.click());
     expect(mocks.rpc).toHaveBeenCalledWith("export/bot", { botId: "bot-fixture" });

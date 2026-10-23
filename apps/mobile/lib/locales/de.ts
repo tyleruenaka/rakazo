@@ -1,7 +1,6 @@
 export const DE_MESSAGES: Record<string, string> = {
   Export: "Exportieren",
   "Add open work": "Offene Aufgabe hinzufügen",
-  "How other bots see it": "So sehen andere Bots ihn",
   "Open work": "Offene Aufgaben",
   "To:": "An:",
   Next: "Weiter",

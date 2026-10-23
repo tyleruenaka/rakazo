@@ -51,7 +51,6 @@ import { InstructionSettings } from "../../components/InstructionSettings";
 import { ListboxSelect } from "../../components/ListboxSelect";
 import {
   SettingsCard,
-  SettingsDescription,
   SettingsGroup,
   SettingsRow,
   settingsNativeSelectClass,
@@ -591,6 +590,18 @@ export function BotSettings({
             className="mt-1.5"
           />
         </label>
+        <label htmlFor={`${ids}-description`} className={fieldLabelClass}>
+          <Trans>Description</Trans>
+          <Textarea
+            id={`${ids}-description`}
+            value={description}
+            maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() => void enqueueSave()}
+            rows={3}
+            className="mt-1.5"
+          />
+        </label>
       </div>
       <div className="mt-6 space-y-7">
         <InstructionSettings key={bot.id} bot={bot} />
@@ -775,29 +786,6 @@ export function BotSettings({
                   />
                 </SettingsRow>
               </SettingsCard>
-              <SettingsGroup
-                label={
-                  <label htmlFor={`${ids}-description`}>
-                    <Trans>Description</Trans>
-                  </label>
-                }
-              >
-                <div className="px-3.5 py-2.5">
-                  <SettingsDescription>
-                    <Trans>How other bots see it</Trans>
-                  </SettingsDescription>
-                  <Textarea
-                    id={`${ids}-description`}
-                    value={description}
-                    maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-                    onChange={(e) => setDescription(e.target.value)}
-                    onBlur={() => void enqueueSave()}
-                    placeholder={t`What this bot is for`}
-                    rows={2}
-                    className="mt-2 min-h-16 resize-none field-sizing-content"
-                  />
-                </div>
-              </SettingsGroup>
               <SettingsGroup label={<Trans>Tools</Trans>} testId="bot-settings-tools">
                 <div className="px-3.5 py-2.5">
                   <NativeSelect

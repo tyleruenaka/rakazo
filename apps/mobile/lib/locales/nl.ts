@@ -1,7 +1,6 @@
 export const NL_MESSAGES: Record<string, string> = {
   Export: "Exporteren",
   "Add open work": "Open taak toevoegen",
-  "How other bots see it": "Hoe andere bots deze zien",
   "Open work": "Open taken",
   "To:": "Aan:",
   Next: "Volgende",
