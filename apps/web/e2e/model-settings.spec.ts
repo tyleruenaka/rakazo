@@ -886,12 +886,18 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
   await expect(options).toHaveCount(anthropicIds);
   await captureScreenshot(page, testInfo, "chat-settings-model-search");
 
-  // With no match the dropdown shows no rows and stays open on the search.
+  // With no match the dropdown says so and stays open on the search.
+  const noMatches = page.getByText("No matching models", { exact: true });
   await search.fill("no model is called this");
   await expect(options).toHaveCount(0);
-  await expect(search).toBeVisible();
+  await expect(noMatches).toBeVisible();
   await expect(search).toBeFocused();
   await captureScreenshot(page, testInfo, "chat-settings-model-search-empty");
+  await search.locator("..").getByRole("button", { name: "Clear", exact: true }).click();
+  await expect(search).toHaveValue("");
+  await expect(noMatches).toBeHidden();
+  await expect(options).toHaveCount(openRouter.length + 1);
+  await expect(search).toBeFocused();
 
   await search.fill(target.id);
   const targetLabel = `${target.providerName ?? target.provider} · ${target.label}`;

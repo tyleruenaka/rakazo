@@ -39,8 +39,8 @@ export function ListboxSelect<T extends string>({
   testId?: string;
   className?: string;
   disabled?: boolean;
-  /** Adds a search field above the list. */
-  search?: { placeholder: string; clearLabel: string; className: string };
+  /** Adds a search field above the list; `emptyLabel` is the muted row shown when nothing matches. */
+  search?: { placeholder: string; clearLabel: string; className: string; emptyLabel?: string };
   /** Muted text at the right of an open row, computed only while the popup is open. */
   renderDetail?: (value: T) => string;
 }) {
@@ -278,6 +278,11 @@ export function ListboxSelect<T extends string>({
                 </button>
               );
             })}
+            {mounted && search?.emptyLabel && needle && !visible.length ? (
+              <div className="flex h-[30px] shrink-0 items-center ps-2 pe-[7.5px] text-[13px] text-placeholder">
+                {search.emptyLabel}
+              </div>
+            ) : null}
           </div>
         </ScrollArea>
       </PopoverContent>

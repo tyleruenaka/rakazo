@@ -681,6 +681,7 @@ export function BotSettings({
                                   placeholder: t`Search models`,
                                   clearLabel: t`Clear`,
                                   className: "w-[320px]",
+                                  emptyLabel: t`No matching models`,
                                 }
                               : undefined
                           }
