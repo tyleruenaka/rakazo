@@ -18,14 +18,14 @@ export type MessageAttachment = Extract<MessageBlock, { kind: "image" | "file" }
 /** A message's images and files: inline previews, audio players and file rows that open. */
 export function MessageAttachments({
   attachments,
-  role,
+  messageRole,
   target,
   actionProps,
   onPreviewImage,
   onPreviewMarkdown,
 }: {
   attachments: readonly MessageAttachment[];
-  role: string;
+  messageRole: string;
   target: MobileArtifactTarget;
   actionProps?: Pick<TextProps, "onLongPress" | "accessibilityActions" | "onAccessibilityAction">;
   onPreviewImage: (target: ImageArtifactPreviewTarget) => void;
@@ -44,7 +44,7 @@ export function MessageAttachments({
               artifactId={attachment.artifactId}
               name={attachment.name ?? t("Image")}
               mimeType={attachment.mimeType ?? "image/png"}
-              labelColor={role === "user" ? tokens.chatUserForeground : tokens.foreground}
+              labelColor={messageRole === "user" ? tokens.chatUserForeground : tokens.foreground}
               pressableProps={actionProps}
               onOpen={() =>
                 onPreviewImage({
@@ -73,7 +73,7 @@ export function MessageAttachments({
             >
               <Text
                 style={{
-                  color: role === "user" ? tokens.chatUserForeground : tokens.foreground,
+                  color: messageRole === "user" ? tokens.chatUserForeground : tokens.foreground,
                   fontSize: 15,
                 }}
               >
@@ -89,7 +89,7 @@ export function MessageAttachments({
             artifactId={attachment.artifactId}
             name={attachment.name ?? t("File")}
             mimeType={attachment.mimeType!}
-            labelColor={role === "user" ? tokens.chatUserForeground : undefined}
+            labelColor={messageRole === "user" ? tokens.chatUserForeground : undefined}
           />
         ) : (
           <Pressable
@@ -116,7 +116,7 @@ export function MessageAttachments({
           >
             <Text
               style={{
-                color: role === "user" ? tokens.chatUserForeground : tokens.foreground,
+                color: messageRole === "user" ? tokens.chatUserForeground : tokens.foreground,
                 fontSize: 15,
               }}
             >
@@ -125,7 +125,8 @@ export function MessageAttachments({
             {formatFileSize(attachment.size) ? (
               <Text
                 style={{
-                  color: role === "user" ? tokens.chatUserForeground : tokens.mutedForeground,
+                  color:
+                    messageRole === "user" ? tokens.chatUserForeground : tokens.mutedForeground,
                   marginTop: 4,
                   fontSize: 13,
                 }}

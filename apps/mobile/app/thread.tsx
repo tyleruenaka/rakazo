@@ -4009,7 +4009,7 @@ const MessageBubble = memo(function MessageBubble({
         ) : null}
         <MessageAttachments
           attachments={attachments}
-          role={message.role}
+          messageRole={message.role}
           target={artifactTarget}
           actionProps={actionProps}
           onPreviewImage={onPreviewImage}
