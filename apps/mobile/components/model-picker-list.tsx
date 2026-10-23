@@ -203,7 +203,11 @@ export function ModelPickerList({
       style={styles.screen}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerInset + 16, paddingBottom: insets.bottom + 72 },
+        // On Android the pinned search bar adds 8 below itself, so the resting gap stays 16.
+        {
+          paddingTop: headerInset + (Platform.OS === "android" ? 8 : 16),
+          paddingBottom: insets.bottom + 72,
+        },
       ]}
       // Reserve the transparent bar explicitly: native search can drop its automatic inset.
       automaticallyAdjustKeyboardInsets
@@ -336,6 +340,7 @@ function createStyles() {
       paddingHorizontal: 14,
       marginHorizontal: 16,
       marginTop: 16,
+      marginBottom: 8,
     },
     searchInput: { flex: 1, height: "100%", color: native.label, fontSize: 17 },
     empty: {
