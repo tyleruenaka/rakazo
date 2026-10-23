@@ -3427,6 +3427,10 @@ msgstr ""
 msgid "Nest under"
 msgstr "Altına koy"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Yeni bot"
@@ -3434,6 +3438,10 @@ msgstr "Yeni bot"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "Yeni grup"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

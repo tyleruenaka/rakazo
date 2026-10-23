@@ -3427,6 +3427,10 @@ msgstr "Heeft jou nodig"
 msgid "Nest under"
 msgstr "Nesten onder"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr "Nieuw"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Nieuwe bot"
@@ -3434,6 +3438,10 @@ msgstr "Nieuwe bot"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "Nieuwe groep"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr "Nieuwe berichten"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

@@ -3427,6 +3427,10 @@ msgstr "נדרשת פעולה"
 msgid "Nest under"
 msgstr "קינון תחת"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "בוט חדש"
@@ -3434,6 +3438,10 @@ msgstr "בוט חדש"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "קבוצה חדשה"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

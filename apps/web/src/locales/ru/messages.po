@@ -3427,6 +3427,10 @@ msgstr "Требуется ваше участие"
 msgid "Nest under"
 msgstr "Вложить в"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr "Новые"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Новый бот"
@@ -3434,6 +3438,10 @@ msgstr "Новый бот"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "Новая группа"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr "Новые сообщения"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

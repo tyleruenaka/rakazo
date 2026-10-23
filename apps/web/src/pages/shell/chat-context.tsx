@@ -69,6 +69,24 @@ export function TimeSeparator({ createdAt, locale }: { createdAt: string; locale
   );
 }
 
+/** Marks where the messages the user hadn't seen yet begin. Sized like the time separator. */
+export function UnreadDivider({ afterSeparator = false }: { afterSeparator?: boolean }) {
+  const { t } = useLingui();
+  return (
+    <div
+      data-testid="unread-divider"
+      className={`flex select-none items-center gap-2.5 pb-1 ${afterSeparator ? "pt-0" : "pt-2"}`}
+    >
+      <span aria-hidden="true" className="h-px flex-1 bg-unread opacity-40" />
+      <span className="text-xs font-medium text-unread">
+        <span aria-hidden="true">{t`New`}</span>
+        <span className="sr-only">{t`New messages`}</span>
+      </span>
+      <span aria-hidden="true" className="h-px flex-1 bg-unread opacity-40" />
+    </div>
+  );
+}
+
 /** Ring-outlined reply pill shared by the composer and sent user replies. */
 const replyPillClass =
   "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-start text-[12px] leading-4 text-reply-foreground outline-none ring-1 ring-inset ring-reply-ring transition-colors duration-[120ms] ease-[ease] hover:bg-reply-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
