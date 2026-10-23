@@ -67,7 +67,8 @@ tags:
 - assertNotVisible: "Move to"
 - assertNotVisible: "Pin"
 - takeScreenshot: "42-nested-helper-sheet"
-- tapOn: "Cancel"
+# Back, not Cancel: on the Android emulator the sheet's Cancel sits under the bottom system bar.
+- back
 
 # Pinning the parent shows the helper in its own section; unpinning brings it back.
 - longPressOn: "Nest lead"
