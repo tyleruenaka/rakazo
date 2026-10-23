@@ -287,7 +287,7 @@ it.each([
   expect(sidebarMarkCount(width)).toBe(count);
 });
 
-it("keeps at most three marks on the same tile with a missing-logo fallback", async () => {
+it("shows the first three apps in order, with a letter for an app without a logo", async () => {
   await render("Demo User", undefined, undefined, undefined, [
     { name: "Gmail", logo: "https://example.test/gmail.svg" },
     { name: "Notion" },
@@ -296,7 +296,9 @@ it("keeps at most three marks on the same tile with a missing-logo fallback", as
   ]);
   const tiles = [...host.querySelectorAll('span[aria-hidden="true"] > span')];
   expect(tiles).toHaveLength(3);
-  // The outer ring fans per position on hover; the plate inside it is shared.
-  expect(new Set(tiles.map((tile) => tile.firstElementChild?.className)).size).toBe(1);
-  expect(tiles[1]!.textContent).toBe("N");
+  expect(tiles.map((tile) => tile.querySelector("img")?.src ?? tile.textContent)).toEqual([
+    "https://example.test/gmail.svg",
+    "N",
+    "https://example.test/github.svg",
+  ]);
 });

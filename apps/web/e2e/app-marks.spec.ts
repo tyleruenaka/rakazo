@@ -50,22 +50,21 @@ for (const theme of ["light", "dark"]) {
     for (const hover of [false, true]) {
       if (hover) await pill.hover();
       else await page.mouse.move(1000, 400);
-      // Colors and the hover fan transition; wait for the settled ring color.
-      const settledRing = async () => {
-        let previous = "";
-        await expect
-          .poll(async () => {
-            const current = await tiles
-              .first()
-              .evaluate((el) => getComputedStyle(el).backgroundColor);
-            const settled = current === previous;
-            previous = current;
-            return settled;
-          })
-          .toBe(true);
-        return previous;
-      };
-      const ring = await settledRing();
+      // The ring takes the pill color so it separates overlapping marks. The pill fades its
+      // background, so wait until both colors settle and match.
+      const background = (el: Element) => getComputedStyle(el).backgroundColor;
+      let ring = "";
+      await expect
+        .poll(async () => {
+          const [pillColor, ringColor] = await Promise.all([
+            pill.evaluate(background),
+            tiles.first().evaluate(background),
+          ]);
+          const settled = pillColor === ringColor && ringColor === ring;
+          ring = ringColor;
+          return settled;
+        })
+        .toBe(true);
       const marks = await tiles.evaluateAll((els) =>
         els.map((el) => {
           const style = getComputedStyle(el);
@@ -83,7 +82,7 @@ for (const theme of ["light", "dark"]) {
         }),
       );
       for (const [index, mark] of marks.entries()) {
-        // Tyler's Grok-style marks: 18px rounded squares, a 1px ring, 6px overlap.
+        // Marks are 18px rounded squares with a 1px ring, overlapping by 6px.
         expect(mark).toMatchObject({
           width: 18,
           height: 18,
