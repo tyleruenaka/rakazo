@@ -48,13 +48,16 @@ export function ArchivedBotList({
           systemImage="arrow.uturn.backward"
           onPress={() => onRestore(bot)}
         />
-        {/* biome-ignore lint/a11y/useValidAriaRole: SwiftUI Button role, not an ARIA role. */}
-        <Button
-          label={t("Delete")}
-          systemImage="trash"
-          role="destructive"
-          onPress={() => onDelete(bot)}
-        />
+        {/* The Primary bot can't be deleted. */}
+        {bot.primary ? null : (
+          // biome-ignore lint/a11y/useValidAriaRole: SwiftUI Button role, not an ARIA role.
+          <Button
+            label={t("Delete")}
+            systemImage="trash"
+            role="destructive"
+            onPress={() => onDelete(bot)}
+          />
+        )}
       </>
     );
   }

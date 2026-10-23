@@ -1177,16 +1177,21 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
             Alert.alert(t("Could not archive bot"), errorText(error, t("Try again."))),
           ),
     },
-    {
-      text: t("Delete…"),
-      icon: "trash",
-      destructive: true,
-      onPress: () =>
-        confirmDeleteBot({ id: botId ?? "", name: displayName || t("Bot") }, () => {
-          notifyArchivedChatsChanged();
-          leaveBot();
-        }),
-    },
+    // The Primary bot can't be deleted; another bot has to become Primary first.
+    ...(currentBot?.primary
+      ? []
+      : [
+          {
+            text: t("Delete…"),
+            icon: "trash",
+            destructive: true,
+            onPress: () =>
+              confirmDeleteBot({ id: botId ?? "", name: displayName || t("Bot") }, () => {
+                notifyArchivedChatsChanged();
+                leaveBot();
+              }),
+          },
+        ]),
   ];
 
   function showBotActions() {
