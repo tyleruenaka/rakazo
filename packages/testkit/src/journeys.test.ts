@@ -4019,6 +4019,30 @@ describeJourneys("required product journeys", () => {
         (await prisma.bot.findUniqueOrThrow({ where: { id: other.id } })).archivedAt,
       ).toBeNull();
     });
+
+    it("the Primary bot can never be deleted, while other bots still can", async () => {
+      const { cookie, chief } = await fleetOwner("primary-delete");
+      await rpc(app, cookie, "bots/update", { botId: chief.id, primary: true });
+      const other = await createBot(cookie, "Other");
+
+      await expect(
+        rpc(app, cookie, "bots/remove", { botId: chief.id, deleteMemories: true }),
+      ).rejects.toThrow(/^bots\/remove 400: .*The Primary bot can't be deleted/);
+      expect(await prisma.bot.findUnique({ where: { id: chief.id } })).toMatchObject({
+        primary: true,
+        archivedAt: null,
+      });
+
+      // Archived, it is still the Primary and still can't be deleted.
+      await rpc(app, cookie, "bots/archive", { botId: chief.id });
+      await expect(
+        rpc(app, cookie, "bots/remove", { botId: chief.id, deleteMemories: true }),
+      ).rejects.toThrow("The Primary bot can't be deleted");
+      expect(await prisma.bot.findUnique({ where: { id: chief.id } })).not.toBeNull();
+
+      await rpc(app, cookie, "bots/remove", { botId: other.id, deleteMemories: true });
+      expect(await prisma.bot.findUnique({ where: { id: other.id } })).toBeNull();
+    });
   });
 });
 
