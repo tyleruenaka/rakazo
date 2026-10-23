@@ -35,6 +35,7 @@ import {
   rewrittenNovncHeaders,
   shouldInjectNovncStorageShim,
 } from "./src/novnc-html.js";
+import { rakazoPwa } from "./src/pwa/plugin.js";
 import {
   hostedScreenProxy,
   resolveNovncTarget,
@@ -452,6 +453,7 @@ export default defineConfig(({ mode }) => {
       babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }),
       lingui(),
       tailwindcss(),
+      rakazoPwa(),
       {
         // Production only: the dev server injects inline scripts for React Refresh.
         name: "rakazo-content-security-policy",
