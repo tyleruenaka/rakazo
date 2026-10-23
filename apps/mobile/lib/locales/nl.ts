@@ -4,7 +4,10 @@ export const NL_MESSAGES: Record<string, string> = {
   "Ex: Project Falcon": "Bijv. Project Falcon",
   "Search bots": "Bots zoeken",
   "About {label}": "Over {label}",
-  "Manage the bots it creates": "De bots beheren die deze bot maakt",
+  "Manage nested bots": "Geneste bots beheren",
+  "Manage all bots": "Alle bots beheren",
+  "Make primary": "Hoofdbot maken",
+  Primary: "Hoofdbot",
   "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
     "Orden de zijbalk en bewerk bots. Wijzigingen aan groepen, instructies, modellen en routines vereisen je goedkeuring.",
 

@@ -16,6 +16,14 @@ export class BotSectionNameConflictError extends Error {
   }
 }
 
+/** A bot can only nest one level deep, under another of the owner's top-level bots. */
+export class BotParentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BotParentError";
+  }
+}
+
 export async function requireMembership(
   prisma: PrismaClient,
   userId: string,

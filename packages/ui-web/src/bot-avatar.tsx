@@ -10,6 +10,8 @@ import {
   eyeQuadPath,
   eyeQuads,
   organicAvatarPath,
+  PRIMARY_STAR_PATH,
+  primaryStarGeometry,
   resolvePersonaColorDef,
   restingEyeRects,
   SHIPPED_BOT_AVATAR_CENTER,
@@ -778,5 +780,55 @@ export function Wordmark({ className }: { className?: string }) {
         Rakazo
       </span>
     </div>
+  );
+}
+
+/** Room around the avatar the notch mask keeps, so working rings and glows are not clipped. */
+const STAR_MASK_BLEED = 8;
+
+/**
+ * Grok's Primary star: a filled badge flush with the avatar box's bottom-right corner,
+ * notched out of the avatar so the background shows in a thin gap around it.
+ */
+export function PrimaryStarAvatar({
+  size,
+  label,
+  children,
+}: {
+  size: number;
+  /** Accessible name of the badge. */
+  label: string;
+  children: ReactNode;
+}) {
+  const { badge, glyph, gap } = primaryStarGeometry(size);
+  const center = STAR_MASK_BLEED + size - badge / 2;
+  const hole = badge / 2 + gap;
+  const mask = `radial-gradient(circle at ${center}px ${center}px, transparent ${hole}px, #000 ${hole + 0.5}px)`;
+  return (
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+      <span
+        className="absolute flex items-center justify-center"
+        style={{ inset: -STAR_MASK_BLEED, maskImage: mask, WebkitMaskImage: mask }}
+      >
+        {children}
+      </span>
+      <span
+        role="img"
+        aria-label={label}
+        data-primary-star=""
+        className="absolute right-0 bottom-0 grid place-items-center rounded-full bg-primary-star text-primary-star-foreground inset-ring-[0.5px] inset-ring-primary-star-ring"
+        style={{ width: badge, height: badge }}
+      >
+        <svg width={glyph} height={glyph} viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d={PRIMARY_STAR_PATH}
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    </span>
   );
 }

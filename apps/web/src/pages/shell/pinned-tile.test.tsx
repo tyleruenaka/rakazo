@@ -12,6 +12,11 @@ vi.mock("@lingui/react/macro", () => ({
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 beforeEach(() => {
+  // jsdom has no ResizeObserver; the grid only uses it to animate its height.
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);

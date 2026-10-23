@@ -192,6 +192,7 @@ import type {
 } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  BotParentError,
   BotSectionNameConflictError,
   botProfileLabelsChanged,
   CannotDeleteDefaultSpaceError,
@@ -2042,6 +2043,22 @@ export function createRouter(deps: RouterDeps) {
         if (!modelChange.ok) throw new ORPCError("BAD_REQUEST", { message: modelChange.error });
         const thinkingLevel = input.thinkingLevel;
         if (!existing.thread) throw new IsolationError();
+        // A nested bot is never pinned; the drag that pins one moves it out in the same call.
+        if (input.pinned === true && input.parentBotId === undefined && existing.parentBotId) {
+          throw new ORPCError("BAD_REQUEST", { message: "A nested bot can't be pinned" });
+        }
+        if (input.parentBotId !== undefined) {
+          await repos.setBotParent(context.actor, input.botId, input.parentBotId).catch((error) => {
+            if (!(error instanceof BotParentError)) throw error;
+            throw new ORPCError("BAD_REQUEST", { message: error.message });
+          });
+        }
+        if (input.primary) {
+          const appended = await repos.setBotPrimary(context.actor, input.botId);
+          await Promise.all(
+            appended.map(({ threadId, seq }) => deps.events.notify(threadId, seq)),
+          ).catch((error) => getLogger().error("bot.updated realtime notification", error));
+        }
         await commitBotUpdate({
           prisma: deps.prisma,
           notify: (threadId, seq) => deps.events.notify(threadId, seq),
@@ -6947,6 +6964,7 @@ async function memberSpaceNavigation(
         bots: spaceBots.map((bot) => ({
           id: bot.id,
           parentBotId: bot.parentBotId,
+          primary: bot.primary,
           spaceId: bot.spaceId,
           name: bot.name,
           title: bot.title,

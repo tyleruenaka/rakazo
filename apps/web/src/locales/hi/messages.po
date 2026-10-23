@@ -2328,6 +2328,14 @@ msgstr "छवि खींचें, छोड़ें या पेस्ट 
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "नेस्ट करने के लिए छोड़ें"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "{nestParentName} के अंतर्गत नेस्ट करने के लिए छोड़ें"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "डुप्लिकेट"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "प्राइमरी बनाएं"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "सुनिश्चित करें कि इस कंप्यूटर पर कुछ भी चल नहीं रहा है।"
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "सभी बॉट प्रबंधित करें"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "इसके बनाए बॉट प्रबंधित करें"
+msgid "Manage nested bots"
+msgstr "नेस्टेड बॉट प्रबंधित करें"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "{full} को नीचे ले जाएँ"
 msgid "Move {full} up"
 msgstr "{full} को ऊपर ले जाएँ"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "{parentName} से बाहर ले जाएं"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "उन्हें अपनी साझा मेमोरी में ले जाएं।"
@@ -3402,6 +3422,10 @@ msgstr "नियंत्रण लेना ज़रूरी"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "इसके अंतर्गत नेस्ट करें"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "{0} का प्रीव्यू"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "प्राइमरी"
 
 #: src/pages/Board.tsx
 msgid "Priority"

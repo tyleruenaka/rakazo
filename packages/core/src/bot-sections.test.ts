@@ -64,6 +64,22 @@ describe("groupBotsForSidebar", () => {
   });
 });
 
+describe("nested bots and the pinned area", () => {
+  it("shows a nested bot marked pinned as a row in its section, not a tile", () => {
+    const grouped = groupBotsForSidebar(
+      [
+        { id: "chief", pinned: true, sectionId: "work", parentBotId: null },
+        { id: "scout", pinned: true, sectionId: "work", parentBotId: "chief" },
+      ],
+      sections,
+    );
+    expect(grouped.map((group) => [group.key, group.bots.map((bot) => bot.id)])).toEqual([
+      ["pinned", ["chief"]],
+      ["section:work", ["scout"]],
+    ]);
+  });
+});
+
 describe("reorderBotTo", () => {
   const bots = [{ id: "a" }, { id: "b" }, { id: "c" }];
 

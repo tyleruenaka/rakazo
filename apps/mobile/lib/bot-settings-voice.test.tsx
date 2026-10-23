@@ -319,7 +319,7 @@ describe("bot settings device voice menu", () => {
 
   it("shows voice first and hides advanced controls until expanded, in the shared order", async () => {
     await act(async () => root.render(<BotSettingsScreen />));
-    for (const label of ["Computer", "Manage the bots it creates"]) {
+    for (const label of ["Computer", "Manage nested bots"]) {
       expect(container.textContent).not.toContain(label);
     }
     const text = () => container.textContent ?? "";
@@ -330,7 +330,7 @@ describe("bot settings device voice menu", () => {
       instructions: "Instructions",
       computer: "Computer",
       model: "Model",
-      fleetManagement: "Manage the bots it creates",
+      fleetManagement: "Manage nested bots",
     };
     const actual = [...container.querySelectorAll("span")].flatMap((span) =>
       Object.entries(labels)
@@ -348,7 +348,7 @@ describe("bot settings device voice menu", () => {
     }
 
     await expand();
-    expect(container.textContent).not.toContain("Manage the bots it creates");
+    expect(container.textContent).not.toContain("Manage nested bots");
   });
 
   it("saves read aloud and computer mode after expanding Advanced", async () => {
@@ -380,7 +380,7 @@ describe("bot settings device voice menu", () => {
   it("shows bot management help in a native alert from an accessible button", async () => {
     await render();
     const help = container.querySelector<HTMLButtonElement>(
-      '[aria-label="About Manage the bots it creates"]',
+      '[aria-label="About Manage nested bots"]',
     );
     expect(help?.getAttribute("role")).toBe("button");
     const explanation =
@@ -388,15 +388,13 @@ describe("bot settings device voice menu", () => {
     expect(help?.getAttribute("data-hint")).toBe(explanation);
     expect(container.textContent).not.toContain(explanation);
     await act(async () => help?.click());
-    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith("Manage the bots it creates", explanation);
+    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith("Manage nested bots", explanation);
   });
 
   it("persists bot management toggles immediately without adding them to unrelated saves", async () => {
     mocks.rpc.mockResolvedValue(undefined);
     await render();
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Manage the bots it creates"]',
-    );
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]');
     if (!toggle) throw new Error("Missing bot management switch");
     await act(async () => {
       toggle.click();
@@ -422,9 +420,7 @@ describe("bot settings device voice menu", () => {
     const last = deferredSave();
     mocks.rpc.mockReturnValueOnce(first.promise).mockReturnValueOnce(last.promise);
     await render();
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Manage the bots it creates"]',
-    )!;
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]')!;
     const save = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Done",
     )!;
@@ -457,7 +453,7 @@ describe("bot settings device voice menu", () => {
       mocks.rpc.mockReturnValueOnce(first.promise).mockReturnValueOnce(last.promise);
       await render();
       const toggle = container.querySelector<HTMLButtonElement>(
-        '[aria-label="Manage the bots it creates"]',
+        '[aria-label="Manage nested bots"]',
       )!;
       const save = [...container.querySelectorAll("button")].find(
         (button) => button.textContent === "Done",
@@ -489,9 +485,7 @@ describe("bot settings device voice menu", () => {
     mocks.rpc.mockRejectedValueOnce(new Error("offline"));
     await render();
     await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Manage the bots it creates"]')!
-        .click(),
+      container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]')!.click(),
     );
     await act(async () =>
       [...container.querySelectorAll("button")]
@@ -513,9 +507,7 @@ describe("bot settings device voice menu", () => {
     });
     await render();
     expect(container.querySelector('[data-menu="Instruction history"]')).toBeNull();
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Manage the bots it creates"]',
-    )!;
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]')!;
     const save = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Done",
     )!;
@@ -542,9 +534,7 @@ describe("bot settings device voice menu", () => {
     const first = deferredSave();
     mocks.rpc.mockReturnValueOnce(first.promise);
     await render();
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Manage the bots it creates"]',
-    )!;
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]')!;
     await act(async () => toggle.click());
     await act(async () => toggle.click());
     await act(async () => toggle.click());
@@ -556,9 +546,7 @@ describe("bot settings device voice menu", () => {
   it("restores the bot management toggle when saving fails", async () => {
     mocks.rpc.mockRejectedValueOnce(new Error("offline"));
     await render();
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Manage the bots it creates"]',
-    );
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-label="Manage nested bots"]');
     if (!toggle) throw new Error("Missing bot management switch");
     await act(async () => {
       toggle.click();

@@ -5,7 +5,15 @@ export type BotListSection<T> = {
 };
 
 type Section = { id: string; name: string };
-type SectionedBot = { pinned: boolean; sectionId: string | null };
+type SectionedBot = { pinned: boolean; sectionId: string | null; parentBotId?: string | null };
+
+/**
+ * A nested bot is never pinned. Older data can still mark one pinned; it shows as an
+ * ordinary row in its section instead of in the pinned area.
+ */
+export function shownPinned(chat: { pinned: boolean; parentBotId?: string | null }): boolean {
+  return chat.pinned && !chat.parentBotId;
+}
 
 export function groupBotsForSidebar<T extends SectionedBot>(
   bots: readonly T[],
@@ -19,7 +27,7 @@ export function groupBotsForSidebar<T extends SectionedBot>(
   const grouped: BotListSection<T>[] = [];
 
   for (const bot of bots) {
-    if (bot.pinned) {
+    if (shownPinned(bot)) {
       pinned.push(bot);
     } else if (bot.sectionId && knownSectionIds.has(bot.sectionId)) {
       const members = sectionMembers.get(bot.sectionId) ?? [];

@@ -4,7 +4,10 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Ex: Project Falcon": "例如：猎鹰计划",
   "Search bots": "搜索 Bot",
   "About {label}": "关于{label}",
-  "Manage the bots it creates": "管理它创建的机器人",
+  "Manage nested bots": "管理嵌套的机器人",
+  "Manage all bots": "管理所有机器人",
+  "Make primary": "设为主要",
+  Primary: "主要",
   "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
     "整理侧边栏并编辑机器人。更改群组、指令、模型和例行任务需要你的批准。",
 

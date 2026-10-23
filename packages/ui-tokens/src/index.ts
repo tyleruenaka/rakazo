@@ -174,6 +174,10 @@ export type ColorTokens = {
   sidebarHover: string;
   /** Secondary sidebar text; translucent so it lifts on hovered and selected rows. */
   sidebarMutedForeground: string;
+  /** Bot list drag: fill of the section or pin area a bot would land in, and of a nest target. */
+  sidebarDrop: string;
+  /** Bot list drag: the line where a bot lands, and the dashed edge of a nest target. */
+  sidebarDropLine: string;
   /** Short line between groups in the collapsed bot rail. */
   railDivider: string;
   /** Line icons at the bottom of the collapsed bot rail. */
@@ -196,6 +200,10 @@ export type ColorTokens = {
   statusWorking: string;
   /** Unread dot in the bot list. */
   unread: string;
+  /** The Primary bot's star badge: fill, star, and its inset hairline. */
+  primaryStar: string;
+  primaryStarForeground: string;
+  primaryStarRing: string;
   /** Mobile inbox (home) page behind the chat list. */
   inboxBackground: string;
   /** Bot avatar in the white swatch: white in dark, black in light, as in Grok. */
@@ -317,6 +325,8 @@ export const darkTokens = {
   sidebarAccentForeground: "#F5F5F5",
   sidebarHover: "#1B1B1B",
   sidebarMutedForeground: "rgba(245, 245, 245, 0.662)",
+  sidebarDrop: "rgba(255, 255, 255, 0.032)",
+  sidebarDropLine: "rgba(245, 245, 245, 0.24)",
   railDivider: "#262626",
   railIcon: "#A2A2A2",
   railIconHover: "#DFDFDF",
@@ -332,6 +342,9 @@ export const darkTokens = {
   warning: "#E9C46A",
   statusWorking: "#3D84F7",
   unread: "#4D9BFF",
+  primaryStar: "#E9993A",
+  primaryStarForeground: "#F5F5F5",
+  primaryStarRing: "rgba(245, 245, 245, 0.06)",
   inboxBackground: "#141414",
   avatarWhite: "#FFFFFF",
   avatarGrey: "#777777",
@@ -448,6 +461,8 @@ export const lightTokens = {
   sidebarAccentForeground: "#1C1C1C",
   sidebarHover: "#E9E9E9",
   sidebarMutedForeground: "rgba(28, 28, 28, 0.677)",
+  sidebarDrop: "rgba(28, 28, 28, 0.06)",
+  sidebarDropLine: "rgba(28, 28, 28, 0.24)",
   railDivider: "#DADADA",
   railIcon: "#666666",
   railIconHover: "#2C2C2C",
@@ -463,6 +478,9 @@ export const lightTokens = {
   warning: "#B7791F",
   statusWorking: "#2563EB",
   unread: "#086ED3",
+  primaryStar: "#F59312",
+  primaryStarForeground: "#FFFFFF",
+  primaryStarRing: "rgba(28, 28, 28, 0.06)",
   inboxBackground: "#FCFCFC",
   avatarWhite: "#000000",
   avatarGrey: "#959595",

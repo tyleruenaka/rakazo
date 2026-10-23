@@ -2328,6 +2328,14 @@ msgstr "Glissez, déposez ou collez une image"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "Déposer pour imbriquer"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "Déposer pour imbriquer sous {nestParentName}"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Dupliquer"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "Définir comme principal"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Assurez-vous qu'aucun processus ne tourne encore sur cet ordinateur."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "Gérer tous les bots"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr "Gérer les paramètres de messagerie"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "Gérer les bots qu’il crée"
+msgid "Manage nested bots"
+msgstr "Gérer les bots imbriqués"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "Déplacer {full} vers le bas"
 msgid "Move {full} up"
 msgstr "Déplacer {full} vers le haut"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "Sortir de {parentName}"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "Déplacez-les dans votre mémoire partagée."
@@ -3402,6 +3422,10 @@ msgstr "Nécessite une intervention"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr "A besoin de vous"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "Imbriquer sous"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "Aperçu de {0}"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "L'aperçu n'est pas disponible pour ce type de fichier — téléchargez-le pour le consulter."
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "Principal"
 
 #: src/pages/Board.tsx
 msgid "Priority"

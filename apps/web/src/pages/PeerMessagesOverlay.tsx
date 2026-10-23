@@ -1,7 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ThreadMessage } from "@rakazo/contracts";
-import { loadPeerHistory, peerConversations, timeSeparatorIds } from "@rakazo/core";
+import {
+  isNeutralBotColor,
+  loadPeerHistory,
+  peerConversations,
+  timeSeparatorIds,
+} from "@rakazo/core";
 import { BotAvatar, Button, parseBotAvatar, resolvePersonaColorDef } from "@rakazo/ui-web";
 import { ArrowRightLeft } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -189,10 +194,12 @@ export function PeerMessagesOverlay({
                       <div
                         className="rk-peer-name ps-3 text-[12px] leading-4"
                         style={
-                          {
-                            "--bot-name": color.light,
-                            "--bot-accent": color.hex,
-                          } as CSSProperties
+                          isNeutralBotColor(color)
+                            ? undefined
+                            : ({
+                                "--bot-name": color.light,
+                                "--bot-accent": color.hex,
+                              } as CSSProperties)
                         }
                         dir="auto"
                       >

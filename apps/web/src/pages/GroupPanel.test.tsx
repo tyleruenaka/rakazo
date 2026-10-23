@@ -106,6 +106,7 @@ function fakeBot(id: string, name: string, title: string): Bot {
     disabledBuiltinTools: [],
     webhookConfigured: false,
     fleetManagement: false,
+    primary: false,
     spawnKey: null,
   };
 }

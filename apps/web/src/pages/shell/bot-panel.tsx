@@ -259,6 +259,7 @@ export function BotSettings({
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
   const [fleetManagement, setFleetManagement] = useState(bot.fleetManagement);
   useEffect(() => setFleetManagement(bot.fleetManagement), [bot.fleetManagement]);
+  const fleetLabel = bot.primary ? t`Manage all bots` : t`Manage nested bots`;
   const [voiceId, setVoiceId] = useState(bot.voiceId ?? "");
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
   const [modelKey, setModelKey] = useState(
@@ -681,10 +682,8 @@ export function BotSettings({
             <SettingsRow
               label={
                 <span className="flex items-center gap-1">
-                  <label htmlFor={`${ids}-fleet-management`}>
-                    <Trans>Manage the bots it creates</Trans>
-                  </label>
-                  <InfoTooltip label={t`Manage the bots it creates`}>
+                  <label htmlFor={`${ids}-fleet-management`}>{fleetLabel}</label>
+                  <InfoTooltip label={fleetLabel}>
                     {t`Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.`}
                   </InfoTooltip>
                 </span>

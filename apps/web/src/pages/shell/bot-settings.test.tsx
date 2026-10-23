@@ -188,14 +188,14 @@ describe("BotSettings help", () => {
     const onSave = vi.fn<(patch: SavePatch) => Promise<void>>(async () => undefined);
     await renderSettings(onSave, { ...bot, fleetManagement: false });
     const label = [...container.querySelectorAll("label")].find(
-      (entry) => entry.textContent === "Manage the bots it creates",
+      (entry) => entry.textContent === "Manage nested bots",
     );
     const toggle = document.getElementById(label?.htmlFor ?? "");
     const speechToggle = container.querySelector<HTMLButtonElement>('[id$="-auto-speak"]');
     const speechLabel = container.querySelector(`label[for="${speechToggle?.id}"]`);
     expect(speechLabel?.textContent).toBe("Read replies aloud");
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
-    for (const label of ["Notifications", "Manage the bots it creates"]) {
+    for (const label of ["Notifications", "Manage nested bots"]) {
       const help = container.querySelector(`[aria-label="About ${label}"]`);
       const description = document.getElementById(help?.getAttribute("aria-describedby") ?? "");
       expect(description?.textContent).toContain(
@@ -208,7 +208,7 @@ describe("BotSettings help", () => {
     }
     expect(document.querySelector('[data-slot="tooltip-content"]')).toBeNull();
     const help = container.querySelector<HTMLButtonElement>(
-      '[aria-label="About Manage the bots it creates"]',
+      '[aria-label="About Manage nested bots"]',
     );
     await act(async () => help?.click());
     expect(document.querySelector('[data-slot="tooltip-content"]')?.textContent).toContain(

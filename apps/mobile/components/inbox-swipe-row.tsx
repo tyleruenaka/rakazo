@@ -10,6 +10,10 @@ export type InboxSwipeRowProps = {
   pinned?: boolean;
   /** Bots only; groups have no finish notifications. */
   notifyOnFinish?: boolean;
+  /** Bots only: false offers Make primary. */
+  primary?: boolean;
+  /** A nested bot can't be pinned, so it has no Pin. */
+  nested?: boolean;
   sectionId?: string | null;
   sections: readonly MobileBotSection[];
   preview: InboxChatPreviewProps;

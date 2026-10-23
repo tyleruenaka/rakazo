@@ -2328,6 +2328,14 @@ msgstr "Arraste, solte ou cole uma imagem"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "Solte para aninhar"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "Solte para aninhar em {nestParentName}"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Duplicar"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "Tornar principal"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Confirme que nada ainda está em execução neste computador."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "Gerenciar todos os bots"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "Gerenciar os bots que cria"
+msgid "Manage nested bots"
+msgstr "Gerenciar bots aninhados"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "Mover {full} para baixo"
 msgid "Move {full} up"
 msgstr "Mover {full} para cima"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "Tirar de {parentName}"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "Mova-os para a sua memória compartilhada."
@@ -3402,6 +3422,10 @@ msgstr "Requer assumir o controle"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "Aninhar em"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "Pré-visualizar {0}"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "Principal"
 
 #: src/pages/Board.tsx
 msgid "Priority"

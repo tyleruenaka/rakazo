@@ -194,10 +194,10 @@ main:has(> [data-peer-view]) [data-name-pill] {
 
 /* Sender names in a bot-to-bot exchange: the bot's light tint in dark, its color darkened in light. */
 .rk-peer-name {
-  color: var(--bot-name);
+  color: var(--bot-name, var(--foreground));
 }
 [data-theme="light"] .rk-peer-name {
-  color: color-mix(in srgb, var(--bot-accent) 82%, black);
+  color: color-mix(in srgb, var(--bot-accent, var(--foreground)) 82%, black);
 }
 
 /* The exchange fades under the pair pill and above Close Chat. */

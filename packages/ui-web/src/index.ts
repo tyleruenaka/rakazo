@@ -9,6 +9,7 @@ export {
   botAvatarOutline,
   DEFAULT_BOT_AVATAR_COLOR,
   defaultBotAvatarValue,
+  PrimaryStarAvatar,
   parseBotAvatar,
   resolvePersonaColorDef,
   resolvePersonaShape,

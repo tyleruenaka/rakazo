@@ -2328,6 +2328,14 @@ msgstr "אפשר לגרור, לשחרר או להדביק תמונה"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "שחרור לקינון"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "שחרור לקינון תחת {nestParentName}"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "שכפול"
@@ -3068,6 +3076,10 @@ msgstr "נמוך"
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr "אותיות לטיניות קטנות, ספרות, מקפים וקווים תחתונים, ובהתחלה אות."
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "הגדרה כראשי"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "יש לוודא ששום דבר לא פועל עדיין במחשב הזה."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr "ניהול"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "ניהול כל הבוטים"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr "ניהול הגדרות ההודעות"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "ניהול הבוטים שהוא יוצר"
+msgid "Manage nested bots"
+msgstr "ניהול בוטים מקוננים"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "הזזת {full} למטה"
 msgid "Move {full} up"
 msgstr "הזזת {full} למעלה"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "הוצאה מ-{parentName}"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "אפשר להעביר אותם לזיכרון המשותף."
@@ -3402,6 +3422,10 @@ msgstr "נדרשת השתלטות"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr "נדרשת פעולה"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "קינון תחת"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "תצוגה מקדימה של {0}"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "תצוגה מקדימה אינה זמינה לסוג הקובץ הזה — אפשר להוריד אותו כדי לצפות בו."
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "ראשי"
 
 #: src/pages/Board.tsx
 msgid "Priority"

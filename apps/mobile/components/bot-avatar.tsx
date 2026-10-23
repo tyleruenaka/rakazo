@@ -7,12 +7,15 @@ import {
   eyeOrigin,
   ORGANIC_FRAME,
   organicAvatarPath,
+  PRIMARY_STAR_PATH,
+  primaryStarGeometry,
   SHAPE_FRAME,
   SHIPPED_BOT_AVATAR_SHAPE_KEYS,
   WAITING_ON_USER_RUN_STATUSES,
 } from "@rakazo/core";
 import { memo } from "react";
 import { Image, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
 import { useLiveBotMotion } from "../lib/bot-motion";
 import { useI18n } from "../lib/i18n";
@@ -37,6 +40,7 @@ export const BotAvatar = memo(function BotAvatar({
   identity,
   variant,
   muted = false,
+  primary = false,
   animated = false,
   lively = false,
   motion: motionOverride,
@@ -48,6 +52,8 @@ export const BotAvatar = memo(function BotAvatar({
   identity?: string;
   variant?: AvatarStyle;
   muted?: boolean;
+  /** The owner's Primary bot: Grok's star in the corner, unless a status badge holds it. */
+  primary?: boolean;
   /**
    * Shows the bot's live working faces (from the motion provider, else `status`). As in Grok,
    * only roster rows and the thread's status line animate; other avatars stay still.
@@ -61,6 +67,7 @@ export const BotAvatar = memo(function BotAvatar({
   call?: CallAvatarState;
 }) {
   const { t } = useI18n();
+  const tokens = useMobileTokens();
   const isWorking = ACTIVE_RUN_STATUSES.some((activeStatus) => activeStatus === status);
   const { avatarStyle } = useAvatarStyle();
   const liveMotion = useLiveBotMotion(animated ? identity : undefined);
@@ -168,6 +175,9 @@ export const BotAvatar = memo(function BotAvatar({
           }}
         />
       ) : null}
+      {primary && !muted && !(isWorking && !animated) ? (
+        <PrimaryStar size={size} label={t("Primary")} tokens={tokens} />
+      ) : null}
       {muted ? (
         <View
           accessible
@@ -197,6 +207,52 @@ export const BotAvatar = memo(function BotAvatar({
     </View>
   );
 });
+
+/**
+ * Grok's Primary star, flush with the avatar box's bottom-right corner. Native views can't
+ * cut the avatar, so a ring in the page color draws the gap around the badge.
+ */
+function PrimaryStar({
+  size,
+  label,
+  tokens,
+}: {
+  size: number;
+  label: string;
+  tokens: ReturnType<typeof useMobileTokens>;
+}) {
+  const { badge, glyph, gap } = primaryStarGeometry(size);
+  return (
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={label}
+      style={{
+        position: "absolute",
+        right: -gap,
+        bottom: -gap,
+        width: badge + gap * 2,
+        height: badge + gap * 2,
+        borderRadius: size,
+        borderWidth: gap,
+        borderColor: tokens.inboxBackground,
+        backgroundColor: tokens.primaryStar,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Svg width={glyph} height={glyph} viewBox="0 0 24 24">
+        <Path
+          d={PRIMARY_STAR_PATH}
+          fill={tokens.primaryStarForeground}
+          stroke={tokens.primaryStarForeground}
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
+  );
+}
 
 /** The organic blob: the same character, in its own viewBox, its eyes tilted a few degrees. */
 function OrganicAvatar({

@@ -112,6 +112,8 @@ export const BotSchema = z.object({
   teamChatAmbientEnabled: z.boolean(),
   teamChatRules: z.string(),
   fleetManagement: z.boolean().default(false),
+  /** The owner's Primary bot in this space: it can manage every other bot. */
+  primary: z.boolean().default(false),
   disabledBuiltinTools: z.array(z.string()).default([]),
   webhookConfigured: z.boolean(),
   /** Present when created with an idempotency key (e.g. onboarding:first). */
@@ -236,6 +238,7 @@ export const SpaceBotSchema = BotSchema.pick({
   sectionId: true,
   unread: true,
   parentBotId: true,
+  primary: true,
   preview: true,
   status: true,
   runErrorId: true,
@@ -397,6 +400,10 @@ export const UpdateBotInput = z
     pinned: z.boolean().optional(),
     memoryScope: MemoryScopeSchema.nullable().optional(),
     sectionId: Id.nullable().optional(),
+    /** Nest under a top-level bot, or null to move back to the top level. */
+    parentBotId: Id.nullable().optional(),
+    /** Make it the Primary, replacing the current one. There is no unset. */
+    primary: z.literal(true).optional(),
     voiceId: z.string().max(120).nullable().optional(),
     autoSpeak: z.boolean().optional(),
     modelProvider: z.string().trim().min(1).max(80).nullable().optional(),
@@ -408,6 +415,14 @@ export const UpdateBotInput = z
     disabledBuiltinTools: DisabledBuiltinToolsSchema.optional(),
   })
   .superRefine((value, ctx) => {
+    // A nested bot takes its parent's place in the sidebar.
+    if (value.parentBotId && (value.sectionId !== undefined || value.pinned !== undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A nested bot takes its parent's section and pin",
+        path: ["parentBotId"],
+      });
+    }
     const providerProvided = value.modelProvider !== undefined;
     const modelProvided = value.modelId !== undefined;
     if (!providerProvided && !modelProvided) return;

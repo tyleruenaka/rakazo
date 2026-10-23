@@ -88,6 +88,11 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-drop: var(--sidebar-drop);
+  --color-sidebar-drop-line: var(--sidebar-drop-line);
+  --color-primary-star: var(--primary-star);
+  --color-primary-star-foreground: var(--primary-star-foreground);
+  --color-primary-star-ring: var(--primary-star-ring);
   --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
   --color-rail-divider: var(--rail-divider);
   --color-rail-icon: var(--rail-icon);

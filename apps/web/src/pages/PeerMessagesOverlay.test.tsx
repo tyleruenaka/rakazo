@@ -66,7 +66,7 @@ afterEach(() => {
   threadMessages.mockReset();
 });
 
-async function renderView(onClose = vi.fn()) {
+async function renderView(onClose = vi.fn(), peerBotColor = "#EC4899") {
   const opener = document.createElement("button");
   document.body.append(opener);
   opener.focus();
@@ -81,7 +81,7 @@ async function renderView(onClose = vi.fn()) {
         botColor="#8B5CF6"
         peerBotId="b_ezra"
         peerBotName="Ezra"
-        peerBotColor="#EC4899"
+        peerBotColor={peerBotColor}
         onClose={onClose}
       />,
     );
@@ -122,6 +122,18 @@ describe("PeerMessagesOverlay", () => {
     expect(view.querySelectorAll('[data-testid="time-separator"]')).toHaveLength(2);
     const name = rows[1]?.querySelector<HTMLElement>(".rk-peer-name");
     expect(name?.style.getPropertyValue("--bot-accent")).toBe("#EC4899");
+  });
+
+  it("leaves a white or gray sender's name untinted", async () => {
+    for (const color of ["#FFFFFF", "#64748B"]) {
+      const { view } = await renderView(vi.fn(), color);
+      const names = [...view.querySelectorAll<HTMLElement>(".rk-peer-name")];
+      expect(names[0]?.style.getPropertyValue("--bot-accent")).toBe("#8B5CF6");
+      expect(names[1]?.style.getPropertyValue("--bot-accent")).toBe("");
+      expect(names[1]?.style.getPropertyValue("--bot-name")).toBe("");
+      act(() => root?.unmount());
+      container?.remove();
+    }
   });
 
   it("is view-only: no field, and Close Chat in a labelled group", async () => {

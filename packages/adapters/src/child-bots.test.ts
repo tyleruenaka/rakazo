@@ -207,6 +207,7 @@ describe("spawned bot archival", () => {
             archivedAt,
           },
         ]),
+        findUnique: vi.fn().mockResolvedValue({ primary: false }),
       },
       computer: { findUnique: vi.fn().mockResolvedValue(null) },
       run: { findMany: vi.fn().mockResolvedValue([]) },

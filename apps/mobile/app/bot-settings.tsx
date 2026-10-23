@@ -421,6 +421,7 @@ export default function BotSettingsScreen() {
       (selectedModel?.provider ?? null) !== (bot.modelProvider ?? null) ||
       (selectedModel?.modelId ?? null) !== (bot.modelId ?? null));
 
+  const fleetLabel = bot?.primary ? t("Manage all bots") : t("Manage nested bots");
   return (
     <>
       <Stack.Screen
@@ -660,16 +661,16 @@ export default function BotSettingsScreen() {
               <View key="fleet" style={[styles.row, styles.advancedCard, { minHeight: 49 }]}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
                   <Text style={[styles.fleetLabel, { color: tokens.mutedForeground }]}>
-                    {t("Manage the bots it creates")}
+                    {fleetLabel}
                   </Text>
-                  <InfoButton label={t("Manage the bots it creates")}>
+                  <InfoButton label={fleetLabel}>
                     {t(
                       "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.",
                     )}
                   </InfoButton>
                 </View>
                 <NativeSwitch
-                  accessibilityLabel={t("Manage the bots it creates")}
+                  accessibilityLabel={fleetLabel}
                   onValueChange={(value) => {
                     if (!botId) return;
                     setError(null);

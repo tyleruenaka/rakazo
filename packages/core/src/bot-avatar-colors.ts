@@ -165,6 +165,11 @@ export function resolvePersonaColorDef(
   return BOT_COLOR_LIST[index % BOT_COLOR_LIST.length] ?? BOT_COLOR_LIST[0]!;
 }
 
+/** White and gray bots tint nothing in the chat; like Grok, a fixed map rather than a lightness test. */
+export function isNeutralBotColor(color: BotColorDef): boolean {
+  return color.id === "white" || color.id === "gray";
+}
+
 function expandHex(hex: string): string {
   const c = hex.replace("#", "");
   if (c.length === 3) {

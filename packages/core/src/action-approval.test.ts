@@ -33,7 +33,7 @@ describe("toolRequiresApproval", () => {
     expect(toolRequiresApproval("create_space", false)).toBe(true);
     expect(toolRequiresExplicitApproval("create_space")).toBe(true);
     expect(toolRequiresExplicitApproval("save_shared_memory")).toBe(false);
-    expect(toolRequiresExplicitApproval("archive_bot")).toBe(false);
+    expect(toolRequiresExplicitApproval("archive_bot")).toBe(true);
   });
 
   it("does not gate read-only or local work", () => {

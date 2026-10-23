@@ -1,4 +1,4 @@
-import { resolvePersonaColorDef } from "@rakazo/core";
+import { isNeutralBotColor, resolvePersonaColorDef } from "@rakazo/core";
 import { mobileBotAvatarPresentation } from "./bot-avatar";
 import { mixWithBlack } from "./color";
 
@@ -9,5 +9,7 @@ export function userBubbleColor(bot: { id: string; color: string }): string | un
     bot.id,
     avatar.kind === "color" || avatar.kind === "shape" ? avatar.color : undefined,
   );
-  return color.eyeColor === "#FFFFFF" ? mixWithBlack(color.hex, 0.83) : undefined;
+  // Yellow and bright custom colors (dark eyes) stay neutral here too.
+  const neutral = isNeutralBotColor(color) || color.eyeColor !== "#FFFFFF";
+  return neutral ? undefined : mixWithBlack(color.hex, 0.83);
 }

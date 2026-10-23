@@ -103,7 +103,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const openWork = settings.getByTestId("bot-scratchpad");
   await expect(teamComputer).toBeHidden();
   await expect(settings.getByRole("switch", { name: "Read replies aloud" })).toBeHidden();
-  await expect(settings.getByRole("switch", { name: "Manage the bots it creates" })).toBeHidden();
+  await expect(settings.getByRole("switch", { name: "Manage nested bots" })).toBeHidden();
   await expect(modelSelect).toBeHidden();
   await expect(openWork).toBeHidden();
   await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
@@ -123,7 +123,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await captureScreenshot(page, testInfo, "27c-disabled-builtin-tools");
   await expect(teamComputer).toBeVisible();
   await expect(settings.getByRole("switch", { name: "Read replies aloud" })).toBeVisible();
-  await expect(settings.getByRole("switch", { name: "Manage the bots it creates" })).toBeVisible();
+  await expect(settings.getByRole("switch", { name: "Manage nested bots" })).toBeVisible();
   await expect(openWork).toBeVisible();
   await expect(modelSelect).toBeVisible();
   await expect(modelSelect).toContainText("Space default");
@@ -214,12 +214,12 @@ test("bot management switch persists and settings help is accessible", async ({
     await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
     const settings = page.getByTestId("bot-settings");
     await settings.getByText("Advanced", { exact: true }).click();
-    return settings.getByRole("switch", { name: "Manage the bots it creates" });
+    return settings.getByRole("switch", { name: "Manage nested bots" });
   };
 
   const fleetSwitch = await openAdvanced();
   await expect(fleetSwitch).toBeChecked();
-  const help = page.getByRole("button", { name: "About Manage the bots it creates" });
+  const help = page.getByRole("button", { name: "About Manage nested bots" });
   const explanation =
     "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.";
   const descriptionId = await help.getAttribute("aria-describedby");

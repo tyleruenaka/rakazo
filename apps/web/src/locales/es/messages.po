@@ -2328,6 +2328,14 @@ msgstr "Arrastra, suelta o pega una imagen"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "Suelta para anidar"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "Suelta para anidar en {nestParentName}"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Duplicar"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "Hacer principal"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Asegúrate de que no quede nada en ejecución en este ordenador."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "Gestionar todos los bots"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr "Administrar configuración de mensajería"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "Gestionar los bots que crea"
+msgid "Manage nested bots"
+msgstr "Gestionar bots anidados"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "Mover {full} hacia abajo"
 msgid "Move {full} up"
 msgstr "Mover {full} hacia arriba"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "Sacar de {parentName}"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "Muévelas a tu memoria compartida."
@@ -3402,6 +3422,10 @@ msgstr "Necesita toma de control"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "Anidar en"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "Vista previa de {0}"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "Principal"
 
 #: src/pages/Board.tsx
 msgid "Priority"

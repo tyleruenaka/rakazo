@@ -248,6 +248,106 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await expect.poll(order).toEqual([beta.id, alpha.id, chiefId]);
 });
 
+test("holding a dragged bot on another nests it, and it moves back out", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `bot-nesting-${stamp}@rakazo.test`, "password12", "Bot Nesting");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+  const create = (name: string) =>
+    rpc<{ id: string }>(page, "bots/create", {
+      name,
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+      computerMode: "team",
+    });
+  const lead = await create("Lead");
+  const helper = await create("Helper");
+  await page.reload();
+
+  const sidebar = page.locator("aside").first();
+  const row = (id: string) => sidebar.locator(`[data-roster-bot-id="${id}"]`);
+  const center = async (id: string) => {
+    const box = (await row(id).boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const from = await center(helper.id);
+  const to = await center(lead.id);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 10 });
+  await expect(page.getByTestId("roster-drag-ghost")).toBeVisible();
+  // Before the hold the drop reorders; after it, the row offers to nest.
+  await expect(row(lead.id).getByText("Drop to nest")).toBeVisible();
+  await captureScreenshot(page, testInfo, "drag-hold-to-nest");
+  const nested = page.waitForResponse(
+    (response) => response.url().includes("/rpc/bots/update") && response.ok(),
+  );
+  await page.mouse.up();
+  await nested;
+  await expect(row(helper.id)).toHaveAttribute("data-roster-depth", "1");
+
+  await row(helper.id).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Move out of Lead", exact: true }).click();
+  await expect(row(helper.id)).not.toHaveAttribute("data-roster-depth", "1");
+
+  await row(helper.id).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Nest under", exact: true }).hover();
+  await page
+    .getByRole("menu", { name: "Nest under", exact: true })
+    .getByRole("menuitem", { name: "Lead", exact: true })
+    .click();
+  await expect(row(helper.id)).toHaveAttribute("data-roster-depth", "1");
+  // A bot with a nested bot can't be nested itself.
+  await row(lead.id).click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "Pin", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Nest under", exact: true })).toHaveCount(0);
+});
+
+test("one bot at a time is the Primary, with the star and no Delete", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `bot-primary-${stamp}@rakazo.test`, "password12", "Bot Primary");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+  const chiefId = activeBotId(page);
+  const other = await rpc<{ id: string }>(page, "bots/create", {
+    name: "Second",
+    title: "",
+    description: "",
+    instructions: "",
+    notifyOnFinish: true,
+    computerMode: "team",
+  });
+  await page.reload();
+
+  const sidebar = page.locator("aside").first();
+  const row = (id: string) => sidebar.locator(`[data-roster-bot-id="${id}"]`);
+  const makePrimary = async (id: string) => {
+    await row(id).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Make primary", exact: true }).click();
+  };
+  await makePrimary(chiefId);
+  await expect(row(chiefId).getByRole("img", { name: "Primary" })).toBeVisible();
+  await captureScreenshot(page, testInfo, "primary-star");
+
+  await row(chiefId).click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "Duplicate", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Delete", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Make primary", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await makePrimary(other.id);
+  await expect(row(other.id).getByRole("img", { name: "Primary" })).toBeVisible();
+  await expect(sidebar.getByRole("img", { name: "Primary" })).toHaveCount(1);
+});
+
 test("chat composer controls are vertically centered", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `composer-layout-${stamp}@rakazo.test`, "password12", "Composer Layout");

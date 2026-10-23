@@ -2328,6 +2328,14 @@ msgstr "Bild ziehen, ablegen oder einfügen"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "Zum Verschachteln ablegen"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "Zum Verschachteln unter {nestParentName} ablegen"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Duplizieren"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "Zum Hauptbot machen"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Stelle sicher, dass auf diesem Computer nichts mehr läuft."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "Alle Bots verwalten"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "Die von ihm erstellten Bots verwalten"
+msgid "Manage nested bots"
+msgstr "Verschachtelte Bots verwalten"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "{full} nach unten verschieben"
 msgid "Move {full} up"
 msgstr "{full} nach oben verschieben"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "Aus {parentName} herausnehmen"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "Verschiebe sie in deine geteilten Erinnerungen."
@@ -3402,6 +3422,10 @@ msgstr "Übernahme erforderlich"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "Verschachteln unter"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "Vorschau von {0}"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "Hauptbot"
 
 #: src/pages/Board.tsx
 msgid "Priority"

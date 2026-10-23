@@ -1799,7 +1799,18 @@ describeJourneys("required product journeys", () => {
       true,
     );
 
-    await sendAndWait(app, cookie, parent.id, "delete the bot named Scout");
+    // Archiving a managed bot always asks the owner.
+    const archive = await rpc<{ runId: string }>(app, cookie, "threads/send", {
+      botId: parent.id,
+      text: "delete the bot named Scout",
+    });
+    await answerPendingApproval(app, cookie, parent.id, archive.runId, "allow");
+    await waitFor(
+      app,
+      cookie,
+      parent.id,
+      (snap) => !snap.run || ["completed", "failed", "cancelled"].includes(snap.run.status),
+    );
     const afterScout = await rpc<Bot[]>(app, cookie, "bots/list");
     expect(afterScout.some((bot) => bot.id === scout!.id)).toBe(false);
     expect(afterScout.some((bot) => bot.id === nested!.id)).toBe(true);
@@ -3604,7 +3615,7 @@ describeJourneys("required product journeys", () => {
       expect(await toolOutcomes(foreign.run.id, "set_child_instructions")).toEqual([
         expect.objectContaining({
           outcome: "error",
-          error: "You can only change bots you created. The owner edits the others.",
+          error: "You can only change bots you manage. The owner edits the others.",
         }),
       ]);
       expect((await childState(ops.id)).instructions).toBe("");
@@ -3896,6 +3907,38 @@ describeJourneys("required product journeys", () => {
       }
       expect(await childState(scout.id)).toMatchObject({ modelProvider: "x", modelId: "y" });
       expect(await prisma.routine.count({ where: { botId: scout.id } })).toBe(0);
+    });
+
+    it("the Primary archives a bot it did not create only after the owner approves", async () => {
+      const { cookie, chief } = await fleetOwner("primary-archive");
+      await rpc(app, cookie, "bots/update", { botId: chief.id, primary: true });
+      const other = await createBot(cookie, "Other");
+      const archivedAt = async () =>
+        (await prisma.bot.findUniqueOrThrow({ where: { id: other.id } })).archivedAt;
+
+      const denied = await sendForApproval(cookie, chief.id, "delete the bot named Other");
+      // Explicit approval: no "always allow" that would pass the next archive silently.
+      expect(JSON.stringify(denied.waiting.messages)).not.toContain("Always allow this tool");
+      await answerAndSettle(cookie, chief.id, denied, "deny");
+      expect(await archivedAt()).toBeNull();
+
+      const allowed = await sendForApproval(cookie, chief.id, "delete the bot named Other");
+      await answerAndSettle(cookie, chief.id, allowed, "allow");
+      expect(await archivedAt()).not.toBeNull();
+    });
+
+    it("archive_bot is refused while the manage switch is off", async () => {
+      const { cookie, chief } = await fleetOwner("archive-switch-off");
+      await rpc(app, cookie, "bots/update", { botId: chief.id, primary: true });
+      await rpc(app, cookie, "bots/update", { botId: chief.id, fleetManagement: false });
+      const other = await createBot(cookie, "Other");
+      const done = await sendAndWait(app, cookie, chief.id, "delete the bot named Other");
+      expect(await toolOutcomes(done.run.id, "archive_bot")).toEqual([
+        expect.objectContaining({ outcome: "error", error: "This tool is disabled for this bot." }),
+      ]);
+      expect(
+        (await prisma.bot.findUniqueOrThrow({ where: { id: other.id } })).archivedAt,
+      ).toBeNull();
     });
   });
 });

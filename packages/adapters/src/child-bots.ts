@@ -223,33 +223,43 @@ type LifecycleBot = {
   webhookSecretId?: string | null;
 };
 
-/** Bots the caller created. No `archivedAt` filter: a retry on an archived child must still reconcile. */
-export function createdByWhere(caller: {
-  botId: string;
-  userId: string;
-  spaceId: string;
-}): Prisma.BotWhereInput {
-  return { parentBotId: caller.botId, userId: caller.userId, spaceId: caller.spaceId };
+/**
+ * Bots the caller manages: those nested under it (a spawned bot starts there) or, when it is
+ * the owner's Primary, every other bot of the owner in the space, including later ones. Read
+ * live, so a Primary switch mid-run applies at once. No `archivedAt` filter: a retry on an
+ * archived child must still reconcile.
+ */
+export async function managedBotsWhere(
+  prisma: Pick<PrismaClient, "bot">,
+  caller: { botId: string; userId: string; spaceId: string },
+): Promise<Prisma.BotWhereInput> {
+  const self = await prisma.bot.findUnique({
+    where: { id: caller.botId },
+    select: { primary: true },
+  });
+  const owner = { userId: caller.userId, spaceId: caller.spaceId };
+  return self?.primary
+    ? { ...owner, id: { not: caller.botId } }
+    : { ...owner, parentBotId: caller.botId };
 }
 
-export async function archiveSpawnedBot(
-  deps: BotLifecycleDeps,
-  input: {
-    spawnedByBotId: string;
-    userId: string;
-    spaceId: string;
-    confirmName: string;
-    botId?: string;
-  },
-  context: AdapterContext,
-) {
+type ArchiveRequest = {
+  spawnedByBotId: string;
+  userId: string;
+  spaceId: string;
+  confirmName: string;
+  botId?: string;
+};
+
+/** The managed bot an archive_bot call names, checked before its approval card and again after. */
+export async function findBotToArchive(prisma: Pick<PrismaClient, "bot">, input: ArchiveRequest) {
   const confirmName = input.confirmName.trim();
   if (!confirmName) {
     return { error: "confirm_name is required. Refusing to archive." };
   }
 
-  const spawned = await deps.prisma.bot.findMany({
-    where: createdByWhere({
+  const spawned = await prisma.bot.findMany({
+    where: await managedBotsWhere(prisma, {
       botId: input.spawnedByBotId,
       userId: input.userId,
       spaceId: input.spaceId,
@@ -260,10 +270,12 @@ export async function archiveSpawnedBot(
     : spawned.filter((bot) => bot.name === confirmName);
 
   if (input.botId && matches.length === 0) {
-    return { error: "That bot was not created by this bot. Refusing to archive." };
+    return { error: "This bot does not manage that bot. Refusing to archive." };
   }
   if (!input.botId && matches.length === 0) {
-    return { error: `This bot did not create a bot named "${confirmName}". Refusing to archive.` };
+    return {
+      error: `This bot does not manage a bot named "${confirmName}". Refusing to archive.`,
+    };
   }
   if (!input.botId && matches.length > 1) {
     return {
@@ -277,9 +289,18 @@ export async function archiveSpawnedBot(
   if (target.id === input.spawnedByBotId) {
     return { error: "A bot cannot archive itself with archive_bot." };
   }
+  return { target };
+}
 
-  await archiveBot(deps, target, context);
-  return { ok: true as const, botId: target.id, name: target.name };
+export async function archiveSpawnedBot(
+  deps: BotLifecycleDeps,
+  input: ArchiveRequest,
+  context: AdapterContext,
+) {
+  const found = await findBotToArchive(deps.prisma, input);
+  if (found.error !== undefined) return { error: found.error };
+  await archiveBot(deps, found.target, context);
+  return { ok: true as const, botId: found.target.id, name: found.target.name };
 }
 
 export async function archiveBot(

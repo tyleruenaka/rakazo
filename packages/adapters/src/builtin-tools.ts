@@ -178,8 +178,8 @@ const scheduleCreateInputSchema = {
 };
 
 const childRoutineTargetProperties = {
-  bot_id: { type: "string", description: "Id of a bot you created." },
-  bot_name: { type: "string", description: "Exact name of a bot you created." },
+  bot_id: { type: "string", description: "Id of a bot you manage." },
+  bot_name: { type: "string", description: "Exact name of a bot you manage." },
 };
 
 /** Same exactly-one-timing-method rule as schedule_create, plus the target bot. */
@@ -1235,7 +1235,7 @@ export const builtinAgentTools: ConnectorTool[] = [
         },
         bot_id: {
           type: "string",
-          description: "A bot you created, to update its profile instead of yours.",
+          description: "A bot you manage, to update its profile instead of yours.",
         },
       },
     },
@@ -1243,14 +1243,14 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "list_fleet",
     description:
-      "List the bots and groups of this user with their ids, sections and pinned state, and which bots you created. Pass bot_id of a bot you created to read only its full instructions and instructionsVersion, which set_child_instructions needs as expected_version. Call this before changing the bots you manage.",
+      "List the bots and groups of this user with their ids, sections and pinned state, and which bots you manage. Pass bot_id of a bot you manage to read only its full instructions and instructionsVersion, which set_child_instructions needs as expected_version. Call this before changing the bots you manage.",
     inputSchema: {
       type: "object",
       properties: {
         bot_id: {
           type: "string",
           description:
-            "A bot you created, to read its instructions and version instead of the roster.",
+            "A bot you manage, to read its instructions and version instead of the roster.",
         },
       },
       additionalProperties: false,
@@ -1274,7 +1274,7 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "update_group",
     description:
-      "Rename a group or add and remove its members. Works on any group of this user, not only ones you created. Identify it by group_id or group_name (exact). A group keeps 2 to 10 members. Needs the owner's approval.",
+      "Rename a group or add and remove its members. Works on any group of this user, not only ones you manage. Identify it by group_id or group_name (exact). A group keeps 2 to 10 members. Needs the owner's approval.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1289,7 +1289,7 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "organize_bot",
     description:
-      "Move a bot or group into a sidebar section, clear its section, or pin and unpin it. Works on any bot or group of this user, not only ones you created. Identify it by bot_id, bot_name, group_id or group_name (exact). section is a section name; clear_section: true takes it out of its section.",
+      "Move a bot or group into a sidebar section, clear its section, or pin and unpin it. Works on any bot or group of this user, not only ones you manage. Identify it by bot_id, bot_name, group_id or group_name (exact). section is a section name; clear_section: true takes it out of its section.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1305,7 +1305,7 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "set_child_instructions",
     description:
-      "Replace the instructions of a bot you created. Identify it by bot_id or bot_name (exact). Only bots you created. Pass expected_version from list_fleet with that bot_id. One instruction edit per bot per run. Needs the owner's approval.",
+      "Replace the instructions of a bot you manage. Identify it by bot_id or bot_name (exact). Only bots you manage. Pass expected_version from list_fleet with that bot_id. One instruction edit per bot per run. Needs the owner's approval.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1323,7 +1323,7 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "set_child_bot_model",
     description:
-      "Set the model of a bot you created, or reset it to the default with clear: true. Identify it by bot_id or bot_name (exact). Only bots you created. Needs the owner's approval.",
+      "Set the model of a bot you manage, or reset it to the default with clear: true. Identify it by bot_id or bot_name (exact). Only bots you manage. Needs the owner's approval.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1339,13 +1339,13 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "create_child_routine",
     description:
-      "Schedule a routine that wakes a bot you created in its own thread. Identify it by bot_id or bot_name (exact). Only bots you created. Repeats: cron or every/unit (min 1 minute). One-shot: runAt, delayMinutes, or delaySeconds. Needs the owner's approval.",
+      "Schedule a routine that wakes a bot you manage in its own thread. Identify it by bot_id or bot_name (exact). Only bots you manage. Repeats: cron or every/unit (min 1 minute). One-shot: runAt, delayMinutes, or delaySeconds. Needs the owner's approval.",
     inputSchema: createChildRoutineInputSchema,
   },
   {
     name: "archive_bot",
     description:
-      "Archive a bot this bot created. Archiving stops its work and routines, hides it from the active list, and preserves its conversation, memory, and files for the user to restore or delete later. confirm_name must exactly match its name. This cannot archive you, bots the user created, or bots another bot created.",
+      "Archive a bot this bot manages. Archiving stops its work and routines, hides it from the active list, and preserves its conversation, memory, and files for the user to restore or delete later. confirm_name must exactly match its name. This cannot archive you or any bot you don't manage.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1353,7 +1353,7 @@ export const builtinAgentTools: ConnectorTool[] = [
         bot_id: {
           type: "string",
           description:
-            "Optional bot id. If omitted, the unique bot this bot created with confirm_name is archived.",
+            "Optional bot id. If omitted, the unique bot this bot manages with confirm_name is archived.",
         },
       },
       required: ["confirm_name"],

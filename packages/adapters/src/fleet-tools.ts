@@ -33,7 +33,7 @@ import { getLogger } from "@rakazo/logging";
 import type { FleetCardSummary } from "./approval-ask.js";
 import { approvalDetailLength, MAX_APPROVAL_SUMMARY_LENGTH } from "./approval-ask.js";
 import { resolveUpdateBotAvatar } from "./bot-avatar.js";
-import { createdByWhere } from "./child-bots.js";
+import { managedBotsWhere } from "./child-bots.js";
 import type { BotModelChangeDeps } from "./model-selection.js";
 import { validateBotModelChange } from "./model-selection.js";
 import { listPiCatalog, scriptedCatalogEntry } from "./pi-models.js";
@@ -90,7 +90,8 @@ type Member = { id: string; name: string };
 type Refusal = { ok: false; error: string };
 
 const GROUP_SIZE_ERROR = `A group needs ${GROUP_MEMBER_MIN} to ${GROUP_MEMBER_MAX} bots.`;
-const NOT_CREATED_BY_CALLER = "You can only change bots you created. The owner edits the others.";
+const NESTED_PIN = "A nested bot can't be pinned. The owner can move it out of its parent first.";
+const NOT_CREATED_BY_CALLER = "You can only change bots you manage. The owner edits the others.";
 
 /**
  * Resolve everything the model could vary before the effect is recorded. The canonical request
@@ -441,7 +442,7 @@ type FleetBot = {
   description: string;
   section: string | null;
   pinned: boolean;
-  createdByMe: boolean;
+  managedByMe: boolean;
 };
 type FleetGroup = {
   id: string;
@@ -511,12 +512,16 @@ export async function listFleet(
     }),
   ]);
   const listedBots = bots.slice(0, FLEET_BOT_LIMIT);
-  // Only the listed bots need the creator flag, so this read is bounded by the bot cap.
+  // Only the listed bots need the managed flag, so this read is bounded by the bot cap.
   const children = await prisma.bot.findMany({
     where: {
-      ...createdByWhere({ botId: run.botId, userId: run.userId, spaceId: run.spaceId }),
+      ...(await managedBotsWhere(prisma, {
+        botId: run.botId,
+        userId: run.userId,
+        spaceId: run.spaceId,
+      })),
       archivedAt: null,
-      id: { in: listedBots.map((bot) => bot.id) },
+      id: { in: listedBots.flatMap((bot) => (bot.id === run.botId ? [] : [bot.id])) },
     },
     select: { id: true },
   });
@@ -529,7 +534,7 @@ export async function listFleet(
       description: bot.description,
       section: bot.section ? singleLine(bot.section.name) : null,
       pinned: bot.pinned,
-      createdByMe: childIds.has(bot.id),
+      managedByMe: childIds.has(bot.id),
     })),
     groups: groups.slice(0, FLEET_GROUP_LIMIT),
     sections: sections.slice(0, FLEET_SECTION_LIMIT).map((section) => singleLine(section.name)),
@@ -641,6 +646,7 @@ export async function organizeBot(
       const target = await resolveBot(deps.prisma, run, args, { createdByCaller: false });
       if ("error" in target) return { error: target.error };
       if (!target.thread) return { error: NOT_FOUND };
+      if (pinned && target.parentBotId) return { error: NESTED_PIN };
       // A named section is always the user's own: found or created by name in their scope.
       if (section) {
         await createRepos(deps.prisma).createBotSection(actor, { botId: target.id, name: section });
@@ -1098,6 +1104,7 @@ const botSelect = {
   modelProvider: true,
   modelId: true,
   thinkingLevel: true,
+  parentBotId: true,
   thread: { select: { id: true } },
 } satisfies Prisma.BotSelect;
 
@@ -1139,7 +1146,7 @@ async function resolveBots(
   return members;
 }
 
-/** One active bot of the user, or only one the caller created, by `bot_id` or exact `bot_name`. */
+/** One active bot of the user, or only one the caller manages, by `bot_id` or exact `bot_name`. */
 async function resolveBot(
   prisma: PrismaClient,
   run: FleetRun,
@@ -1151,9 +1158,15 @@ async function resolveBot(
   if (id && name) return refuse("Pass bot_id or bot_name, not both.");
   if (!id && !name) return refuse("Pass bot_id or bot_name.");
   const target = id ? { id } : { name };
+  // A Primary manages every other bot, never itself.
+  if (options.createdByCaller && id === run.botId) return refuse(NOT_CREATED_BY_CALLER);
   const scope = options.createdByCaller
     ? {
-        ...createdByWhere({ botId: run.botId, userId: run.userId, spaceId: run.spaceId }),
+        ...(await managedBotsWhere(prisma, {
+          botId: run.botId,
+          userId: run.userId,
+          spaceId: run.spaceId,
+        })),
         archivedAt: null,
       }
     : activeBotsWhere(run);
@@ -1164,7 +1177,7 @@ async function resolveBot(
   });
   if (bots.length > 1) {
     return refuse(
-      `More than one bot ${options.createdByCaller ? "you created " : ""}is named "${name}". Pass bot_id instead.`,
+      `More than one bot ${options.createdByCaller ? "you manage " : ""}is named "${name}". Pass bot_id instead.`,
     );
   }
   if (bots[0]) return bots[0];

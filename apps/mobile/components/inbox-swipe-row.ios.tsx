@@ -41,6 +41,8 @@ export function InboxSwipeRow({
   rowKey,
   unread,
   pinned,
+  nested,
+  primary,
   notifyOnFinish,
   sectionId,
   sections,
@@ -56,7 +58,7 @@ export function InboxSwipeRow({
   const window = useWindowDimensions();
   const [width, setWidth] = useState(window.width);
   const [height, setHeight] = useState(() => rowHeights.get(rowKey) ?? lastRowHeight);
-  const actions = inboxRowActions({ unread, pinned });
+  const actions = inboxRowActions({ unread, pinned, nested });
 
   function button(action: InboxRowAction) {
     const { label, systemImage } = INBOX_ROW_ACTIONS[action];
@@ -117,6 +119,8 @@ export function InboxSwipeRow({
                 <InboxMenuItems
                   unread={unread}
                   pinned={pinned}
+                  nested={nested}
+                  primary={primary}
                   notifyOnFinish={notifyOnFinish}
                   sectionId={sectionId}
                   sections={sections}
@@ -150,6 +154,8 @@ function InboxMenuItems({
   unread,
   pinned,
   notifyOnFinish,
+  primary,
+  nested,
   sectionId,
   sections,
   onAction,
@@ -201,11 +207,13 @@ function InboxMenuItems({
         systemImage={unread ? "checkmark.message" : "message.badge"}
         onPress={() => onAction(unread ? "read" : "unread")}
       />
-      <Button
-        label={pinned ? t("Unpin") : t("Pin")}
-        systemImage={pinned ? "pin.slash" : "pin"}
-        onPress={() => onAction(pinned ? "unpin" : "pin")}
-      />
+      {nested ? null : (
+        <Button
+          label={pinned ? t("Unpin") : t("Pin")}
+          systemImage={pinned ? "pin.slash" : "pin"}
+          onPress={() => onAction(pinned ? "unpin" : "pin")}
+        />
+      )}
       {pinned ? null : move}
       <Button
         label={t("Hide")}
@@ -216,6 +224,13 @@ function InboxMenuItems({
       {pinned || notify ? (
         <Menu label={t("More")} systemImage="ellipsis">
           {notify}
+          {primary === false ? (
+            <Button
+              label={t("Make primary")}
+              systemImage="star"
+              onPress={() => onOrganize({ primary: true })}
+            />
+          ) : null}
           {pinned ? move : null}
         </Menu>
       ) : null}

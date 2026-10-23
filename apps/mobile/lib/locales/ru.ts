@@ -4,7 +4,10 @@ export const RU_MESSAGES: Record<string, string> = {
   "Ex: Project Falcon": "Например: проект «Сокол»",
   "Search bots": "Поиск ботов",
   "About {label}": "О настройке «{label}»",
-  "Manage the bots it creates": "Управлять созданными им ботами",
+  "Manage nested bots": "Управлять вложенными ботами",
+  "Manage all bots": "Управлять всеми ботами",
+  "Make primary": "Сделать основным",
+  Primary: "Основной",
   "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
     "Упорядочивайте боковую панель и редактируйте ботов. Изменения групп, инструкций, моделей и процедур требуют вашего одобрения.",
 

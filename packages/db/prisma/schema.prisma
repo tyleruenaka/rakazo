@@ -489,6 +489,8 @@ model Bot {
   teamChatAmbientEnabled Boolean @default(false)
   teamChatRules          String  @default("")
   fleetManagement        Boolean @default(true)
+  /// The owner's Primary bot in this space; one at most (partial unique index in SQL).
+  primary                Boolean @default(false)
   routines          Routine[]
   scratchpadItems   ScratchpadItem[]
   taughtSkills      TaughtSkill[]

@@ -2328,6 +2328,14 @@ msgstr "이미지를 끌어다 놓거나 붙여넣으세요"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "놓아서 하위로 넣기"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "놓아서 {nestParentName} 아래에 넣기"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "복제"
@@ -3068,6 +3076,10 @@ msgstr ""
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "기본 봇으로 지정"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "이 컴퓨터에서 실행 중인 작업이 없는지 확인하세요."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "모든 봇 관리"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr "메시징 설정 관리"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "이 봇이 만든 봇 관리"
+msgid "Manage nested bots"
+msgstr "하위 봇 관리"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "{full} 아래로 이동"
 msgid "Move {full} up"
 msgstr "{full} 위로 이동"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "{parentName}에서 꺼내기"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "공용 기억으로 옮깁니다."
@@ -3402,6 +3422,10 @@ msgstr "인수 필요"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "하위로 넣기"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "{0} 미리보기"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "기본"
 
 #: src/pages/Board.tsx
 msgid "Priority"

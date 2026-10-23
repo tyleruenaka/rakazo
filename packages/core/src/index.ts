@@ -53,6 +53,7 @@ export * from "./password-policy.js";
 export * from "./peer-history.js";
 export * from "./peer-marker-groups.js";
 export * from "./peer-messages.js";
+export * from "./primary-star.js";
 export * from "./product-analytics.js";
 export * from "./prompt-data.js";
 export * from "./remote-images.js";

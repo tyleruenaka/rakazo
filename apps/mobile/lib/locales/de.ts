@@ -4,7 +4,10 @@ export const DE_MESSAGES: Record<string, string> = {
   "Ex: Project Falcon": "Z. B. Projekt Falcon",
   "Search bots": "Bots suchen",
   "About {label}": "Über {label}",
-  "Manage the bots it creates": "Die von ihm erstellten Bots verwalten",
+  "Manage nested bots": "Verschachtelte Bots verwalten",
+  "Manage all bots": "Alle Bots verwalten",
+  "Make primary": "Zum Hauptbot machen",
+  Primary: "Hauptbot",
   "Organize the sidebar and edit bots. Instruction, model, routine and group edits need approval.":
     "Ordne die Seitenleiste und bearbeite Bots. Änderungen an Gruppen, Anweisungen, Modellen und Routinen brauchen deine Zustimmung.",
 

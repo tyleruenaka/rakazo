@@ -1,6 +1,6 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { RunActivityRow, SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { accountDisplay, isRunWorking } from "@rakazo/core";
+import { accountDisplay, isRunWorking, shownPinned } from "@rakazo/core";
 import { botColors, typeScale } from "@rakazo/ui-tokens";
 import type { Href } from "expo-router";
 import {
@@ -536,7 +536,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     const otherSpaces = spaces.filter((space) => space.id !== me?.spaceId);
     const pinned: PinnedChat[] = [
       ...[...visible, ...otherSpaces.flatMap((space) => space.bots)]
-        .filter((bot) => bot.pinned)
+        .filter((bot) => shownPinned(bot))
         .map((bot) => ({ kind: "bot" as const, bot })),
       ...[...visibleGroups, ...otherSpaces.flatMap((space) => space.groups)]
         .filter((group) => group.pinned)
@@ -544,7 +544,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     ];
     const sidebarSpaces = inboxSpaces.map((space) => ({
       ...space,
-      bots: space.bots.filter((bot) => !bot.pinned),
+      bots: space.bots.filter((bot) => !shownPinned(bot)),
       groups: space.groups.filter((group) => !group.pinned),
     }));
     const items: InboxItem[] = spaceInboxItems(sidebarSpaces, collapsed, me?.spaceId);
@@ -1935,6 +1935,7 @@ const PinnedTiles = memo(function PinnedTiles({
                   size={avatarSize}
                   status={chat.bot.status}
                   muted={chat.bot.notifyOnFinish === false}
+                  primary={chat.bot.primary}
                   animated
                 />
               ) : (
@@ -1957,6 +1958,7 @@ const PinnedTiles = memo(function PinnedTiles({
             unread={item.unread}
             pinned
             notifyOnFinish={chat.kind === "bot" ? chat.bot.notifyOnFinish : undefined}
+            primary={chat.kind === "bot" ? Boolean(chat.bot.primary) : undefined}
             sectionId={item.sectionId}
             sections={sections}
             preview={{
@@ -2069,6 +2071,7 @@ const BotRow = memo(function BotRow({
           size={INBOX_ROW.avatarSize}
           status={bot.status}
           muted={bot.notifyOnFinish === false}
+          primary={bot.primary}
           animated
         />
       }
@@ -2080,6 +2083,8 @@ const BotRow = memo(function BotRow({
       unread={bot.unread}
       pinned={bot.pinned}
       notifyOnFinish={bot.notifyOnFinish}
+      nested={Boolean(bot.parentBotId)}
+      primary={Boolean(bot.primary)}
       sectionId={bot.sectionId}
       sections={sections}
       preview={{

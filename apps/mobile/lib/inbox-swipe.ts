@@ -9,20 +9,27 @@ export const INBOX_ROW_ACTIONS = {
   unpin: { label: "Unpin", systemImage: "pin.slash" },
 } as const satisfies Record<InboxRowAction, { label: string; systemImage: string }>;
 
-/** Swipe right toggles read state; swipe left offers Archive outermost, then Pin. */
-export function inboxRowActions(chat: { unread?: boolean; pinned?: boolean }): {
+/**
+ * Swipe right toggles read state; swipe left offers Archive outermost, then Pin. A nested
+ * bot can't be pinned, so it gets no Pin.
+ */
+export function inboxRowActions(chat: { unread?: boolean; pinned?: boolean; nested?: boolean }): {
   leading: InboxRowAction;
   trailing: InboxRowAction[];
 } {
   return {
     leading: chat.unread ? "read" : "unread",
-    trailing: ["archive", chat.pinned ? "unpin" : "pin"],
+    trailing: chat.nested ? ["archive"] : ["archive", chat.pinned ? "unpin" : "pin"],
   };
 }
 
 /** Every row action, as offered to screen readers. */
-export function inboxRowActionList(chat: { unread?: boolean; pinned?: boolean }) {
-  const { leading, trailing } = inboxRowActions(chat);
+export function inboxRowActionList(chat: {
+  unread?: boolean;
+  pinned?: boolean;
+  parentBotId?: string | null;
+}) {
+  const { leading, trailing } = inboxRowActions({ ...chat, nested: Boolean(chat.parentBotId) });
   return [leading, ...trailing];
 }
 

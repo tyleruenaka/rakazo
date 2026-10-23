@@ -19,6 +19,7 @@ type FakeBot = {
   spaceId?: string;
   userId?: string;
   parentBotId?: string | null;
+  primary?: boolean;
   archivedAt?: Date | null;
   modelProvider?: string | null;
   modelId?: string | null;
@@ -53,6 +54,9 @@ function matches(value: unknown, condition: unknown): boolean {
   if (condition === undefined) return true;
   if (condition && typeof condition === "object" && "in" in condition) {
     return (condition as { in: unknown[] }).in.includes(value);
+  }
+  if (condition && typeof condition === "object" && "not" in condition) {
+    return value !== (condition as { not: unknown }).not;
   }
   return value === condition;
 }
@@ -330,7 +334,7 @@ describe("prepareFleetRequest set_child_bot_model", () => {
       await prepareFleetRequest(deps, run, "set_child_bot_model", { bot_name: "Ops", clear: true }),
     ).toEqual({
       ok: false,
-      error: "You can only change bots you created. The owner edits the others.",
+      error: "You can only change bots you manage. The owner edits the others.",
     });
     expect(
       await prepareFleetRequest(deps, run, "set_child_bot_model", {
@@ -586,8 +590,57 @@ describe("prepareFleetRequest create_child_routine", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "You can only change bots you created. The owner edits the others.",
+      error: "You can only change bots you manage. The owner edits the others.",
     });
+  });
+});
+
+describe("the Primary bot", () => {
+  const primaryFleet = {
+    ...fleet,
+    bots: [
+      ...fleet.bots.map((bot) => (bot.id === "bot-self" ? { ...bot, primary: true } : bot)),
+      { id: "bot-kid", name: "Kid", parentBotId: "bot-ops" },
+    ],
+  };
+  const routine = (botId: string) => ({
+    bot_id: botId,
+    name: "Daily",
+    prompt: "Check in",
+    delayMinutes: 5,
+  });
+
+  it("manages bots it did not create, including another bot's nested bots", async () => {
+    const { deps } = fakeFleet(primaryFleet);
+    for (const botId of ["bot-ops", "bot-kid", "bot-scout"]) {
+      expect(await prepareFleetRequest(deps, run, "create_child_routine", routine(botId))).toEqual(
+        expect.objectContaining({ ok: true }),
+      );
+    }
+  });
+
+  it("never manages itself or another owner's bot", async () => {
+    const { deps } = fakeFleet(primaryFleet);
+    for (const botId of ["bot-self", "bot-foreign"]) {
+      expect(await prepareFleetRequest(deps, run, "create_child_routine", routine(botId))).toEqual(
+        expect.objectContaining({ ok: false }),
+      );
+    }
+  });
+
+  it("lists every other bot of the owner as managed", async () => {
+    const { deps } = fakeFleet(primaryFleet);
+    const listed = await listFleet(deps, run, {});
+    if ("error" in listed) throw new Error(listed.error);
+    expect(listed.bots.map((bot) => [bot.id, bot.managedByMe])).toEqual([
+      ["bot-self", false],
+      ["bot-scout", true],
+      ["bot-writer", true],
+      ["bot-ops", true],
+      ["bot-twin-1", true],
+      ["bot-twin-2", true],
+      ["bot-kid", true],
+    ]);
   });
 });
 
@@ -923,7 +976,7 @@ describe("listFleet", () => {
           description: "",
           section: null,
           pinned: false,
-          createdByMe: false,
+          managedByMe: false,
         },
         {
           id: "bot-scout",
@@ -932,12 +985,12 @@ describe("listFleet", () => {
           description: "",
           section: "Research",
           pinned: true,
-          createdByMe: true,
+          managedByMe: true,
         },
-        expect.objectContaining({ id: "bot-writer", createdByMe: true }),
-        expect.objectContaining({ id: "bot-ops", createdByMe: false }),
-        expect.objectContaining({ id: "bot-twin-1", createdByMe: false }),
-        expect.objectContaining({ id: "bot-twin-2", createdByMe: false }),
+        expect.objectContaining({ id: "bot-writer", managedByMe: true }),
+        expect.objectContaining({ id: "bot-ops", managedByMe: false }),
+        expect.objectContaining({ id: "bot-twin-1", managedByMe: false }),
+        expect.objectContaining({ id: "bot-twin-2", managedByMe: false }),
       ],
       groups: [
         {
@@ -978,7 +1031,7 @@ describe("listFleet", () => {
       bot: { id: "bot-fresh", instructions: "Start.", instructionsVersion: "initial" },
     });
     expect(await listFleet(deps, run, { bot_id: "bot-peer" })).toEqual({
-      error: "You can only change bots you created. The owner edits the others.",
+      error: "You can only change bots you manage. The owner edits the others.",
     });
     expect(JSON.stringify(await listFleet(deps, run, {}))).not.toContain("Secret plan.");
   });
@@ -1137,7 +1190,7 @@ describe("updateChildBot", () => {
     const { prisma } = fakeFleet({ bots });
     expect(
       await updateChildBot(writeDeps(prisma), run, { bot_id: "bot-ops", name: "Mine now" }),
-    ).toEqual({ error: "You can only change bots you created. The owner edits the others." });
+    ).toEqual({ error: "You can only change bots you manage. The owner edits the others." });
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.bot.update).not.toHaveBeenCalled();
   });
@@ -1316,7 +1369,7 @@ describe("prepareFleetRequest set_child_instructions", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "You can only change bots you created. The owner edits the others.",
+      error: "You can only change bots you manage. The owner edits the others.",
     });
   });
 
@@ -1553,7 +1606,7 @@ describe("createChildRoutine", () => {
       ),
     });
     expect(await createChildRoutine(writeDeps(prisma), run, canonical)).toEqual({
-      error: "You can only change bots you created. The owner edits the others.",
+      error: "You can only change bots you manage. The owner edits the others.",
     });
     expect(prisma.routine.create).not.toHaveBeenCalled();
   });

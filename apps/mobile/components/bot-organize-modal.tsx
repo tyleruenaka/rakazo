@@ -23,6 +23,8 @@ export type BotOrganizationUpdate = {
   pinned?: boolean;
   sectionId?: string | null;
   notifyOnFinish?: boolean;
+  /** Make it the Primary; there is no unset. */
+  primary?: true;
 };
 
 export function BotOrganizeModal({

@@ -48,6 +48,7 @@ import {
   groupVoiceChats,
   inferAttachmentMimeType,
   isActive,
+  isNeutralBotColor,
   isPeerReceiptBlocks,
   isRunTerminalEvent,
   isRunWorking,
@@ -66,6 +67,7 @@ import {
   SLASH_ACTIONS,
   searchHitThreadTarget,
   serializeComposerPrompt,
+  shownPinned,
   speechFromBlocks,
   timeSeparatorIds,
   truncateSlashDescription,
@@ -95,6 +97,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PrimaryStarAvatar,
   parseBotAvatar,
   resolvePersonaColorDef,
   Spinner,
@@ -371,11 +374,30 @@ import {
   McpApprovalCard,
 } from "./shell/message-cards";
 import { pinnedRosterLayout, rosterReorderStep } from "./shell/pinned-roster";
-import { PinnedTile, PinnedTileGrid } from "./shell/pinned-tile";
-import type { RosterDropTarget } from "./shell/roster-drop";
-import { resolveRosterDrop } from "./shell/roster-drop";
+import type { RosterDropMark } from "./shell/pinned-tile";
+import {
+  PinnedTile,
+  PinnedTileGrid,
+  PinnedTileSlot,
+  RosterDragGhost,
+  RosterDropIndicator,
+} from "./shell/pinned-tile";
+import type { RosterDropAction, RosterDropTarget } from "./shell/roster-drop";
+import { applyRosterDrop, canNestBot, resolveRosterDrop } from "./shell/roster-drop";
 import { commitSpaceRename, countUnreadChats, sidebarGroupsForSpaces } from "./shell/space-sidebar";
+import type { RosterDragPoint } from "./shell/use-roster-drag";
+import { useRosterDrag } from "./shell/use-roster-drag";
 import { WindowChrome } from "./WindowChrome";
+
+/** What a bot drag would do where the pointer is, and which row or list shows it. */
+type RosterHover = {
+  /** The row (`row:<kind>:<id>`) or list (`list:<group key>`) that shows the drop. */
+  key: string;
+  action: RosterDropAction;
+  mark: RosterDropMark | "fill";
+  /** Bots of the list a reorder lands in. */
+  listBotIds: string[];
+};
 
 const BotContextMenu = lazyOverlay(() =>
   import("./BotContextMenu").then((module) => module.BotContextMenu),
@@ -783,8 +805,9 @@ function SpaceShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const mobileSidebarSwipeRef = useRef<{ startX: number; startY: number } | null>(null);
-  const [draggedBotId, setDraggedBotId] = useState<string | null>(null);
-  const [rosterDropKey, setRosterDropKey] = useState<string | null>(null);
+  const [rosterHover, setRosterHover] = useState<RosterHover | null>(null);
+  const rosterHoverRef = useRef<RosterHover | null>(null);
+  const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [botsSidebarCollapsed, setBotsSidebarCollapsed] = useState(false);
   const focusPromptAbortRef = useRef<AbortController | null>(null);
@@ -1997,45 +2020,144 @@ function SpaceShell() {
     [userId],
   );
   // Drags only act on bots of the active space; other spaces are read-only here.
-  const draggedBot = draggedBotId ? bots.find((bot) => bot.id === draggedBotId) : undefined;
-  const rosterDropAction = useCallback(
-    (target: RosterDropTarget, sameParent: boolean) =>
-      draggedBot ? resolveRosterDrop({ dragged: draggedBot, target, sameParent }) : null,
-    [draggedBot],
-  );
-  const applyRosterDrop = useCallback(
-    (target: RosterDropTarget, sameParent: boolean, groupBotIds: string[]) => {
-      const action = rosterDropAction(target, sameParent);
-      setDraggedBotId(null);
-      setRosterDropKey(null);
-      if (!action || !draggedBot) return;
-      setSendError(null);
-      if (action.action === "reorder") {
-        reorderRosterBot(draggedBot.id, action.targetBotId, groupBotIds);
-        return;
+  const rosterDragSource = (botId: string) => {
+    const bot = bots.find((item) => item.id === botId);
+    if (!bot) return null;
+    return {
+      id: bot.id,
+      sectionId: bot.sectionId,
+      pinned: bot.pinned,
+      parentBotId: bot.parentBotId,
+      hasChildren: [...bots, ...archivedBots].some((item) => item.parentBotId === bot.id),
+      primary: bot.primary,
+    };
+  };
+  const showRosterHover = (hover: RosterHover | null) => {
+    rosterHoverRef.current = hover;
+    setRosterHover((previous) =>
+      previous?.key === hover?.key && previous?.mark === hover?.mark ? previous : hover,
+    );
+  };
+  /** Show what dropping here would do; returns the bot row a hold would nest under. */
+  const locateRosterDrop = (botId: string, point: RosterDragPoint, heldKey: string | null) => {
+    const dragged = rosterDragSource(botId);
+    const under = document
+      .elementsFromPoint(point.x, point.y)
+      .find((element) => !element.hasAttribute("data-roster-shield"));
+    const row = under?.closest<HTMLElement>("[data-roster-row]");
+    const list = under?.closest<HTMLElement>("[data-sidebar-group]");
+    const listGroup = sidebarGroups.find((group) => group.key === list?.dataset.sidebarGroup);
+    let hover: RosterHover | null = null;
+    let resting: string | null = null;
+    const rowKey = row?.dataset.rosterRow;
+    if (dragged && row && rowKey && rowKey !== `row:bot:${botId}`) {
+      const [, kind, id] = rowKey.split(":");
+      const bot = kind === "bot" ? bots.find((item) => item.id === id) : undefined;
+      const group = kind === "group" ? groups.find((item) => item.id === id) : undefined;
+      if (bot && canNestBot(dragged, bot)) resting = rowKey;
+      const target: RosterDropTarget | null = bot
+        ? { kind: "bot", chat: bot, nest: heldKey === rowKey }
+        : group
+          ? { kind: "group", chat: { id: group.id, memberIds: group.members.map((m) => m.botId) } }
+          : null;
+      const source = document.querySelector<HTMLElement>(
+        `[data-roster-row="row:bot:${CSS.escape(botId)}"]`,
+      );
+      const sameParent =
+        source?.closest("[data-sidebar-group]") === list &&
+        source?.dataset.rosterParent === row.dataset.rosterParent;
+      const action = target ? resolveRosterDrop({ dragged, target, sameParent }) : null;
+      const index = (chatId: string) => bots.findIndex((item) => item.id === chatId);
+      if (action) {
+        hover = {
+          key: rowKey,
+          action,
+          mark:
+            action.action === "nest"
+              ? "nest"
+              : action.action === "join"
+                ? "fill"
+                : index(botId) < index(id ?? "")
+                  ? "after"
+                  : "before",
+          listBotIds: (listGroup?.bots ?? []).flatMap((item) =>
+            item.kind === "bot" ? [item.chat.id] : [],
+          ),
+        };
       }
-      const request =
-        action.action === "move"
-          ? rpc.bots.update({ botId: draggedBot.id, sectionId: action.sectionId })
-          : rpc.groups.update({
-              groupId: action.groupId,
-              botIds: action.botIds,
-              expectedBotIds: action.botIds.filter((id) => id !== draggedBot.id),
-            });
-      void request
-        .then(async () => {
-          await refreshBots();
-          if (action.action === "join" && activeGroupId.current === action.groupId) {
-            await refreshGroupThread(action.groupId);
-          }
-        })
-        .catch((error) => {
-          setSendError(errorText(error, t`Could not save`));
-          void refreshBots().catch(() => undefined);
-        });
-    },
-    [draggedBot, refreshBots, reorderRosterBot, rosterDropAction, t],
-  );
+    }
+    if (dragged && !hover && rowKey !== `row:bot:${botId}` && listGroup) {
+      const target: RosterDropTarget | null =
+        listGroup.spaceId !== bootstrapMe?.spaceId || listGroup.emptySpaceId
+          ? null
+          : listGroup.pinned
+            ? { kind: "pinned" }
+            : listGroup.sectionId || listGroup.key.endsWith("unassigned")
+              ? { kind: "section", sectionId: listGroup.sectionId }
+              : null;
+      const action = target ? resolveRosterDrop({ dragged, target, sameParent: false }) : null;
+      if (action) hover = { key: `list:${listGroup.key}`, action, mark: "fill", listBotIds: [] };
+    }
+    showRosterHover(hover);
+    return resting;
+  };
+  const dropRosterBot = (botId: string) => {
+    const hover = rosterHoverRef.current;
+    if (!hover) return;
+    const { action } = hover;
+    setSendError(null);
+    // Land the row now, in the frame the ghost leaves; the refresh below confirms or rolls back.
+    const landed = applyRosterDrop(botsRef.current, botId, action);
+    if (landed !== botsRef.current) {
+      botsRef.current = [...landed];
+      setBots(botsRef.current);
+    }
+    if (action.action === "reorder") reorderRosterBot(botId, action.targetBotId, hover.listBotIds);
+    if (action.action === "reorder" && !action.unnest) return;
+    const unnest = "unnest" in action && action.unnest ? { parentBotId: null } : {};
+    const request =
+      action.action === "join"
+        ? rpc.groups.update({
+            groupId: action.groupId,
+            botIds: action.botIds,
+            expectedBotIds: action.botIds.filter((id) => id !== botId),
+          })
+        : rpc.bots.update({
+            botId,
+            ...unnest,
+            ...(action.action === "move"
+              ? { sectionId: action.sectionId, ...(action.unpin ? { pinned: false } : {}) }
+              : action.action === "pin"
+                ? { pinned: true }
+                : action.action === "nest"
+                  ? { parentBotId: action.parentBotId }
+                  : {}),
+          });
+    void request
+      .then(async () => {
+        await refreshBots();
+        if (action.action === "join" && activeGroupId.current === action.groupId) {
+          await refreshGroupThread(action.groupId);
+        }
+      })
+      .catch((error) => {
+        setSendError(errorText(error, t`Could not save`));
+        void refreshBots().catch(() => undefined);
+      });
+  };
+  const rosterDrag = useRosterDrag({
+    scrollRef: rosterScrollRef,
+    locate: locateRosterDrop,
+    drop: dropRosterBot,
+    end: () => showRosterHover(null),
+  });
+  const draggedBotId = rosterDrag.draggedId;
+  const draggedRosterBot = draggedBotId ? bots.find((bot) => bot.id === draggedBotId) : undefined;
+  const rosterDropAction = rosterHover?.action;
+  const nestParentName =
+    rosterDropAction?.action === "nest"
+      ? bots.find((bot) => bot.id === rosterDropAction.parentBotId)?.name
+      : undefined;
   const toggleRosterParent = useCallback(
     (botId: string) => {
       setCollapsedRosterParents((previous) =>
@@ -3311,26 +3433,33 @@ function SpaceShell() {
     showComputerRecoveryHint;
 
   const { label: userName, initial: initials } = accountDisplay(session.data?.user ?? {}, t`You`);
-  const botAccent =
+  const botColor =
     active && !inGroup
-      ? resolvePersonaColorDef(active.id, parseBotAvatar(active.color, active.id).color).hex
+      ? resolvePersonaColorDef(active.id, parseBotAvatar(active.color, active.id).color)
       : undefined;
+  // White and gray bots tint nothing: the chat keeps the neutral bubble and button.
+  const botAccent = botColor && !isNeutralBotColor(botColor) ? botColor.hex : undefined;
 
   type RosterChat = (typeof sidebarGroups)[number]["bots"][number];
   const rosterChatSelected = (item: RosterChat) =>
     (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
     (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
   // Like Grok, the open chat's avatar idles with life (lively); the card's small copy stays still.
-  const rosterAvatar = (item: RosterChat, size: number, lively = false) =>
+  /** `star` shows the Primary's badge; only the list, pinned tiles and the rail carry it. */
+  const rosterAvatar = (item: RosterChat, size: number, lively = false, star = false) =>
     item.kind === "bot" ? (
-      <BotAvatar
-        color={item.chat.color}
-        identity={item.chat.id}
-        size={size}
-        status={item.chat.status}
-        animated
-        lively={lively}
-      />
+      withPrimaryStar(
+        star && item.chat.primary,
+        size,
+        <BotAvatar
+          color={item.chat.color}
+          identity={item.chat.id}
+          size={size}
+          status={item.chat.status}
+          animated
+          lively={lively}
+        />,
+      )
     ) : (
       <GroupAvatar
         animated
@@ -3341,6 +3470,14 @@ function SpaceShell() {
         }
         size={size}
       />
+    );
+  const withPrimaryStar = (primary: boolean, size: number, avatar: ReactNode) =>
+    primary ? (
+      <PrimaryStarAvatar size={size} label={t`Primary`}>
+        {avatar}
+      </PrimaryStarAvatar>
+    ) : (
+      avatar
     );
   const rosterChatStatus = (item: RosterChat) => ({
     workStatusLabel: item.kind === "bot" ? rosterWorkStatusLabel(item.chat.status) : null,
@@ -3524,6 +3661,50 @@ function SpaceShell() {
           const spaceId = bootstrapMe?.spaceId;
           if (section && spaceId) setRenameSectionTarget({ section, spaceId });
           setBotMenu(null);
+        }}
+        nestTargets={
+          contextBot
+            ? bots.filter((bot) =>
+                canNestBot(
+                  {
+                    ...contextBot,
+                    hasChildren: [...bots, ...archivedBots].some(
+                      (item) => item.parentBotId === contextBot.id,
+                    ),
+                  },
+                  bot,
+                ),
+              )
+            : []
+        }
+        onNest={(parentBotId) => {
+          setBotMenu(null);
+          if (!contextBot) return;
+          void rpc.bots
+            .update({ botId: contextBot.id, parentBotId })
+            .then(() => refreshBots())
+            .catch((error) => setSendError(errorText(error, t`Could not save`)));
+        }}
+        parentName={
+          contextBot?.parentBotId
+            ? bots.find((bot) => bot.id === contextBot.parentBotId)?.name
+            : undefined
+        }
+        onMakePrimary={() => {
+          setBotMenu(null);
+          if (!contextBot) return;
+          void rpc.bots
+            .update({ botId: contextBot.id, primary: true })
+            .then(() => refreshBots())
+            .catch((error) => setSendError(errorText(error, t`Could not save`)));
+        }}
+        onUnnest={() => {
+          setBotMenu(null);
+          if (!contextBot) return;
+          void rpc.bots
+            .update({ botId: contextBot.id, parentBotId: null })
+            .then(() => refreshBots())
+            .catch((error) => setSendError(errorText(error, t`Could not save`)));
         }}
         onEdit={() => {
           const destKey =
@@ -3796,6 +3977,7 @@ function SpaceShell() {
         ) : null}
         <div
           inert={sidebarInert}
+          ref={rosterScrollRef}
           className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2 pb-2.5"
         >
           {showSpaceSearch ? (
@@ -3834,22 +4016,45 @@ function SpaceShell() {
                   ? [...pinnedLayout.tiles, ...pinnedLayout.rows]
                   : nestRosterByParent(group.bots, collapsedRosterParents);
                 const treeActive = nestedRows.some((row) => row.depth > 0 || row.hasChildren);
-                const rosterParent = new Map(
-                  nestedRows.map((row) => [row.item.chat.id, row.parentId] as const),
-                );
                 // Reorder among visible siblings so keyboard and drag moves match the tree.
                 const siblingBotIds = (parentId: string | null) =>
                   nestedRows.flatMap((row) =>
                     row.item.kind === "bot" && row.parentId === parentId ? [row.item.chat.id] : [],
                   );
                 const hasSpaceActions = group.canOpenSpaceSettings;
-                const headerDropTarget: RosterDropTarget | null =
+                const listDropFill = rosterHover?.key === `list:${group.key}`;
+                // A bot that could be pinned carries a closed slot in the grid for the whole drag;
+                // it opens where the bot would land while the bot is over the pinned area.
+                const pinSlot =
+                  draggedRosterBot &&
+                  group.pinned &&
                   group.spaceId === bootstrapMe?.spaceId &&
-                  !group.emptySpaceId &&
-                  (group.sectionId || group.key.endsWith("unassigned"))
-                    ? { kind: "section", sectionId: group.sectionId }
-                    : null;
-                const headerDropKey = `header:${group.key}`;
+                  !shownPinned(draggedRosterBot)
+                    ? (pinnedLayout?.tiles ?? []).filter(
+                        (row) =>
+                          row.item.kind === "bot" &&
+                          bots.findIndex((bot) => bot.id === row.item.chat.id) <
+                            bots.indexOf(draggedRosterBot),
+                      ).length
+                    : -1;
+                const pinnedSlot =
+                  pinSlot >= 0 && draggedRosterBot ? (
+                    <PinnedTileSlot
+                      key="pin-slot"
+                      open={listDropFill && rosterHover?.action.action === "pin"}
+                      name={draggedRosterBot.name}
+                      label={draggedRosterBot.title}
+                      avatar={
+                        <BotAvatar
+                          color={draggedRosterBot.color}
+                          identity={draggedRosterBot.id}
+                          size={72}
+                          status={draggedRosterBot.status}
+                          animated
+                        />
+                      }
+                    />
+                  ) : null;
                 const renderRosterItem = (
                   { item, depth, hasChildren, parentId }: (typeof nestedRows)[number],
                   tile = false,
@@ -3864,34 +4069,24 @@ function SpaceShell() {
                         ? t`Error`
                         : compactRosterStatusLabel(item.chat.status)
                       : null;
+                  const rowDropKey = `row:${item.kind}:${item.chat.id}`;
+                  const rowHover = rosterHover?.key === rowDropKey ? rosterHover : null;
+                  const rowDropMark = rowHover && rowHover.mark !== "fill" ? rowHover.mark : null;
                   const rosterLine = compact
                     ? compactStatusLabel
-                    : (workStatusLabel ?? previewLine);
-                  const rowDropTarget: RosterDropTarget | null =
-                    item.chat.spaceId !== bootstrapMe?.spaceId
-                      ? null
-                      : item.kind === "bot"
-                        ? { kind: "bot", chat: item.chat }
-                        : {
-                            kind: "group",
-                            chat: {
-                              id: item.chat.id,
-                              memberIds: item.chat.members.map((member) => member.botId),
-                            },
-                          };
-                  const rowSameParent =
-                    Boolean(draggedBotId) &&
-                    groupBotIds.includes(draggedBotId ?? "") &&
-                    rosterParent.get(draggedBotId ?? "") === parentId;
-                  const rowDropKey = `row:${item.kind}:${item.chat.id}`;
+                    : rowDropMark === "nest"
+                      ? t`Drop to nest`
+                      : (workStatusLabel ?? previewLine);
+                  const dragged = item.kind === "bot" && draggedBotId === item.chat.id;
                   const rosterButtonProps = {
                     "data-avatar-gaze": "",
-                    draggable: item.kind === "bot",
+                    "data-roster-row": rowDropKey,
+                    "data-roster-parent": parentId ?? "",
                     "data-roster-bot-id": item.kind === "bot" ? item.chat.id : undefined,
                     "data-roster-unread": item.chat.unread ? "true" : undefined,
                     "data-roster-error": rowError && compact ? "true" : undefined,
                     "data-roster-depth": item.kind === "bot" && treeActive ? depth : undefined,
-                    "data-roster-drop": rosterDropKey === rowDropKey ? "true" : undefined,
+                    "data-roster-drop": rowHover ? "true" : undefined,
                     "aria-current": selected ? ("page" as const) : undefined,
                     "aria-keyshortcuts":
                       item.kind !== "bot"
@@ -3899,30 +4094,11 @@ function SpaceShell() {
                         : tile
                           ? "Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown"
                           : "Alt+ArrowUp Alt+ArrowDown",
-                    onDragStart: (event) => {
-                      if (item.kind !== "bot") return;
-                      setDraggedBotId(item.chat.id);
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("text/plain", item.chat.id);
-                    },
-                    onDragOver: (event) => {
-                      if (!rowDropTarget || !rosterDropAction(rowDropTarget, rowSameParent)) return;
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                      if (rosterDropKey !== rowDropKey) setRosterDropKey(rowDropKey);
-                    },
-                    onDragLeave: () => {
-                      if (rosterDropKey === rowDropKey) setRosterDropKey(null);
-                    },
-                    onDrop: (event) => {
-                      if (!rowDropTarget) return;
-                      event.preventDefault();
-                      applyRosterDrop(rowDropTarget, rowSameParent, groupBotIds);
-                    },
-                    onDragEnd: () => {
-                      setDraggedBotId(null);
-                      setRosterDropKey(null);
-                    },
+                    onPointerDown:
+                      item.kind === "bot" && item.chat.spaceId === bootstrapMe?.spaceId
+                        ? rosterDrag.onPointerDown(item.chat.id)
+                        : undefined,
+                    onDragStart: (event) => event.preventDefault(),
                     onKeyDown: (event) => {
                       if (item.kind !== "bot" || !event.altKey) return;
                       const step = rosterReorderStep(
@@ -3948,18 +4124,14 @@ function SpaceShell() {
                         {...rosterButtonProps}
                         name={item.chat.name}
                         label={item.kind === "bot" ? item.chat.title : null}
-                        avatar={rosterAvatar(item, 72, selected)}
+                        avatar={rosterAvatar(item, 72, selected, !item.chat.unread)}
                         cardAvatar={rosterAvatar(item, 16)}
                         cardLine={rosterCardLine(item)}
                         unread={item.chat.unread}
-                        active={selected || rosterDropKey === rowDropKey}
+                        active={selected || Boolean(rowHover && !rowDropMark)}
+                        drop={rowDropMark}
                         botName={item.kind === "bot"}
-                        className={
-                          item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : undefined
-                        }
-                        style={{
-                          opacity: item.kind === "bot" && draggedBotId === item.chat.id ? 0.55 : 1,
-                        }}
+                        style={{ opacity: dragged ? 0 : 1 }}
                       />
                     );
                   }
@@ -3967,9 +4139,7 @@ function SpaceShell() {
                     <div
                       key={`${item.kind}:${item.chat.id}`}
                       className="group/row relative"
-                      style={{
-                        opacity: item.kind === "bot" && draggedBotId === item.chat.id ? 0.55 : 1,
-                      }}
+                      style={{ opacity: dragged ? 0.5 : 1 }}
                     >
                       {hasChildren ? (
                         <span
@@ -4003,9 +4173,7 @@ function SpaceShell() {
                         className={`flex w-full items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring ${
                           compact ? "min-h-11 gap-2 ps-2.5 py-1.5" : "h-[54px] gap-1.5 ps-1.5"
                         } ${item.chat.unread ? "pe-6" : compact ? "pe-2.5" : "pe-3"} text-start ${
-                          item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
-                        } ${
-                          selected || rosterDropKey === rowDropKey
+                          selected || (rowHover && !rowDropMark)
                             ? "bg-sidebar-accent"
                             : "group-hover/row:bg-sidebar-hover"
                         }`}
@@ -4014,14 +4182,18 @@ function SpaceShell() {
                         }
                       >
                         {item.kind === "bot" ? (
-                          <BotAvatar
-                            color={item.chat.color}
-                            identity={item.chat.id}
-                            size={compact ? 28 : 40}
-                            status={item.chat.status}
-                            animated
-                            lively={selected}
-                          />
+                          withPrimaryStar(
+                            item.chat.primary,
+                            compact ? 28 : 40,
+                            <BotAvatar
+                              color={item.chat.color}
+                              identity={item.chat.id}
+                              size={compact ? 28 : 40}
+                              status={item.chat.status}
+                              animated
+                              lively={selected}
+                            />,
+                          )
                         ) : (
                           <GroupAvatar
                             animated
@@ -4099,6 +4271,7 @@ function SpaceShell() {
                           className="pointer-events-none absolute end-2 top-1/2 size-2 -translate-y-1/2 rounded-full bg-unread"
                         />
                       ) : null}
+                      <RosterDropIndicator mark={rowDropMark} />
                     </div>
                   );
                 };
@@ -4106,39 +4279,24 @@ function SpaceShell() {
                   <div
                     key={group.key}
                     data-sidebar-group={group.key}
+                    data-roster-drop={listDropFill ? "true" : undefined}
                     className={`flex flex-col ${
                       group.pinned ? "pt-1.5 pb-2" : headerTitle || hasSpaceActions ? "" : "pt-1"
+                    } ${
+                      listDropFill
+                        ? `bg-sidebar-drop ${group.pinned ? "rounded-[12px]" : "rounded-[8px]"}`
+                        : ""
                     }`}
                   >
                     {headerTitle || hasSpaceActions ? (
                       // biome-ignore lint/a11y/useSemanticElements: groups sidebar controls, not form fields; Move to remains the keyboard alternative.
                       <div
                         role="group"
-                        data-roster-drop={rosterDropKey === headerDropKey ? "true" : undefined}
                         className={`group/header relative flex h-[30px] items-center rounded-[6px] transition-[margin] duration-200 ease-out motion-reduce:transition-none ${
                           collapsed ? "" : "mb-1"
                         } ${headerTitle ? "" : "justify-end"} ${
-                          rosterDropKey === headerDropKey
-                            ? "bg-sidebar-accent"
-                            : headerTitle
-                              ? "hover:bg-sidebar-hover"
-                              : ""
+                          headerTitle ? "hover:bg-sidebar-hover" : ""
                         }`}
-                        onDragOver={(event) => {
-                          if (!headerDropTarget || !rosterDropAction(headerDropTarget, false))
-                            return;
-                          event.preventDefault();
-                          event.dataTransfer.dropEffect = "move";
-                          if (rosterDropKey !== headerDropKey) setRosterDropKey(headerDropKey);
-                        }}
-                        onDragLeave={() => {
-                          if (rosterDropKey === headerDropKey) setRosterDropKey(null);
-                        }}
-                        onDrop={(event) => {
-                          if (!headerDropTarget) return;
-                          event.preventDefault();
-                          applyRosterDrop(headerDropTarget, false, groupBotIds);
-                        }}
                       >
                         {headerTitle ? (
                           <button
@@ -4243,7 +4401,11 @@ function SpaceShell() {
                     {pinnedLayout ? (
                       <>
                         <PinnedTileGrid label={t`Pinned`}>
-                          {pinnedLayout.tiles.map((row) => renderRosterItem(row, true))}
+                          {pinnedLayout.tiles.flatMap((row, index) => [
+                            ...(index === pinSlot ? [pinnedSlot] : []),
+                            renderRosterItem(row, true),
+                          ])}
+                          {pinSlot === pinnedLayout.tiles.length ? pinnedSlot : null}
                         </PinnedTileGrid>
                         {pinnedLayout.rows.length > 0 ? (
                           <div className="mt-1 flex flex-col gap-1">
@@ -4370,7 +4532,7 @@ function SpaceShell() {
                 name={item.chat.name}
                 unread={Boolean(item.chat.unread)}
                 selected={rosterChatSelected(item)}
-                avatar={rosterAvatar(item, 40, rosterChatSelected(item))}
+                avatar={rosterAvatar(item, 40, rosterChatSelected(item), !item.chat.unread)}
                 cardAvatar={rosterAvatar(item, 16)}
                 cardLine={rosterCardLine(item)}
                 onClick={() => openRosterChat(item)}
@@ -5157,6 +5319,24 @@ function SpaceShell() {
 
       <Suspense fallback={null}>
         {botMenuContent}
+        {draggedRosterBot ? (
+          <RosterDragGhost
+            ref={rosterDrag.ghostRef}
+            name={draggedRosterBot.name}
+            label={draggedRosterBot.title}
+            avatar={
+              <BotAvatar
+                color={draggedRosterBot.color}
+                identity={draggedRosterBot.id}
+                size={60}
+                status={draggedRosterBot.status}
+                animated
+              />
+            }
+            overPinned={rosterDropAction?.action === "pin"}
+            announce={nestParentName ? t`Drop to nest under ${nestParentName}` : ""}
+          />
+        ) : null}
         {spaceMenu ? (
           <DropdownMenu
             open

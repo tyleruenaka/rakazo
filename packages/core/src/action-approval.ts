@@ -29,8 +29,6 @@ const APPROVAL_EXEMPT_TOOLS = new Set([
 const APPROVAL_REQUIRED_BUILTIN_TOOLS = new Set([
   "generate_image",
   "generate_video",
-  "delete_bot",
-  "archive_bot",
   "secret_request",
   "forget_secret",
   "forget_memory",
@@ -40,6 +38,8 @@ const APPROVAL_REQUIRED_BUILTIN_TOOLS = new Set([
 ]);
 const EXPLICIT_APPROVAL_BUILTIN_TOOLS = new Set([
   "create_space",
+  "delete_bot",
+  "archive_bot",
   "propose_instructions_update",
   "create_group",
   "update_group",

@@ -9,11 +9,13 @@ import {
   userVisibleMessages,
 } from "@rakazo/core";
 import type { PrismaClient } from "./client.js";
+import { Prisma } from "./client.js";
 import type { ComputerMode } from "./computers.js";
 import { ensureComputerRecord, parseComputerMode } from "./computers.js";
+import { appendEventInTransaction } from "./events.js";
 import { createThreadMessageInTransaction } from "./messages.js";
 import { withNewestThreadMessages } from "./preview-messages.js";
-import { BotSectionNameConflictError, IsolationError } from "./scope.js";
+import { BotParentError, BotSectionNameConflictError, IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
 import { activeRunSelection, latestBotRunSelection, previewFromBlocks } from "./thread-listing.js";
 import { withTransactionRetry } from "./transaction-retry.js";
@@ -82,6 +84,7 @@ function mapBot(
     teamChatAmbientEnabled?: boolean;
     teamChatRules?: string;
     fleetManagement?: boolean;
+    primary?: boolean;
     disabledBuiltinTools?: string[];
     webhookSecretId?: string | null;
     spawnKey?: string | null;
@@ -127,6 +130,7 @@ function mapBot(
     teamChatAmbientEnabled: bot.teamChatAmbientEnabled ?? false,
     teamChatRules: bot.teamChatRules ?? "",
     fleetManagement: bot.fleetManagement ?? false,
+    primary: bot.primary ?? false,
     disabledBuiltinTools: bot.disabledBuiltinTools ?? [],
     webhookConfigured: Boolean(bot.webhookSecretId),
     spawnKey: bot.spawnKey ?? null,
@@ -176,6 +180,7 @@ export function createRepos(
         sectionId: true,
         updatedAt: true,
         parentBotId: true,
+        primary: true,
         thread: {
           select: {
             unread: true,
@@ -204,6 +209,7 @@ export function createRepos(
         sectionId: bot.sectionId,
         unread: bot.thread.unread,
         parentBotId: bot.parentBotId,
+        primary: bot.primary,
         preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
         status: bot.runs[0]?.status ?? "idle",
         runErrorId: rosterRunErrorId(bot.thread.runs[0], bot.runs[0]),
@@ -685,6 +691,131 @@ export function createRepos(
         await Promise.all(
           botIds.map((id, position) => tx.bot.update({ where: { id }, data: { position } })),
         );
+      });
+    },
+
+    /**
+     * Nest a bot under another of the actor's top-level bots, or move it back to
+     * the top level. Nesting gives the parent's fleet tools reach over it. The bot
+     * takes the parent's section so it renders under it, and is never pinned: a
+     * pinned parent's nested bots stay ordinary rows in that section.
+     */
+    async setBotParent(actor: Actor, botId: string, parentBotId: string | null): Promise<void> {
+      if (parentBotId === botId) throw new BotParentError("A bot can't be nested under itself");
+      await prisma.$transaction(async (tx) => {
+        // Lock both rows in id order so two opposite nests can't both pass the checks.
+        const ids = parentBotId ? [botId, parentBotId].sort() : [botId];
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            parentBotId: string | null;
+            sectionId: string | null;
+            pinned: boolean;
+            primary: boolean;
+          }>
+        >`
+          SELECT id, "parentBotId", "sectionId", pinned, "primary"
+          FROM bots
+          WHERE id IN (${Prisma.join(ids)})
+            AND "spaceId" = ${actor.spaceId}
+            AND "userId" = ${actor.userId}
+            AND "archivedAt" IS NULL
+          ORDER BY id
+          FOR UPDATE
+        `;
+        const parent = rows.find((row) => row.id === parentBotId);
+        if (!rows.some((row) => row.id === botId) || (parentBotId && !parent)) {
+          throw new IsolationError();
+        }
+        if (!parent) {
+          // A nested bot is never shown pinned, so moving it out leaves it unpinned too.
+          const nested = rows.some((row) => row.id === botId && row.parentBotId);
+          await tx.bot.update({
+            where: { id: botId },
+            data: nested ? { parentBotId: null, pinned: false } : { parentBotId: null },
+          });
+          return;
+        }
+        // The Primary manages every bot, so no bot can manage it.
+        if (rows.some((row) => row.id === botId && row.primary)) {
+          throw new BotParentError("The Primary bot can't be nested");
+        }
+        if (parent.parentBotId) throw new BotParentError("A nested bot can't have nested bots");
+        const child = await tx.bot.findFirst({
+          where: { parentBotId: botId },
+          select: { id: true },
+        });
+        if (child) throw new BotParentError("A bot with nested bots can't be nested");
+        await tx.bot.update({
+          where: { id: botId },
+          data: { parentBotId: parent.id, sectionId: parent.sectionId, pinned: false },
+        });
+      });
+    },
+
+    /**
+     * Make a bot the actor's Primary in this space, replacing the current one. The
+     * Primary stays top level and can manage, as its role needs. Writes `bot.updated`
+     * to the new and the previous Primary's threads so open chats refresh their list.
+     */
+    async setBotPrimary(
+      actor: Actor,
+      botId: string,
+    ): Promise<Array<{ threadId: string; seq: number }>> {
+      return prisma.$transaction(async (tx) => {
+        // Serialize switches per owner and space; the partial unique index backs this up.
+        await tx.$queryRaw`
+          SELECT pg_advisory_xact_lock(hashtextextended(${`primary:${actor.spaceId}:${actor.userId}`}, 0))::text AS "lock"
+        `;
+        const scope = { spaceId: actor.spaceId, userId: actor.userId };
+        const select = {
+          id: true,
+          name: true,
+          title: true,
+          description: true,
+          primary: true,
+          thread: { select: { id: true } },
+        } as const;
+        const bot = await tx.bot.findFirst({
+          where: { ...scope, id: botId, archivedAt: null },
+          select,
+        });
+        if (!bot?.thread) throw new IsolationError();
+        if (bot.primary) return [];
+        const previous = await tx.bot.findMany({ where: { ...scope, primary: true }, select });
+        const threadIds = [bot.thread.id, ...previous.flatMap((row) => row.thread?.id ?? [])];
+        // Event appends lock the thread; take thread locks before bot rows, as other writers do.
+        await tx.$queryRaw`
+          SELECT id FROM threads WHERE id IN (${Prisma.join(threadIds)}) ORDER BY id FOR UPDATE
+        `;
+        // Then the bot rows in id order, the order setBotParent locks them, so the two can't deadlock.
+        const botIds = [bot.id, ...previous.map((row) => row.id)];
+        await tx.$queryRaw`
+          SELECT id FROM bots WHERE id IN (${Prisma.join(botIds)}) ORDER BY id FOR UPDATE
+        `;
+        await tx.bot.updateMany({ where: { ...scope, primary: true }, data: { primary: false } });
+        await tx.bot.update({
+          where: { id: botId },
+          data: { primary: true, parentBotId: null, fleetManagement: true },
+        });
+        const appended: Array<{ threadId: string; seq: number }> = [];
+        for (const row of [bot, ...previous]) {
+          if (!row.thread) continue;
+          const event = await appendEventInTransaction(tx, {
+            spaceId: actor.spaceId,
+            threadId: row.thread.id,
+            botId: row.id,
+            type: "bot.updated",
+            payload: {
+              botId: row.id,
+              name: row.name,
+              title: row.title,
+              description: row.description,
+            },
+          });
+          appended.push({ threadId: row.thread.id, seq: event.seq });
+        }
+        return appended;
       });
     },
 

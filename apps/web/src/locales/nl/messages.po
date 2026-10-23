@@ -2328,6 +2328,14 @@ msgstr "Sleep, laat los of plak een afbeelding"
 msgid "Drawing it up"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Drop to nest"
+msgstr "Loslaten om te nesten"
+
+#: src/pages/Shell.tsx
+msgid "Drop to nest under {nestParentName}"
+msgstr "Loslaten om onder {nestParentName} te nesten"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Dupliceren"
@@ -3068,6 +3076,10 @@ msgstr "Laag"
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr "Kleine letters, cijfers, koppeltekens en underscores, beginnend met een letter."
 
+#: src/pages/BotContextMenu.tsx
+msgid "Make primary"
+msgstr "Hoofdbot maken"
+
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Zorg dat er niets meer op deze computer draait."
@@ -3080,6 +3092,10 @@ msgstr ""
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Manage"
 msgstr "Beheren"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Manage all bots"
+msgstr "Alle bots beheren"
 
 #: src/pages/Paywall.tsx
 msgid "Manage billing"
@@ -3094,8 +3110,8 @@ msgid "Manage messaging settings"
 msgstr "Berichtinstellingen beheren"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Manage the bots it creates"
-msgstr "De bots beheren die deze bot maakt"
+msgid "Manage nested bots"
+msgstr "Geneste bots beheren"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Manual"
@@ -3350,6 +3366,10 @@ msgstr "{full} omlaag verplaatsen"
 msgid "Move {full} up"
 msgstr "{full} omhoog verplaatsen"
 
+#: src/pages/BotContextMenu.tsx
+msgid "Move out of {parentName}"
+msgstr "Uit {parentName} halen"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
 msgstr "Verplaats ze naar je gedeelde geheugen."
@@ -3402,6 +3422,10 @@ msgstr "Heeft overname nodig"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr "Heeft jou nodig"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Nest under"
+msgstr "Nesten onder"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3902,6 +3926,10 @@ msgstr "{0} bekijken"
 #: src/components/ArtifactPreviewPane.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "Een voorbeeld is niet beschikbaar voor dit bestandstype — download het om het te bekijken."
+
+#: src/pages/Shell.tsx
+msgid "Primary"
+msgstr "Hoofdbot"
 
 #: src/pages/Board.tsx
 msgid "Priority"
