@@ -1082,6 +1082,14 @@ describe("initial model picker scroll", () => {
     expect(mocks.scrollToLocation).toHaveBeenCalledOnce();
   });
 
+  it("renders through a distant pick up front so the first scroll can reach it", async () => {
+    await render();
+    // First section: header, 1 row, footer. Then the second header and 20 rows before the pick.
+    expect(mocks.listProps.initialNumToRender).toBe(3 + 1 + 20 + 20);
+    await render("missing");
+    expect(mocks.listProps.initialNumToRender).toBeUndefined();
+  });
+
   it("waits for an asynchronously loaded catalog", async () => {
     await act(async () =>
       root.render(

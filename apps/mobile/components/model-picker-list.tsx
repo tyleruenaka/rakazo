@@ -24,6 +24,8 @@ import { SettingsLabel, SettingsRow } from "./settings-group";
 import { TextOnlyMark } from "./text-only-mark";
 
 const MAX_REVEAL_RETRIES = 10;
+/** Rows rendered past the current pick so it can sit mid-screen. */
+const ROWS_BELOW_PICK = 20;
 
 /** Searchable grouped model cells shared by chat and connection settings. */
 export function ModelPickerList({
@@ -105,6 +107,18 @@ export function ModelPickerList({
         : [],
     [choices, query, providerLabel],
   );
+  // Render through the current pick up front: rows otherwise arrive in small batches and a
+  // distant pick isn't measured yet when the list first tries to scroll to it.
+  const initialNumToRender = useMemo(() => {
+    let cells = 0;
+    for (const section of sections) {
+      const itemIndex = section.data.findIndex((item) => item.key === selectedKey);
+      if (itemIndex !== -1) return cells + 1 + itemIndex + ROWS_BELOW_PICK;
+      // Each section adds a header and a footer cell.
+      cells += section.data.length + 2;
+    }
+    return undefined;
+  }, [sections, selectedKey]);
   useLayoutEffect(() => {
     const state = initialScroll.current;
     if (state.handled || state.cancelled || choices === null) return;
@@ -184,6 +198,7 @@ export function ModelPickerList({
       onViewableItemsChanged={revealInitialSelection}
       onScrollToIndexFailed={retryInitialSelection}
       onScrollBeginDrag={cancelInitialScroll}
+      initialNumToRender={initialNumToRender}
       key={Platform.OS === "android" ? "android" : query}
       style={styles.screen}
       contentContainerStyle={[
