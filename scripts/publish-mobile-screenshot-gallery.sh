@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A fork without gallery storage keeps the screenshots in the run's uploaded files only.
+if [[ -z "${S3_BUCKET:-}" ]]; then
+  echo "No screenshot gallery storage is set up; skipping the published gallery."
+  exit 0
+fi
+
 : "${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required}"
 : "${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required}"
 : "${S3_BUCKET:?S3_BUCKET is required}"

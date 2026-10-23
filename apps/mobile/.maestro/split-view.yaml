@@ -8,9 +8,10 @@ tags:
     clearState: true
     permissions:
       notifications: deny
+# The first launch after the resize can take more than 30 seconds to draw.
 - extendedWaitUntil:
     visible: "Sign up for Rakazo|Pixel Launcher isn't responding"
-    timeout: 30000
+    timeout: 90000
 - runFlow:
     when:
       visible: "Pixel Launcher isn't responding"

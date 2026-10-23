@@ -50,11 +50,15 @@ tags:
     timeout: 30000
 - takeScreenshot: "04-inbox"
 
-- tapOn: "Activity"
+# On Android, Create opens a dialog with the create choices.
+- tapOn: "Create"
 - extendedWaitUntil:
-    visible: "Recent"
+    visible: "New Space"
     timeout: 10000
-- takeScreenshot: "05-activity"
+- assertVisible: "New Bot"
+- assertVisible: "New Group Chat"
+- takeScreenshot: "05-create-menu"
+- back
 
 - tapOn:
     id: "home-search-button"
@@ -77,7 +81,7 @@ tags:
     id: "search-sheet-close"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- assertVisible: "Name your Bot"
 - takeScreenshot: "07-new-bot"
 
 - openLink: "rakazo:///new-group"
@@ -139,32 +143,19 @@ tags:
 - assertNotVisible: "React"
 - assertNotVisible: "More"
 - takeScreenshot: "15-thread"
-- assertVisible: "Show Message from Writer"
+# Writer's message and Researcher's reply fold into one marker that opens their exchange.
+- assertVisible: "2 messages with"
 - assertNotVisible: "Update from Writer: The fixture launch note is drafted."
 - takeScreenshot: "15e-thread-peer-folded"
-- tapOn: "Show Message from Writer"
-- assertVisible: "Update from Writer: The fixture launch note is drafted."
-- takeScreenshot: "15f-thread-peer-expanded"
-- tapOn: "Hide Message from Writer"
-- tapOn: "Message Researcher"
-- inputText: "Keyboard visibility check"
-- assertVisible: "Keyboard visibility check"
-- assertVisible: "Send"
-- takeScreenshot: "15d-thread-keyboard"
-- pressKey: Enter
-- inputText: "Second line"
-- assertVisible: 'Keyboard visibility check\nSecond line'
-- hideKeyboard
-- assertVisible: 'Keyboard visibility check\nSecond line'
-- tapOn: "Message Researcher"
-- assertVisible: 'Keyboard visibility check\nSecond line'
-- assertVisible: "Send"
-- takeScreenshot: "15g-thread-keyboard-reopened"
-- longPressOn: "Message Researcher"
-- tapOn: "Select all"
-- eraseText: 1
-- assertNotVisible: 'Keyboard visibility check\nSecond line'
-- hideKeyboard
+- tapOn: "2 messages with"
+- extendedWaitUntil:
+    visible: "The fixture launch note is drafted."
+    timeout: 10000
+- assertVisible: "Read-only"
+- takeScreenshot: "15f-thread-peer-exchange"
+- back
+# Menus come before typing: closing one while the message box has focus brings its
+# keyboard back, and the next press then only closes the keyboard.
 # Holding a message opens the reaction row and grouped actions next to it.
 - longPressOn: "The fixture workspace is ready."
 - assertVisible: "Reply"
@@ -181,6 +172,25 @@ tags:
 - tapOn: "Reply"
 - assertVisible: "Cancel reply"
 - tapOn: "Cancel reply"
+- tapOn: "Ask Researcher"
+- inputText: "Keyboard visibility check"
+- assertVisible: "Keyboard visibility check"
+- assertVisible: "Send"
+- takeScreenshot: "15d-thread-keyboard"
+- pressKey: Enter
+- inputText: "Second line"
+- assertVisible: 'Keyboard visibility check\nSecond line'
+- hideKeyboard
+- assertVisible: 'Keyboard visibility check\nSecond line'
+- tapOn: "Ask Researcher"
+- assertVisible: 'Keyboard visibility check\nSecond line'
+- assertVisible: "Send"
+- takeScreenshot: "15g-thread-keyboard-reopened"
+- longPressOn: "Ask Researcher"
+- tapOn: "Select all"
+- eraseText: 1
+- assertNotVisible: 'Keyboard visibility check\nSecond line'
+- hideKeyboard
 - tapOn: "Bot actions"
 - assertVisible: "Clear conversation"
 - takeScreenshot: "16-bot-actions"
@@ -192,6 +202,9 @@ tags:
     timeout: 10000
 - assertVisible: "Advanced"
 - tapOn: "Advanced"
+- scrollUntilVisible:
+    element: "Space default.*"
+    direction: DOWN
 - assertVisible: "Model"
 # Label includes the resolved space model, e.g. "Space default (OpenAI: …)".
 - assertVisible: "Space default.*"
@@ -211,7 +224,7 @@ tags:
 - assertNotVisible: "React"
 - assertNotVisible: "More"
 - takeScreenshot: "19-group-thread"
-- tapOn: "Message Launch team"
+- tapOn: "Ask Launch team"
 - inputText: "Group keyboard visibility check"
 - assertVisible: "Group keyboard visibility check"
 - assertVisible: "Send"
@@ -245,7 +258,7 @@ tags:
 - takeScreenshot: "22-account-dark"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- assertVisible: "Name your Bot"
 - takeScreenshot: "23-new-bot-dark"
 
 - openLink: "rakazo:///new-group"
