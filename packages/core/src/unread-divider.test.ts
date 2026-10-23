@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { groupPeerMarkers } from "./peer-marker-groups.js";
 import {
   canMarkMessageUnread,
   createChatQueues,
@@ -64,6 +65,32 @@ describe("voiceChatHoldsMessage", () => {
     expect(card?.kind === "voiceChat" && card.messages[0]?.id === dividerId).toBe(false);
     expect(card?.kind === "voiceChat" && voiceChatHoldsMessage(card, dividerId)).toBe(true);
     expect(card?.kind === "voiceChat" && voiceChatHoldsMessage(card, null)).toBe(false);
+  });
+
+  it("finds the first unread reply inside a grouped row of bot-to-bot messages", () => {
+    // A message from another bot is stored as the user's turn, so New starts at the reply.
+    const messages = [
+      { id: "m1", role: "bot", seq: 1, blocks: [{ kind: "text" as const, text: "Hi" }] },
+      {
+        id: "m2",
+        role: "user",
+        seq: 2,
+        blocks: [
+          { kind: "bot_message_received" as const, fromBotId: "r", fromBotName: "R", text: "a" },
+        ],
+      },
+      {
+        id: "m3",
+        role: "bot",
+        seq: 3,
+        blocks: [{ kind: "bot_message_sent" as const, toBotId: "r", toBotName: "R", text: "b" }],
+      },
+    ];
+    const [, row] = groupPeerMarkers(groupVoiceChats(messages));
+    const dividerId = unreadDividerMessageId(messages, 1, null);
+    expect(dividerId).toBe("m3");
+    expect(row?.kind).toBe("peerMarkers");
+    expect(row?.kind === "peerMarkers" && voiceChatHoldsMessage(row, dividerId)).toBe(true);
   });
 });
 

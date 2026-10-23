@@ -201,3 +201,82 @@ test("marking a message unread brings the chat back with New above the reply fro
     `handled: ${second}`,
   );
 });
+
+test("New sits above a grouped row of bot-to-bot messages when the first unread one is inside it", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `unread-peers-${stamp}@rakazo.test`, "password12", "Unread Peers");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+  const chiefId = activeBotId(page);
+  const researcherId = await createNamedBot(page, "Researcher");
+
+  // Researcher writes, then Chief writes back, both after what the chat was read up to. The
+  // scripted test bots always post a reply between two bot-to-bot messages, so the page adds
+  // them. A message from another bot is stored as the user's turn, so New starts at Chief's
+  // reply: the second message inside the grouped row.
+  const markerIds = [`peer-in-${stamp}`, `peer-out-${stamp}`];
+  let readUpTo = -1;
+  await page.route("**/rpc/bootstrap", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const thread = body.json.thread;
+    if (thread?.botId !== chiefId) return route.fulfill({ response, json: body });
+    const last = thread.messages.at(-1);
+    readUpTo = last.seq;
+    const [inId, outId] = markerIds;
+    thread.messages.push(
+      {
+        ...last,
+        id: inId,
+        seq: last.seq + 1,
+        role: "user",
+        runId: undefined,
+        blocks: [
+          {
+            kind: "bot_message_received",
+            fromBotId: researcherId,
+            fromBotName: "Researcher",
+            text: "The draft is ready",
+          },
+        ],
+      },
+      {
+        ...last,
+        id: outId,
+        seq: last.seq + 2,
+        role: "bot",
+        runId: undefined,
+        blocks: [
+          {
+            kind: "bot_message_sent",
+            toBotId: researcherId,
+            toBotName: "Researcher",
+            text: "Thanks, sending it on",
+          },
+        ],
+      },
+    );
+    await route.fulfill({ response, json: body });
+  });
+  await page.route("**/rpc/threads/markRead", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    if (route.request().postData()?.includes(chiefId)) body.json.unreadAfterSeq = readUpTo;
+    await route.fulfill({ response, json: body });
+  });
+
+  await page.goto(`/app/${chiefId}`);
+  const row = page.locator(`[data-message-id="${markerIds[0]}"]`);
+  await expect(row).toContainText("2 messages with");
+  await expect(row.locator(`[data-message-id="${markerIds[1]}"]`)).toBeAttached();
+  const divider = page.getByTestId("unread-divider");
+  await expect(divider).toBeVisible();
+  await expect(
+    divider.locator("xpath=following-sibling::div[@data-message-id][1]"),
+  ).toHaveAttribute("data-message-id", markerIds[0]);
+  await captureScreenshot(page, testInfo, "chat-unread-divider-peer-group");
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
