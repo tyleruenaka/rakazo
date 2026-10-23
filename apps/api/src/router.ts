@@ -318,6 +318,7 @@ import {
 } from "./thread-message-pages.js";
 import {
   markThreadRead,
+  markThreadUnreadFrom,
   reactToThreadMessage,
   resolveThreadTarget,
   sendThreadMessage,
@@ -2899,7 +2900,11 @@ export function createRouter(deps: RouterDeps) {
       }),
       markUnread: authed.threads.markUnread.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        await setThreadUnreadState(deps.prisma, context.actor, target, true);
+        if (input.messageId) {
+          await markThreadUnreadFrom(deps.prisma, context.actor, target, input.messageId);
+        } else {
+          await setThreadUnreadState(deps.prisma, context.actor, target, true);
+        }
         return { ok: true as const };
       }),
     },

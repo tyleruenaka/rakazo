@@ -3125,6 +3125,10 @@ msgstr "נדרשת הגדרה ידנית"
 msgid "Mark as Read"
 msgstr "סימון כנקראה"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "סימון כלא נקראה"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "סימון כלא נקראה"

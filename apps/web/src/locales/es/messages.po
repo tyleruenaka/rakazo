@@ -3125,6 +3125,10 @@ msgstr ""
 msgid "Mark as Read"
 msgstr "Marcar como leído"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "Marcar como no leído"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "Marcar como no leído"

@@ -25,6 +25,7 @@ import {
   appendNewerThreadPage,
   attachmentsForThread,
   buildComposerMentionOptions,
+  canMarkMessageUnread,
   cloudAgentHttpsUrl,
   createChatQueues,
   dismissableAskMessageIds,
@@ -1441,8 +1442,34 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     }
   }
 
+  // After "Mark as unread" on a message, the chat stays unread for the rest of this visit. The
+  // hold names the visit, so returning to the chat (a new visit) reads it again.
+  const heldUnread = useRef<number | null>(null);
+  const markUnreadFrom = (message: MobileMessage) => {
+    const visit = readVisit.current.visit;
+    const target = groupId ?? botId;
+    if (!target) return;
+    heldUnread.current = visit;
+    // Through the chat's read queue, so a read already sent lands first and this one wins.
+    void readInOrder(target, () =>
+      rpc("threads/markUnread", {
+        ...(groupId ? { groupId } : { botId: botId! }),
+        messageId: message.id,
+      }),
+    ).catch((err) => {
+      if (heldUnread.current === visit) heldUnread.current = null;
+      Alert.alert(t("Could not update chat"), errorText(err, t("Try again.")));
+    });
+  };
+
   const markReadIfVisible = useCallback(() => {
-    if (readOnly || AppState.currentState !== "active" || !navigation.isFocused()) return;
+    if (
+      readOnly ||
+      heldUnread.current === readVisit.current.visit ||
+      AppState.currentState !== "active" ||
+      !navigation.isFocused()
+    )
+      return;
     const target = groupId ?? botId;
     if (!target || readVisibleTarget.current === target) return;
     readVisibleTarget.current = target;
@@ -1450,9 +1477,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     if (activeThreadId.current) {
       void dismissThreadNotifications({ threadId: activeThreadId.current }).catch(() => undefined);
     }
-    // A read that waited in the queue skips once the user has left the chat.
+    // A read that waited in the queue skips once the user has left the chat, or marked it
+    // unread meanwhile.
     void readInOrder(target, () =>
       readVisit.current.visit === visit &&
+      heldUnread.current !== visit &&
       AppState.currentState === "active" &&
       navigation.isFocused()
         ? rpc<{ unreadAfterSeq?: number | null }>(
@@ -2265,6 +2294,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     select: setSelectableText,
     speak,
     react: (message, reaction) => void reactToMessage(message, reaction),
+    markUnread: markUnreadFrom,
     answer: answerMessage,
     openBot,
     openComputer,
@@ -2332,6 +2362,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       select: (text) => rowActionsRef.current.select(text),
       speak: (message) => rowActionsRef.current.speak(message),
       react: (message, reaction) => rowActionsRef.current.react(message, reaction),
+      markUnread: (message) => rowActionsRef.current.markUnread(message),
       answer: (message, answer, username, dismiss) =>
         rowActionsRef.current.answer(message, answer, username, dismiss),
       openBot: (id, name) => rowActionsRef.current.openBot(id, name),
@@ -3174,6 +3205,7 @@ type MessageRowActions = {
   select: (text: string) => void;
   speak: (message: MobileMessage) => void;
   react: (message: MobileMessage, reaction: MessageReaction) => void;
+  markUnread: (message: MobileMessage) => void;
   answer: (
     message: MobileMessage,
     answer: string,
@@ -3310,6 +3342,8 @@ const MessageRow = memo(function MessageRow({
     // The call already reads replies aloud; a second voice would talk over it.
     const includeSpeak = message.role === "bot" && !onCall && Boolean(blockText(message));
     const includeSelect = messageText.trim().length > 0;
+    // Any sent message can be marked unread; the next open starts New at the first reply from it.
+    const includeUnread = !readOnly && canMarkMessageUnread(message);
     const reply = () => actions.reply(message);
     const quote = () => actions.quote(message);
     const speakMessage = () => actions.speak(message);
@@ -3322,6 +3356,7 @@ const MessageRow = memo(function MessageRow({
       if (text) void Clipboard.setStringAsync(text).catch(() => undefined);
     };
     const react = (reaction: MessageReaction) => actions.react(message, reaction);
+    const markUnread = () => actions.markUnread(message);
     // VoiceOver reads the bubble as one element and can't reach a code block's copy button.
     const codeBlocks = message.role === "user" ? [] : markdownCodeBlocks(blockText(message));
     const copyCode = () => {
@@ -3329,6 +3364,9 @@ const MessageRow = memo(function MessageRow({
     };
     const menuActions = [
       ...(!readOnly ? [{ name: "reply", text: t("Reply"), onPress: reply }] : []),
+      ...(includeUnread
+        ? [{ name: "unread", text: t("Mark as unread"), onPress: markUnread }]
+        : []),
       ...(includeQuote ? [{ name: "quote", text: t("Quote"), onPress: quote }] : []),
       ...(includeReact
         ? [
@@ -3374,6 +3412,16 @@ const MessageRow = memo(function MessageRow({
                     text: t("Reply"),
                     icon: { ios: "arrow.uturn.backward", android: "arrow-undo-outline" as const },
                     onPress: reply,
+                  },
+                ]
+              : []),
+            ...(includeUnread
+              ? [
+                  {
+                    name: "unread",
+                    text: t("Mark as unread"),
+                    icon: { ios: "message.badge", android: "mail-unread-outline" as const },
+                    onPress: markUnread,
                   },
                 ]
               : []),
