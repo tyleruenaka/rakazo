@@ -243,12 +243,10 @@ test("the bot's model picker marks models that cannot read images", async ({ pag
   });
   await signup(page, `bot-text-only-${Date.now()}@rakazo.test`, "password12", "Bot Models");
   await completeOnboarding(page);
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await openBotSettings(page, "Chief");
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
 
   // Past ten choices the model dropdown gains a search field.
   const picker = settings.getByRole("combobox", { name: "Model", exact: true });
