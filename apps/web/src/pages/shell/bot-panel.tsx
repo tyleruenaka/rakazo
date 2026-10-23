@@ -652,29 +652,32 @@ export function BotSettings({
                 <SettingsCard>
                   <SettingsRow label={<Trans>Model</Trans>}>
                     <div className="flex min-w-0 items-center gap-1">
-                      <ListboxSelect
-                        label={t`Model`}
-                        testId="bot-model-select"
-                        options={modelChoices.map((choice) => ({
-                          value: choice.key,
-                          label: choice.label,
-                          detail: choice.detail,
-                        }))}
-                        value={selectedModelKey}
-                        onChange={(next) => {
-                          setModelKey(next);
-                          setThinkingLevel("");
-                        }}
-                        search={
-                          modelChoices.length > MODEL_SEARCH_THRESHOLD
-                            ? {
-                                placeholder: t`Search models`,
-                                clearLabel: t`Clear`,
-                                className: "w-[320px]",
-                              }
-                            : undefined
-                        }
-                      />
+                      {/* min-w-0 lets a long model name truncate instead of pushing the gear past the card. */}
+                      <div className="min-w-0">
+                        <ListboxSelect
+                          label={t`Model`}
+                          testId="bot-model-select"
+                          options={modelChoices.map((choice) => ({
+                            value: choice.key,
+                            label: choice.label,
+                            detail: choice.detail,
+                          }))}
+                          value={selectedModelKey}
+                          onChange={(next) => {
+                            setModelKey(next);
+                            setThinkingLevel("");
+                          }}
+                          search={
+                            modelChoices.length > MODEL_SEARCH_THRESHOLD
+                              ? {
+                                  placeholder: t`Search models`,
+                                  clearLabel: t`Clear`,
+                                  className: "w-[320px]",
+                                }
+                              : undefined
+                          }
+                        />
+                      </div>
                       {onOpenConnections ? (
                         <Tooltip>
                           <TooltipTrigger

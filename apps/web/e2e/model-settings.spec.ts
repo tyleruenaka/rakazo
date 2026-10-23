@@ -820,3 +820,48 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
     modelId: target.id,
   });
 });
+
+test("a long model name keeps the Model connections gear inside its card", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `model-gear-${stamp}@rakazo.test`, "password12", `Gear ${stamp}`);
+  await completeOnboarding(page);
+  const catalog = await rpc<Array<{ provider: string; id: string; placeholder?: boolean }>>(
+    page,
+    "models/list",
+    {},
+  );
+  const longest = catalog
+    .filter((entry) => entry.provider === "openrouter" && !entry.placeholder)
+    .sort((a, b) => b.id.length - a.id.length)[0]!;
+  await rpc(page, "models/connect", {
+    provider: "openrouter",
+    apiKey: "fake-openrouter-key",
+    modelId: longest.id,
+  });
+  const bots = await rpc<Array<{ id: string; name: string }>>(page, "bots/list", {});
+  await rpc(page, "bots/update", {
+    botId: bots.find((bot) => bot.name === "Chief")!.id,
+    modelProvider: "openrouter",
+    modelId: longest.id,
+  });
+
+  await page.reload();
+  await openBotSettings(page, "Chief");
+  const settings = page.getByTestId("bot-settings");
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
+  const model = settings.getByRole("combobox", { name: "Model", exact: true });
+  const gear = settings.getByRole("button", { name: "Model connections", exact: true });
+  const card = model.locator("xpath=ancestor::div[contains(@class, 'bg-card')][1]");
+  for (const width of [1440, 390, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(gear).toBeVisible();
+    const gearBox = (await gear.boundingBox())!;
+    const cardBox = (await card.boundingBox())!;
+    expect(gearBox.x + gearBox.width, `gear right edge at ${width}px`).toBeLessThanOrEqual(
+      cardBox.x + cardBox.width,
+    );
+    await captureScreenshot(page, testInfo, `bot-settings-model-gear-${width}`);
+  }
+});
