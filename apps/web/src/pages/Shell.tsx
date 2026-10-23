@@ -6602,6 +6602,9 @@ const Transcript = memo(function Transcript({
                   {first && separatorIds.has(first.id) ? (
                     <TimeSeparator createdAt={first.createdAt} locale={i18n.locale || "en"} />
                   ) : null}
+                  {voiceChatHoldsMessage(item, unreadDividerId) ? (
+                    <UnreadDivider afterSeparator={Boolean(first && separatorIds.has(first.id))} />
+                  ) : null}
                   <div data-message-id={item.key} className="relative py-1">
                     {rest.map((message) => (
                       <span key={message.id} data-message-id={message.id} className="sr-only" />

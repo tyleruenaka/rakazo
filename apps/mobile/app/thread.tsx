@@ -2504,6 +2504,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
             <TimeSeparator createdAt={item.messages[0].createdAt} />
           ) : null}
+          {voiceChatHoldsMessage(item, unreadDividerId) ? (
+            <UnreadDivider
+              afterSeparator={Boolean(item.messages[0] && separatorIds.has(item.messages[0].id))}
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
             onPress={(event) => openPeerGroup(item, event)}
