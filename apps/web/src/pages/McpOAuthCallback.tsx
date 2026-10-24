@@ -44,7 +44,7 @@ export function McpOAuthCallbackPage() {
   }, [navigate, params, t]);
   const showReturn = Boolean(error) && window.name !== POPUP_NAME;
   return (
-    <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
+    <div className="grid min-h-full place-items-center bg-background p-6 text-center">
       <div>
         <div className="text-lg text-foreground">
           {error ? (

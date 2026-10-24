@@ -5920,7 +5920,7 @@ function SpaceShell() {
         <div className="fixed inset-0 z-30 bg-computer-backdrop">
           <div
             data-testid="computer-viewport"
-            className="fixed inset-x-0 top-0 flex flex-col"
+            className="fixed inset-x-0 top-0 flex flex-col pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
             style={{
               height: computerViewport ? `${computerViewport.height}px` : "100dvh",
               top: computerViewport ? `${computerViewport.offsetTop}px` : undefined,
