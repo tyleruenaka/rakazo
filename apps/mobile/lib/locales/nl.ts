@@ -1,4 +1,7 @@
 export const NL_MESSAGES: Record<string, string> = {
+  Export: "Exporteren",
+  "Add open work": "Open taak toevoegen",
+  "Open work": "Open taken",
   "To:": "Aan:",
   Next: "Volgende",
   "Ex: Project Falcon": "Bijv. Project Falcon",
@@ -211,6 +214,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Cloud agent": "Cloudagent",
   Code: "Code",
   "Command variable": "Commandovariabele",
+  Complete: "Voltooien",
   Completed: "Voltooid",
   Copy: "Kopiëren",
   "Could not archive bot": "Bot archiveren mislukt",

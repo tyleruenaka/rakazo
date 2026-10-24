@@ -7,6 +7,8 @@ import {
   encodeLoginSecret,
 } from "@rakazo/contracts";
 import { Button, Input, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakazo/ui-web/components/ui/tooltip";
+import { Plus, RotateCcw, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { InfoTooltip } from "../../components/InfoTooltip";
 import { SettingsDescription, SettingsGroup } from "../../components/SettingsLayout";
@@ -224,23 +226,44 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
     valueReady(authType);
 
   return (
-    <SettingsGroup label={<Trans>Credentials</Trans>} testId="bot-credentials">
-      <div className="px-3.5 py-2.5">
+    <SettingsGroup
+      label={<Trans>Credentials</Trans>}
+      action={
+        <Tooltip>
+          <TooltipTrigger
+            render={<Button variant="ghost" size="icon-xs" />}
+            type="button"
+            aria-label={t`Add credential`}
+            className="text-muted-foreground"
+            data-testid="credential-add"
+            disabled={busy || adding}
+            onClick={() => {
+              clearProtectedFields();
+              setReplacing(null);
+              setConfirmingRemove(null);
+              setAdding(true);
+            }}
+          >
+            <Plus size={14} strokeWidth={1.6} />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <Trans>Add credential</Trans>
+          </TooltipContent>
+        </Tooltip>
+      }
+      testId="bot-credentials"
+    >
+      <div data-testid="bot-credentials-card" className="px-3.5 py-2.5">
         <SettingsDescription>
-          <Trans>Values are encrypted and never shown again.</Trans>
+          <Trans>Encrypted and never shown again</Trans>
         </SettingsDescription>
         {loadFailed ? (
           <p className="mt-3 text-[13px] text-destructive">
             <Trans>Could not load credentials.</Trans>
           </p>
         ) : null}
-        {secrets && secrets.length === 0 ? (
-          <p data-testid="bot-credentials-empty" className="mt-3 text-[13px] text-muted-foreground">
-            <Trans>No credentials saved for this bot.</Trans>
-          </p>
-        ) : null}
         {secrets?.length ? (
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-3">
             {secrets.map((secret) => {
               const secretName = secret.name;
               const updated = new Date(secret.updatedAt).toLocaleDateString();
@@ -251,13 +274,58 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
                   ? secret.auth
                   : null;
               return (
-                <li
-                  key={secret.name}
-                  data-testid="bot-credential-row"
-                  className="rounded-lg border border-border/40 px-3 py-2.5"
-                >
-                  <div className="truncate text-[13.5px] font-medium text-foreground">
-                    {secret.name}
+                <li key={secret.name} data-testid="bot-credential-row">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 truncate text-[12.5px] leading-[19px] text-foreground">
+                      {secret.name}
+                    </div>
+                    {replacing !== secret.name && confirmingRemove !== secret.name ? (
+                      <div className="flex shrink-0 gap-1">
+                        {readableAuth !== null ? (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={<Button variant="ghost" size="icon-xs" />}
+                              type="button"
+                              aria-label={t`Replace value`}
+                              className="text-muted-foreground"
+                              data-testid={`credential-replace-${secret.name}`}
+                              disabled={busy}
+                              onClick={() => {
+                                clearProtectedFields();
+                                setConfirmingRemove(null);
+                                setAdding(false);
+                                setReplacing(secret.name);
+                              }}
+                            >
+                              <RotateCcw />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <Trans>Replace value</Trans>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={<Button variant="ghost" size="icon-xs" />}
+                            type="button"
+                            aria-label={t`Remove`}
+                            className="text-muted-foreground"
+                            data-testid={`credential-remove-${secret.name}`}
+                            disabled={busy}
+                            onClick={() => {
+                              clearProtectedFields();
+                              setReplacing(null);
+                              setConfirmingRemove(secret.name);
+                            }}
+                          >
+                            <X />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <Trans>Remove</Trans>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    ) : null}
                   </div>
                   {secret.origin ? (
                     <div className="break-all text-[12.5px] text-muted-foreground">
@@ -338,43 +406,7 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
                         </Button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-1.5 flex gap-1">
-                      {readableAuth !== null ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="-ms-2.5"
-                          data-testid={`credential-replace-${secret.name}`}
-                          disabled={busy}
-                          onClick={() => {
-                            clearProtectedFields();
-                            setConfirmingRemove(null);
-                            setAdding(false);
-                            setReplacing(secret.name);
-                          }}
-                        >
-                          <Trans>Replace value</Trans>
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        data-testid={`credential-remove-${secret.name}`}
-                        disabled={busy}
-                        onClick={() => {
-                          clearProtectedFields();
-                          setReplacing(null);
-                          setConfirmingRemove(secret.name);
-                        }}
-                      >
-                        <Trans>Remove</Trans>
-                      </Button>
-                    </div>
-                  )}
+                  ) : null}
                 </li>
               );
             })}
@@ -508,23 +540,7 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
               </Button>
             </div>
           </form>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="mt-3"
-            data-testid="credential-add"
-            onClick={() => {
-              clearProtectedFields();
-              setReplacing(null);
-              setConfirmingRemove(null);
-              setAdding(true);
-            }}
-          >
-            <Trans>Add credential</Trans>
-          </Button>
-        )}
+        ) : null}
       </div>
     </SettingsGroup>
   );

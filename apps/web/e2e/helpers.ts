@@ -123,6 +123,49 @@ export async function waitForSidebarTransitions(page: Page) {
     .toBe(0);
 }
 
+/**
+ * The chat header toggles the bot profile; the gear switches the open panel to settings.
+ * The panel opens on the profile, so settings tests go through the gear.
+ */
+export async function openBotSettings(page: Page, name: string | RegExp) {
+  const gear = page.getByRole("button", { name: "Show settings" });
+  const header = page
+    .locator("main")
+    .getByRole("button", typeof name === "string" ? { name, exact: true } : { name });
+  await expect(header).toBeVisible();
+  // After a reload the panel may restore itself a moment later; retry instead of toggling it shut.
+  await expect(async () => {
+    if (!(await gear.isVisible())) await header.click();
+    await expect(gear).toBeVisible({ timeout: 2_000 });
+  }).toPass();
+  if ((await gear.getAttribute("aria-pressed")) !== "true") await gear.click();
+  await expect(page.getByTestId("bot-settings")).toBeVisible();
+}
+
+/** Open Advanced through its trigger, preserving an already-expanded section. */
+export async function expandAdvancedSection(section: Locator) {
+  const trigger = section.getByRole("button", { name: "Advanced", exact: true });
+  if ((await trigger.getAttribute("aria-expanded")) === "false") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  // Base UI starts a fold a frame after the toggle; wait for it to settle.
+  await section.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined))),
+      ),
+  );
+  await expect
+    .poll(() =>
+      section.evaluate(
+        (node) =>
+          node
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation instanceof CSSTransition).length,
+      ),
+    )
+    .toBe(0);
+}
+
 export async function captureScreenshot(page: Page, testInfo: TestInfo, name: string) {
   const screenshotPath = testInfo.outputPath(`${name}.png`);
   await page.screenshot({

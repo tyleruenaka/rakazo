@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openNewSpace, signup } from "./helpers";
+import {
+  captureScreenshot,
+  completeOnboarding,
+  openBotSettings,
+  openNewSpace,
+  signup,
+} from "./helpers";
 
 test("a failed overlay chunk keeps the shell and the draft, and Refresh loads it", async ({
   page,
@@ -49,8 +55,8 @@ test("a failed page chunk shows Refresh instead of a blank app", async ({ page }
 });
 
 for (const [failing, intact] of [
-  ["ScratchpadSection", "bot-knowledge"],
-  ["KnowledgeSection", "bot-scratchpad"],
+  ["ScratchpadSection", "bot-profile-header"],
+  ["KnowledgeSection", "bot-profile-header"],
 ] as const) {
   test(`a failed ${failing} chunk keeps the rest of the bot settings panel`, async ({ page }) => {
     const stamp = Date.now();
@@ -63,15 +69,12 @@ for (const [failing, intact] of [
     await page.route(new RegExp(`/pages/${failing}\\.tsx`), (route) =>
       route.fulfill({ status: 404 }),
     );
-    await page
-      .locator("main")
-      .getByRole("button", { name: /^Chief/ })
-      .click();
+    await openBotSettings(page, /^Chief/);
 
     const settings = page.getByTestId("bot-settings");
-    await settings.getByText("Advanced", { exact: true }).click();
     await expect(settings.getByText("Could not load", { exact: true })).toBeVisible();
     await expect(settings.getByTestId(intact)).toBeVisible();
+    // The Save row stays in place next to Export and Clear.
     await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
     await expect(composer).toHaveValue("Keep this draft");
   });

@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   stop: vi.fn(),
   speak: vi.fn(),
   alert: vi.fn(),
+  share: vi.fn(),
+  params: { botId: "bot-fixture" } as Record<string, string>,
   layouts: new WeakMap<
     HTMLElement,
     (event: { nativeEvent: { layout: { width: number } } }) => void
@@ -51,7 +53,12 @@ vi.mock("./voice", () => ({ stopVoicePlayback: mocks.stopVoicePlayback }));
 vi.mock("expo-speech", () => ({ stop: mocks.stop, speak: mocks.speak }));
 vi.mock("./api", () => ({
   rpc: async (procedure: string, input?: unknown) => {
-    if (procedure === "bots/update" || procedure === "bots/setComputer")
+    if (
+      procedure === "bots/update" ||
+      procedure === "bots/setComputer" ||
+      procedure === "export/bot" ||
+      procedure === "threads/clear"
+    )
       return mocks.rpc(procedure, input);
     if (procedure === "bots/get")
       return {
@@ -75,7 +82,7 @@ vi.mock("expo-router", () => ({
       options?.headerRight?.() ?? null,
   },
   useRouter: () => ({ back: mocks.back }),
-  useLocalSearchParams: () => ({ botId: "bot-fixture" }),
+  useLocalSearchParams: () => mocks.params,
   useFocusEffect: (effect: () => (() => void) | undefined) => useEffect(effect, [effect]),
 }));
 vi.mock("react-native", () => {
@@ -109,6 +116,7 @@ vi.mock("react-native", () => {
     );
   return {
     Alert: { alert: mocks.alert },
+    Share: { share: mocks.share },
     Platform: { OS: "ios" },
     PlatformColor: (name: string) => name,
     StyleSheet: { create: (styles: unknown) => styles },
@@ -179,6 +187,7 @@ vi.mock("./i18n", () => {
   return { t, useI18n: () => ({ t }) };
 });
 vi.mock("../components/bot-avatar", () => ({ BotAvatar: () => null }));
+vi.mock("../components/bot-context-cards", () => ({ BotContextCards: () => null }));
 vi.mock("./bot-avatar-edit", () => ({
   avatarColor: (value: string) => value,
   avatarShape: () => null,
@@ -279,6 +288,7 @@ describe("bot settings device voice menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.fill = "light-fill";
+    mocks.params = { botId: "bot-fixture" };
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     mocks.deviceVoices.mockResolvedValue(offered);
     mocks.voiceForBot.mockResolvedValue("voice-a");
@@ -323,11 +333,13 @@ describe("bot settings device voice menu", () => {
       expect(container.textContent).not.toContain(label);
     }
     const text = () => container.textContent ?? "";
+    // Instructions moved out of Advanced, to the top like the web panel.
+    expect(container.querySelector('[aria-label="Instructions"]')).not.toBeNull();
+    expect(text().indexOf("Instructions")).toBeLessThan(text().indexOf("Device voice"));
     expect(text().indexOf("Device voice")).toBeLessThan(text().indexOf("Read replies aloud"));
     expect(text().indexOf("Read replies aloud")).toBeLessThan(text().indexOf("Advanced"));
     await expand();
     const labels = {
-      instructions: "Instructions",
       computer: "Computer",
       model: "Model",
       fleetManagement: "Manage nested bots",
@@ -755,4 +767,59 @@ describe("bot settings device voice menu", () => {
       }
     },
   );
+});
+
+describe("bot settings sections", () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.params = { botId: "bot-fixture" };
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    mocks.deviceVoices.mockResolvedValue(offered);
+    mocks.voiceForBot.mockResolvedValue("voice-a");
+    mocks.rpc.mockResolvedValue({ bot: { id: "bot-fixture" } });
+    container = document.createElement("div");
+    root = createRoot(container);
+  });
+  afterEach(() => {
+    act(() => root.unmount());
+    vi.unstubAllGlobals();
+  });
+  const button = (label: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (node) => node.getAttribute("aria-label") === label || node.textContent === label,
+    );
+
+  it("opens Advanced at the model when the run error links here", async () => {
+    mocks.params = { botId: "bot-fixture", focus: "model" };
+    await act(async () => root.render(<BotSettingsScreen />));
+    expect(container.textContent).toContain("Model");
+    expect(container.textContent).toContain("Manage nested bots");
+  });
+
+  it("keeps Description first in Advanced, and Export and Clear conversation at the end", async () => {
+    await act(async () => root.render(<BotSettingsScreen />));
+    expect(button("Export")).toBeUndefined();
+    expect(container.textContent).not.toContain("Description");
+    await act(async () => button("Advanced")!.click());
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Advanced")).toBeLessThan(text.indexOf("Description"));
+    expect(text.indexOf("Description")).toBeLessThan(text.indexOf("Model"));
+    expect(text.indexOf("Manage nested bots")).toBeLessThan(text.indexOf("Export"));
+    expect(text.indexOf("Export")).toBeLessThan(text.indexOf("Clear conversation"));
+    await act(async () => button("Export")!.click());
+    expect(mocks.rpc).toHaveBeenCalledWith("export/bot", { botId: "bot-fixture" });
+    await act(async () => button("Clear conversation")!.click());
+    const [title, , actions] = mocks.alert.mock.lastCall as [
+      string,
+      string,
+      { text: string; onPress?: () => void }[],
+    ];
+    expect(title).toBe("Clear conversation?");
+    expect(mocks.rpc).not.toHaveBeenCalledWith("threads/clear", expect.anything());
+    await act(async () => actions.find((action) => action.text === "Clear")!.onPress!());
+    expect(mocks.rpc).toHaveBeenCalledWith("threads/clear", { botId: "bot-fixture" });
+    expect(mocks.back).toHaveBeenCalled();
+  });
 });

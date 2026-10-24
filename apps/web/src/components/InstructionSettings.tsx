@@ -1,14 +1,16 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ORPCError } from "@orpc/client";
 import type { Bot } from "@rakazo/contracts";
 import { BOT_INSTRUCTIONS_MAX_LENGTH } from "@rakazo/contracts";
-import { Button, Textarea } from "@rakazo/ui-web";
+import { Button, Popover, PopoverContent, PopoverTrigger, Textarea } from "@rakazo/ui-web";
+import { History } from "lucide-react";
 import { useId, useState } from "react";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 import { SettingsGroup } from "./SettingsLayout";
 
 export function InstructionSettings({ bot }: { bot: Bot }) {
+  const { t } = useLingui();
   const id = useId();
   const [previousBot, setPreviousBot] = useState(bot);
   const [current, setCurrent] = useState(bot);
@@ -48,10 +50,61 @@ export function InstructionSettings({ bot }: { bot: Bot }) {
           <Trans>Instructions</Trans>
         </label>
       }
+      action={
+        current.instructionHistory?.length ? (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t`Instruction history`}
+                  title={t`Instruction history`}
+                  className="text-muted-foreground"
+                />
+              }
+            >
+              <History size={14} strokeWidth={1.6} />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="max-h-96 w-80 overflow-y-auto">
+              {current.instructionHistory.map((version) => (
+                <div key={version.id} className="text-[12.5px] leading-[19px]">
+                  <details>
+                    <summary className="cursor-pointer">
+                      {new Date(version.createdAt).toLocaleString()} · {version.reason}
+                    </summary>
+                    <pre className="mt-1 whitespace-pre-wrap text-description">
+                      {version.instructions}
+                    </pre>
+                  </details>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-1.5 rounded-full"
+                    disabled={pending}
+                    onClick={() =>
+                      void save(() =>
+                        rpc.bots.restoreInstructions({
+                          botId: bot.id,
+                          versionId: version.id,
+                          expectedInstructions: current.instructions,
+                        }),
+                      )
+                    }
+                  >
+                    <Trans>Restore</Trans>
+                  </Button>
+                </div>
+              ))}
+            </PopoverContent>
+          </Popover>
+        ) : null
+      }
     >
       <div className="space-y-3 px-3.5 py-2.5 text-[12.5px]">
         <Textarea
           id={`${id}-instructions`}
+          className="min-h-20 resize-none field-sizing-content"
           value={instructions}
           maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
           disabled={pending}
@@ -63,38 +116,6 @@ export function InstructionSettings({ bot }: { bot: Bot }) {
               );
           }}
         />
-        {current.instructionHistory?.length ? (
-          <details>
-            <summary className="cursor-pointer text-muted-foreground">
-              <Trans>Instruction history</Trans>
-            </summary>
-            {current.instructionHistory.map((version) => (
-              <div key={version.id} className="mt-2">
-                <details>
-                  <summary>
-                    {new Date(version.createdAt).toLocaleString()} · {version.reason}
-                  </summary>
-                  <pre className="whitespace-pre-wrap">{version.instructions}</pre>
-                </details>
-                <Button
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() =>
-                    void save(() =>
-                      rpc.bots.restoreInstructions({
-                        botId: bot.id,
-                        versionId: version.id,
-                        expectedInstructions: current.instructions,
-                      }),
-                    )
-                  }
-                >
-                  <Trans>Restore</Trans>
-                </Button>
-              </div>
-            ))}
-          </details>
-        ) : null}
         {error ? <p className="text-destructive">{error}</p> : null}
         {conflict ? (
           <Button

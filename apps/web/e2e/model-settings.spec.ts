@@ -7,6 +7,8 @@ import {
   captureScreenshot,
   chooseOption,
   completeOnboarding,
+  expandAdvancedSection,
+  openBotSettings,
   openUserSettings,
   rpc,
   signup,
@@ -166,13 +168,10 @@ test("custom connections persist reasoning support and bot thinking", async ({
   expect(cleared?.maxImagesPerPrompt).toBeUndefined();
   expect(cleared?.thinkingLevel ?? null).toBeNull();
   await page.getByRole("button", { name: "Close model settings" }).click();
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await openBotSettings(page, "Chief");
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
   const model = settings.getByRole("combobox", { name: "Model", exact: true });
   await expect(model).toBeVisible();
   await expect(model).toContainText("arbitrary-model");
@@ -190,11 +189,9 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await settings.getByRole("button", { name: "Save", exact: true }).click();
   await saved;
   await page.reload();
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await openBotSettings(page, "Chief");
   await expect(settings).toBeVisible();
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
   await expect(thinking).toHaveText("Low");
 });
 
@@ -276,12 +273,14 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    const socket = process.env.E2E_COMPATIBLE_SOCKET;
+    if (socket) server.listen(socket, resolve);
+    else server.listen(0, "127.0.0.1", resolve);
   });
 
   try {
     const address = server.address() as AddressInfo;
-    const baseUrl = `http://127.0.0.1:${address.port}/v1`;
+    const baseUrl = process.env.E2E_COMPATIBLE_FIXTURE_URL ?? `http://127.0.0.1:${address.port}/v1`;
     const stamp = Date.now();
     const userName = `Local model ${stamp}`;
     // The pi runtime asks for a model before onboarding finishes; this test connects
@@ -354,12 +353,10 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 
     await page.getByRole("button", { name: "Close model settings" }).click();
-    await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+    await openBotSettings(page, "Chief");
     const settings = page.getByTestId("bot-settings");
     await expect(settings).toBeVisible();
-    await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-      (element as HTMLDetailsElement).open = true;
-    });
+    await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
     const botModel = settings.getByRole("combobox", { name: "Model", exact: true });
     await botModel.scrollIntoViewIfNeeded();
     await botModel.click();
@@ -776,16 +773,11 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
   });
 
   await page.reload();
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await openBotSettings(page, "Chief");
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
-  const model = settings
-    .locator("label")
-    .filter({ hasText: /^Model/ })
-    .getByRole("button");
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
+  const model = settings.getByRole("combobox", { name: "Model", exact: true });
   await expect(model).toHaveText(/^Space default/);
   await model.click();
 
@@ -827,4 +819,49 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
     modelProvider: "openrouter",
     modelId: target.id,
   });
+});
+
+test("a long model name keeps the Model connections gear inside its card", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `model-gear-${stamp}@rakazo.test`, "password12", `Gear ${stamp}`);
+  await completeOnboarding(page);
+  const catalog = await rpc<Array<{ provider: string; id: string; placeholder?: boolean }>>(
+    page,
+    "models/list",
+    {},
+  );
+  const longest = catalog
+    .filter((entry) => entry.provider === "openrouter" && !entry.placeholder)
+    .sort((a, b) => b.id.length - a.id.length)[0]!;
+  await rpc(page, "models/connect", {
+    provider: "openrouter",
+    apiKey: "fake-openrouter-key",
+    modelId: longest.id,
+  });
+  const bots = await rpc<Array<{ id: string; name: string }>>(page, "bots/list", {});
+  await rpc(page, "bots/update", {
+    botId: bots.find((bot) => bot.name === "Chief")!.id,
+    modelProvider: "openrouter",
+    modelId: longest.id,
+  });
+
+  await page.reload();
+  await openBotSettings(page, "Chief");
+  const settings = page.getByTestId("bot-settings");
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
+  const model = settings.getByRole("combobox", { name: "Model", exact: true });
+  const gear = settings.getByRole("button", { name: "Model connections", exact: true });
+  const card = model.locator("xpath=ancestor::div[contains(@class, 'bg-card')][1]");
+  for (const width of [1440, 390, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(gear).toBeVisible();
+    const gearBox = (await gear.boundingBox())!;
+    const cardBox = (await card.boundingBox())!;
+    expect(gearBox.x + gearBox.width, `gear right edge at ${width}px`).toBeLessThanOrEqual(
+      cardBox.x + cardBox.width,
+    );
+    await captureScreenshot(page, testInfo, `bot-settings-model-gear-${width}`);
+  }
 });

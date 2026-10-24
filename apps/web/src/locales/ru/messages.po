@@ -490,6 +490,10 @@ msgstr "Добавить элемент"
 msgid "Add MCP server"
 msgstr "Добавить MCP-сервер"
 
+#: src/pages/ScratchpadSection.tsx
+msgid "Add open work"
+msgstr "Добавить задачу"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add OpenAPI"
 msgstr "Добавить OpenAPI"
@@ -2205,8 +2209,8 @@ msgid "Direct MCP"
 msgstr "Прямой MCP"
 
 #: src/pages/shell/bot-panel.tsx
-msgid "Disabled tools"
-msgstr ""
+msgid "Disable a tool"
+msgstr "Отключить инструмент"
 
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/MemorySettingsOverlay.tsx
@@ -2288,6 +2292,7 @@ msgid "Done"
 msgstr "Готово"
 
 #: src/components/ArtifactPreviewPane.tsx
+#: src/pages/KnowledgeSection.tsx
 msgid "Download"
 msgstr ""
 
@@ -2299,10 +2304,6 @@ msgstr "Скачать {0}"
 #: src/components/ArtifactFileCard.tsx
 msgid "Download {name}"
 msgstr "Скачать {name}"
-
-#: src/pages/KnowledgeSection.tsx
-msgid "Download as markdown"
-msgstr "Скачать как Markdown"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Download Executor"
@@ -2371,6 +2372,15 @@ msgstr "Регистрация с этим адресом электронной
 #: src/lib/user-error.ts
 msgid "Email verification required"
 msgstr "Требуется подтверждение электронной почты"
+
+#. placeholder {0}: humanizeTool(toolName)
+#: src/pages/shell/bot-panel.tsx
+msgid "Enable {0}"
+msgstr "Включить {0}"
+
+#: src/pages/shell/bot-credentials.tsx
+msgid "Encrypted and never shown again"
+msgstr "Зашифровано и больше не показывается"
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
@@ -2639,10 +2649,6 @@ msgstr "Общие"
 msgid "Get credentials"
 msgstr "Получить учетные данные"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "Получать уведомления, когда этот бот завершает работу или ждёт ввода"
-
 #: src/components/SidebarFooter.tsx
 msgid "Get the mobile app"
 msgstr "Скачать мобильное приложение"
@@ -2905,11 +2911,6 @@ msgstr "Сохранить память"
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "ключ"
-
-#: src/pages/KnowledgeSection.tsx
-#: src/pages/shell/bot-panel.tsx
-msgid "Knowledge"
-msgstr "Знание"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Language"
@@ -3310,6 +3311,10 @@ msgstr "Модель"
 msgid "Model \"{modelId}\" was not listed."
 msgstr "Модель \"{modelId}\" отсутствует в списке."
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Model connections"
+msgstr "Подключения моделей"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Model id"
@@ -3506,10 +3511,6 @@ msgstr "Ни один бот не подходит"
 msgid "No chat apps linked yet."
 msgstr "Приложения для чата пока не связаны."
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "No credentials saved for this bot."
-msgstr ""
-
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr "Групповых чатов пока нет."
@@ -3600,10 +3601,6 @@ msgstr "Нет доступных инструментов."
 msgid "No trigger"
 msgstr "Нет триггера"
 
-#: src/pages/ScratchpadSection.tsx
-msgid "None yet"
-msgstr "Пока нет"
-
 #: src/lib/ticket-priority.ts
 msgid "Normal"
 msgstr ""
@@ -3691,7 +3688,6 @@ msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Удалить можно только пустые пространства. Сначала удалите их ботов и группы."
 
 #: src/components/markdown-link-prompt.tsx
-#: src/pages/ScratchpadSection.tsx
 #: src/pages/Shell.tsx
 msgid "Open"
 msgstr "Открыть"
@@ -3810,10 +3806,6 @@ msgstr "Владелец"
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
 msgstr "Инцидент PagerDuty"
-
-#: src/pages/ScratchpadSection.tsx
-msgid "Park"
-msgstr "Приостановить"
 
 #: src/components/PasskeySettings.tsx
 msgid "Passkey"
@@ -4341,11 +4333,6 @@ msgstr "Повторить загрузку экрана"
 msgid "Return to Rakazo"
 msgstr "Вернуться в Rakazo"
 
-#. placeholder {0}: doc.revision
-#: src/pages/KnowledgeSection.tsx
-msgid "rev {0}"
-msgstr "версия {0}"
-
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
 msgstr "Проверьте настройки поставщика и повторите тест."
@@ -4659,10 +4646,6 @@ msgstr "Общий чат с {GROUP_MEMBER_MIN}-{GROUP_MEMBER_MAX} ботами.
 msgid "Shared documents"
 msgstr "Общие документы"
 
-#: src/pages/KnowledgeSection.tsx
-msgid "Shared skills"
-msgstr "Общие навыки"
-
 #: src/pages/GroupPanel.tsx
 msgid "Show all"
 msgstr ""
@@ -4676,6 +4659,7 @@ msgstr "Показать ботов"
 msgid "Show list"
 msgstr ""
 
+#: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Show more"
@@ -4745,6 +4729,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Skill {0}"
 msgstr "Навык {0}"
+
+#: src/pages/KnowledgeSection.tsx
+msgid "Skills"
+msgstr "Навыки"
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
@@ -5156,6 +5144,7 @@ msgid "Tool sources"
 msgstr "Источники инструментов"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
 msgid "Tools"
 msgstr "Инструменты"
 
@@ -5230,10 +5219,6 @@ msgstr "Отменить"
 #: src/pages/PluginsOverlay.tsx
 msgid "Uninstall"
 msgstr "Удалить"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Unknown tool"
-msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Unlink"
@@ -5406,10 +5391,6 @@ msgstr ""
 msgid "Value"
 msgstr "Значение"
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "Values are encrypted and never shown again."
-msgstr "Значения зашифрованы и больше не отображаются."
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Проверить и добавить"
@@ -5514,6 +5495,10 @@ msgstr "Что отслеживать"
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
 msgstr "Когда срабатывает вебхук"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When it finishes or needs input"
+msgstr "Когда бот завершает работу или ждёт ответа"
 
 #: src/pages/RoutineEditor.tsx
 msgid "When something changes"

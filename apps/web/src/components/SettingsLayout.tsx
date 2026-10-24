@@ -1,21 +1,34 @@
 import type { ReactNode } from "react";
 
-/** A settings card with its section label above it. */
+/**
+ * A settings card with its section label above it, and an optional small action beside the label.
+ * With no children it shows only the label row, so an empty section can still offer its action.
+ */
 export function SettingsGroup({
   label,
+  action,
   testId,
   children,
 }: {
   label?: ReactNode;
+  action?: ReactNode;
   testId?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
+  const heading = label ? (
+    <h3 className="mb-2 px-2 text-[12px] leading-4 text-muted-foreground">{label}</h3>
+  ) : null;
   return (
     <section data-testid={testId}>
-      {label ? (
-        <h3 className="mb-2 px-2 text-[12px] leading-4 text-muted-foreground">{label}</h3>
-      ) : null}
-      <SettingsCard>{children}</SettingsCard>
+      {action ? (
+        <div className="flex items-start justify-between gap-2 pe-1">
+          {heading}
+          <div className="-mt-1 flex shrink-0 items-center">{action}</div>
+        </div>
+      ) : (
+        heading
+      )}
+      {children == null || children === false ? null : <SettingsCard>{children}</SettingsCard>}
     </section>
   );
 }
