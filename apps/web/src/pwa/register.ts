@@ -16,7 +16,7 @@ export function registerServiceWorker(
   production: boolean = import.meta.env.PROD,
 ): void {
   if (!("serviceWorker" in target.navigator)) return;
-  if (target.rakazoDesktop || target.navigator.userAgent.includes("Electron/")) {
+  if (target.rakazoDesktop || target.navigator.userAgent.includes("Electron")) {
     void removeServiceWorkers(target);
     return;
   }
