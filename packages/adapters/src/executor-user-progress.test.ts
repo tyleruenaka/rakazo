@@ -102,6 +102,7 @@ async function runTurn(
       : {}),
     user: { findUnique: vi.fn(async () => null) },
     run: {
+      findMany: vi.fn(async () => []),
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
       updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {

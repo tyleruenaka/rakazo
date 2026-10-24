@@ -61,6 +61,7 @@ async function failRun(scenario: Scenario) {
   const prisma = {
     user: { findUnique: vi.fn(async () => null) },
     run: {
+      findMany: vi.fn(async () => []),
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
       findFirst: vi.fn(async () => ({

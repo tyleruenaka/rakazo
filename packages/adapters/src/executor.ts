@@ -84,6 +84,7 @@ import {
   isOneShotRoutineCrons,
   isOwnerStartedRun,
   isTerminal,
+  isUserRunTrigger,
   messagingChannelId,
   messagingChannelPrivacyBlock,
   messagingDmSurfaceNote,
@@ -104,8 +105,10 @@ import {
   toolRequiresExplicitApproval,
   toolResultTaintsRun,
   truncatedPlainText,
+  USER_RUN_TRIGGERS,
   unattendedTriggerToolRequiresApproval,
   userTurnMessageForRun,
+  WORKING_RUN_STATUSES,
 } from "@rakazo/core";
 import { normalizedHttpUrl, sitesInText, urlSite } from "@rakazo/core/egress";
 import {
@@ -3631,6 +3634,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
       }
       let computerLease: ComputerExecutionLease | null = null;
       try {
+        // A held lease is already this run's; anything else waits its turn behind older runs.
+        if (!resumeHeldLease && (await hasOlderWaitingRun(deps.prisma, run))) {
+          throw new ComputerBusyError();
+        }
         computerLease = await acquireComputerExecutionLease(deps.prisma, {
           computerId: leaseTarget.computerId,
           runId,
@@ -8412,6 +8419,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
               .catch(() => undefined);
           }
           await releaseComputerExecutionLease(deps.prisma, computerLease).catch(() => undefined);
+          await startNextWaitingRun(deps, run).catch((error) =>
+            getLogger().error("next waiting run enqueue", error),
+          );
         }
         await deps.prisma.attempt
           .updateMany({
@@ -9518,6 +9528,67 @@ async function writeComputerRunRequeue(
     data: releasedHold,
   });
   return retried.count === 1;
+}
+
+/**
+ * A waiting run retries the lease at least every 10 s (computerRetryDelay), which rewrites
+ * its row. One untouched for a minute has lost its job or is in a long retry backoff, so it
+ * stops holding newer runs back until the job reconciler or its retry brings it back. A run
+ * whose setup keeps failing carries an error and waits out its own backoff instead.
+ */
+const WAITING_RUN_FRESH_MS = 60_000;
+
+function freshWaitingRunsOf(run: { spaceId: string; botId: string }) {
+  return {
+    spaceId: run.spaceId,
+    botId: run.botId,
+    status: { in: [...WORKING_RUN_STATUSES] },
+    updatedAt: { gt: new Date(Date.now() - WAITING_RUN_FRESH_MS) },
+    error: null,
+  };
+}
+
+/**
+ * A bot runs one task at a time. The person's own turns start first, in creation order;
+ * other work waits behind them and then starts in creation order.
+ */
+async function hasOlderWaitingRun(
+  prisma: PrismaClient,
+  run: { id: string; spaceId: string; botId: string; trigger: string; createdAt: Date },
+): Promise<boolean> {
+  const userTriggers = { trigger: { in: [...USER_RUN_TRIGGERS] } };
+  const older = [
+    { createdAt: { lt: run.createdAt } },
+    { createdAt: run.createdAt, id: { lt: run.id } },
+  ];
+  const ahead = await prisma.run.findMany({
+    where: {
+      ...freshWaitingRunsOf(run),
+      ...(isUserRunTrigger(run.trigger)
+        ? { ...userTriggers, OR: older }
+        : { OR: [userTriggers, ...older] }),
+    },
+    select: { id: true },
+    take: 1,
+  });
+  return ahead.length > 0;
+}
+
+/** Wake the bot's next waiting run instead of leaving it to sit out its retry backoff. */
+async function startNextWaitingRun(
+  deps: ExecutorDeps,
+  run: { id: string; spaceId: string; botId: string },
+): Promise<void> {
+  const oldestQueued = (where: Prisma.RunWhereInput) =>
+    deps.prisma.run.findMany({
+      where: { ...freshWaitingRunsOf(run), status: "queued", id: { not: run.id }, ...where },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true },
+      take: 1,
+    });
+  let [next] = await oldestQueued({ trigger: { in: [...USER_RUN_TRIGGERS] } });
+  next ??= (await oldestQueued({}))[0];
+  if (next) await deps.jobs.enqueue(runContinueJob(next.id));
 }
 
 async function requeueComputerRun(

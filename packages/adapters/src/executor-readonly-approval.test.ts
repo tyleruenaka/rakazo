@@ -214,6 +214,7 @@ function fixture({
   const prisma = {
     user: { findUnique: vi.fn(async () => null) },
     run: {
+      findMany: vi.fn(async () => []),
       findFirst: vi.fn(async () =>
         pendingInstructionsRunId ? { id: pendingInstructionsRunId } : null,
       ),

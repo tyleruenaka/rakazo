@@ -1087,6 +1087,7 @@ function pinnedRoutineRunPrisma(modelId: string) {
   };
   return {
     run: {
+      findMany: vi.fn(async () => []),
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => ({ status: "leased", startedAt: null })),
       updateMany: vi.fn(async () => ({ count: 1 })),
@@ -2699,6 +2700,7 @@ description: Prepare standup notes
     );
     const prisma = {
       run: {
+        findMany: vi.fn(async () => []),
         findUnique: vi.fn(async () => run),
         findUniqueOrThrow: vi.fn(async () => ({ status: "leased", startedAt: null })),
         updateMany: vi.fn(async () => ({ count: 1 })),
@@ -2780,6 +2782,7 @@ description: Prepare standup notes
     };
     const prisma = {
       run: {
+        findMany: vi.fn(async () => []),
         findUnique: vi.fn(async () => run),
         findUniqueOrThrow: vi.fn(async () => ({ status: "leased", startedAt: null })),
         updateMany: vi.fn(async () => ({ count: 1 })),

@@ -40,6 +40,25 @@ export function isBackgroundRunTrigger(trigger: string | null | undefined): bool
   return BACKGROUND_RUN_TRIGGER_SET.has(trigger ?? "");
 }
 
+/**
+ * Turns the person started directly: a message, steering follow-up, channel message,
+ * reaction, hang-up, or skill test run. A busy bot starts these before its bot-to-bot,
+ * routine, webhook, ticket and other background work.
+ */
+export const USER_RUN_TRIGGERS = [
+  "user",
+  "follow_up",
+  "messaging",
+  "reaction",
+  "call_end",
+  "skill",
+] as const;
+const USER_RUN_TRIGGER_SET = new Set<string>(USER_RUN_TRIGGERS);
+
+export function isUserRunTrigger(trigger: string | null | undefined): boolean {
+  return USER_RUN_TRIGGER_SET.has(trigger ?? "");
+}
+
 const allowed: Record<RunStatus, RunStatus[]> = {
   queued: ["leased", "cancelled"],
   leased: ["running", "queued", "cancelled"],
