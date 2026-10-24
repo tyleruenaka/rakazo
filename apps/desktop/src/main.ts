@@ -176,10 +176,17 @@ async function resolveSessionForTarget(targetUrl: string) {
   if (partition === null) {
     return { partition: null, value: session.defaultSession };
   }
+  const origin = safeOrigin(targetUrl);
+  if (origin !== null) {
+    // The web app's service worker is for browsers. One that a server build registered in the
+    // hidden probe below can stall that probe or answer it with its own caches, so drop it first.
+    await session.defaultSession
+      .clearStorageData({ origin, storages: ["serviceworkers", "cachestorage"] })
+      .catch(() => undefined);
+  }
   if (existsSync(legacyDefaultSessionFlag(partition))) {
     return { partition: null, value: session.defaultSession };
   }
-  const origin = safeOrigin(targetUrl);
   if (origin !== null) {
     try {
       const defaultCookies = await session.defaultSession.cookies.get({ url: origin });
