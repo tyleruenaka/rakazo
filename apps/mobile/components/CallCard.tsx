@@ -4,7 +4,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useRouter } from "expo-router";
 import type { ComponentProps } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { endCall, toggleMute, useCallSession } from "../lib/call-session";
@@ -186,14 +186,30 @@ export function CallCard() {
           call={callAvatarState(call)}
         />
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("Expand")}
-        onPress={() => setExpanded(true)}
-        style={styles.levels}
-      >
-        <Waveform color={call.botColor} still={still} speaking={call.phase === "speaking"} />
-      </Pressable>
+      {call.micBlocked ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Open Settings")}
+          onPress={() => void Linking.openSettings()}
+          style={styles.levels}
+        >
+          <Text numberOfLines={1} style={[styles.blocked, { color: tokens.foreground }]}>
+            {t("Microphone is off")}
+          </Text>
+          <Text numberOfLines={1} style={[styles.blocked, { color: tokens.mutedForeground }]}>
+            {t("Open Settings")}
+          </Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Expand")}
+          onPress={() => setExpanded(true)}
+          style={styles.levels}
+        >
+          <Waveform color={call.botColor} still={still} speaking={call.phase === "speaking"} />
+        </Pressable>
+      )}
       {settings}
       {mute}
       {hangUp}
@@ -212,6 +228,7 @@ export function CallCard() {
 
 /** The live call transcript under the caller in the expanded view. */
 function ScrollTranscript({ call }: { call: NonNullable<ReturnType<typeof useCallSession>> }) {
+  const { t } = useI18n();
   const tokens = useMobileTokens();
   const live = call.caption || call.heard;
   return (
@@ -242,6 +259,11 @@ function ScrollTranscript({ call }: { call: NonNullable<ReturnType<typeof useCal
         <Text numberOfLines={2} style={[styles.live, { color: tokens.mutedForeground }]}>
           {live}
         </Text>
+      ) : null}
+      {call.micBlocked ? (
+        <Pressable accessibilityRole="button" onPress={() => void Linking.openSettings()}>
+          <Text style={[styles.live, { color: tokens.foreground }]}>{t("Open Settings")}</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -367,6 +389,7 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   levels: { flex: 1, marginStart: 4, marginEnd: 6, height: 44, justifyContent: "center" },
+  blocked: { fontSize: 13, fontWeight: "600" },
   waveform: { flexDirection: "row", alignItems: "center", gap: 3 },
   grabberHit: {
     position: "absolute",
