@@ -10,7 +10,7 @@ export type InboxSwipeRowProps = {
   pinned?: boolean;
   /** Bots only; groups have no finish notifications. */
   notifyOnFinish?: boolean;
-  /** Bots only: false offers Make primary. */
+  /** Bots only: false offers Make primary; true offers no Delete, since the Primary stays. */
   primary?: boolean;
   /** A nested bot can't be pinned, so it has no Pin. */
   nested?: boolean;

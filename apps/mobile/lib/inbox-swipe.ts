@@ -1,5 +1,5 @@
 export type InboxChatKind = "bot" | "group";
-export type InboxRowAction = "read" | "unread" | "archive" | "pin" | "unpin";
+export type InboxRowAction = "read" | "unread" | "archive" | "pin" | "unpin" | "delete";
 
 export const INBOX_ROW_ACTIONS = {
   read: { label: "Mark as Read", systemImage: "checkmark.message.fill" },
@@ -7,6 +7,7 @@ export const INBOX_ROW_ACTIONS = {
   archive: { label: "Archive", systemImage: "eye.slash" },
   pin: { label: "Pin", systemImage: "pin" },
   unpin: { label: "Unpin", systemImage: "pin.slash" },
+  delete: { label: "Delete…", systemImage: "trash" },
 } as const satisfies Record<InboxRowAction, { label: string; systemImage: string }>;
 
 /**
@@ -31,6 +32,11 @@ export function inboxRowActionList(chat: {
 }) {
   const { leading, trailing } = inboxRowActions({ ...chat, nested: Boolean(chat.parentBotId) });
   return [leading, ...trailing];
+}
+
+/** The Primary bot can't be deleted, as on the web; the inbox offers Delete for every other chat. */
+export function isPrimaryBot(kind: InboxChatKind, chat: object) {
+  return kind === "bot" && "primary" in chat && chat.primary === true;
 }
 
 export function chatTarget(kind: InboxChatKind, id: string) {

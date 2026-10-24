@@ -36,6 +36,7 @@ export function BotOrganizeModal({
   onCreateSection,
   onRenameSection,
   onDeleteSection,
+  onDelete,
 }: {
   bot: Pick<MobileBot, "name" | "pinned" | "sectionId"> &
     Partial<Pick<MobileBot, "notifyOnFinish" | "parentBotId">>;
@@ -47,6 +48,8 @@ export function BotOrganizeModal({
   onCreateSection: (name: string) => Promise<void>;
   onRenameSection: (sectionId: string, name: string) => Promise<void>;
   onDeleteSection: (sectionId: string) => Promise<void>;
+  /** Deletes the chat after its own confirmation; only chats in the current space have it. */
+  onDelete?: () => void;
 }) {
   const styles = useThemedStyles(createBotOrganizeStyles);
   const { t } = useI18n();
@@ -232,6 +235,25 @@ export function BotOrganizeModal({
                 </>
               )}
             </>
+          ) : null}
+          {onDelete ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => {
+                onClose();
+                onDelete();
+              }}
+              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+            >
+              <NativeSymbol
+                ios="trash"
+                android="trash-outline"
+                size={18}
+                color={mobileTokens().destructive}
+              />
+              <Text style={[styles.actionLabel, styles.destructive]}>{t("Delete…")}</Text>
+            </Pressable>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <NativeActionButton

@@ -381,8 +381,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "Delete space": "Удалить пространство",
   "Delete memories too": "Удалить также память",
   "Delete {name}?": "Удалить {name}?",
-  "Delete this group? Bots and their solo threads are kept.":
-    "Удалить эту группу? Боты и их отдельные диалоги сохранятся.",
+  "Bots and their own chats stay.": "Боты и их собственные чаты сохранятся.",
   "Delete your account?": "Удалить аккаунт?",
   "Delete…": "Удалить…",
   Denied: "Запрещено",
@@ -1011,4 +1010,8 @@ export const RU_MESSAGES: Record<string, string> = {
   "Getting there": "Почти готово",
   "Plugging away": "Продолжает работу",
   "Making headway": "Продвигается",
+  "1 unread": "1 непрочитанный",
+  "{count} need attention": "Требуют внимания: {count}",
+  "{label}, above": "{label}, выше",
+  "{label}, below": "{label}, ниже",
 };

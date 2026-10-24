@@ -1,6 +1,12 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { RunActivityRow, SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { accountDisplay, isRunWorking, movesWithParent, shownPinned } from "@rakazo/core";
+import {
+  accountDisplay,
+  isRunWaitingOnUser,
+  isRunWorking,
+  movesWithParent,
+  shownPinned,
+} from "@rakazo/core";
 import { botColors, typeScale } from "@rakazo/ui-tokens";
 import type { Href } from "expo-router";
 import {
@@ -39,8 +45,6 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
-  FadeIn,
-  FadeOut,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -56,6 +60,7 @@ import { HomeErrorState } from "../components/home-error-state";
 import { InboxPinnedMenu, InboxSwipeRow } from "../components/inbox-swipe-row";
 import { presentMessageMenu } from "../components/message-action-menu";
 import { NativeSymbol } from "../components/native-symbol";
+import { useUnreadJumpPills } from "../components/unread-jump-overlay";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {
   activityPreview,
@@ -84,6 +89,12 @@ import {
   selectSpace,
   signOut,
 } from "../lib/api";
+import {
+  appBadgeGeneration,
+  forgetAppBadge,
+  syncInboxAppBadge,
+  unreadChatCount,
+} from "../lib/app-badge";
 import { mobileTokens, resolveMobileAppearance } from "../lib/appearance";
 import {
   archivedChatCounts,
@@ -92,9 +103,11 @@ import {
   onArchivedChatsChanged,
 } from "../lib/archived-chats";
 import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
+import { confirmDeleteBot, confirmDeleteGroup } from "../lib/bot-lifecycle";
 import type { CollapsedSections } from "../lib/collapsed-sections";
 import { loadCollapsedSections, saveCollapsedSections } from "../lib/collapsed-sections";
 import { confirmDeleteSection } from "../lib/confirm-delete-section";
+import { useHeaderHeightIfAny } from "../lib/floating-header";
 import { t, useI18n } from "../lib/i18n";
 import { botTag, formatThreadTime } from "../lib/inbox";
 import { retainInboxValue } from "../lib/inbox-retention";
@@ -115,11 +128,13 @@ import {
   createLatestQueue,
   INBOX_ROW_ACTIONS,
   inboxRowActionList,
+  isPrimaryBot,
   unreadOverrideKey,
 } from "../lib/inbox-swipe";
-import { afterChatNotifyChange } from "../lib/live-notifications";
+import { afterChatNotifyChange, dismissThreadNotifications } from "../lib/live-notifications";
 import { native, useThemedStyles } from "../lib/native";
 import { iosAtLeast } from "../lib/native-controls";
+import type { InboxSignal } from "../lib/offscreen-unreads";
 import { offerPasskeyOnce } from "../lib/passkey";
 import { previewSnippet } from "../lib/preview";
 import { registerPushToken } from "../lib/push";
@@ -151,6 +166,36 @@ type PinnedChat =
   | { kind: "bot"; bot: MobileBot | SpaceBot }
   | { kind: "group"; group: MobileGroup | SpaceGroup };
 type InboxItem = InboxSpaceItem | { type: "pinned"; chats: PinnedChat[] };
+
+/** What a chat adds to the off-screen unread pills: unread, and a bot waiting on you. */
+function chatSignal(chat: PinnedChat): InboxSignal {
+  return chat.kind === "bot"
+    ? {
+        unread: chat.bot.unread ? 1 : 0,
+        attention: isRunWaitingOnUser(chat.bot.status) ? 1 : 0,
+      }
+    : { unread: chat.group.unread ? 1 : 0, attention: 0 };
+}
+
+function inboxItemKey(item: InboxItem): string {
+  if (item.type === "pinned") return "pinned";
+  if (item.type === "heading") return `heading-${item.key}`;
+  if (item.type === "bot") return item.bot.id;
+  return `group-${item.group.id}`;
+}
+
+function inboxSignal(item: InboxItem): InboxSignal {
+  if (item.type === "heading") return { unread: 0, attention: 0 };
+  if (item.type === "bot") return chatSignal({ kind: "bot", bot: item.bot });
+  if (item.type === "group") return chatSignal({ kind: "group", group: item.group });
+  return item.chats.map(chatSignal).reduce(
+    (total, signal) => ({
+      unread: total.unread + signal.unread,
+      attention: total.attention + signal.attention,
+    }),
+    { unread: 0, attention: 0 },
+  );
+}
 
 async function openMobileSpace(spaceId: string | undefined, open: () => void) {
   if (spaceId && !(await selectSpace(spaceId))) {
@@ -317,7 +362,16 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     });
   }, []);
 
+  const [badgeLoad, setBadgeLoad] = useState<{ generation: number } | null>(null);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") forgetAppBadge();
+    });
+    return () => subscription.remove();
+  }, []);
+
   const loadBots = useCallback(async () => {
+    const badgeGeneration = appBadgeGeneration();
     if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
     const requestId = ++inboxRequestId.current;
     const apiBase = currentApiBase();
@@ -350,6 +404,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       setSpaces((current) => retainInboxValue(current, navigation.spaces));
       setMe((current) => retainInboxValue(current, nextMe));
       inboxLoaded.current = true;
+      setBadgeLoad({ generation: badgeGeneration });
       setLoadFailure(null);
       saveInbox(
         {
@@ -551,6 +606,11 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     const items: InboxItem[] = spaceInboxItems(sidebarSpaces, collapsed, me?.spaceId);
     return pinned.length > 0 ? [{ type: "pinned", chats: pinned }, ...items] : items;
   }, [inboxSpaces, collapsed, me?.spaceId, spaces, visible, visibleGroups, locale]);
+  const badgeCount = me ? unreadChatCount(inboxSpaces) : null;
+  useEffect(() => {
+    if (badgeCount === null || badgeLoad === null) return;
+    void syncInboxAppBadge(badgeCount, badgeLoad.generation);
+  }, [badgeCount, badgeLoad]);
   const initials = accountDisplay(me ?? {}, t("You")).initial ?? "?";
   const organizeSpace = organizeTarget
     ? organizeTarget.spaceId === me?.spaceId
@@ -574,6 +634,21 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
   // Liquid Glass uses the native bar: glass bar items and a native menu.
   // The list beside a chat has no navigation bar of its own.
   const nativeHeader = iosAtLeast(26) && !embedded;
+  const headerHeight = useHeaderHeightIfAny();
+  const listRef = useRef<FlatList<InboxItem>>(null);
+  const jumpSignals = useMemo(() => listData.map(inboxSignal), [listData]);
+  const jumpKeys = useMemo(() => listData.map(inboxItemKey), [listData]);
+  const unreadJump = useUnreadJumpPills({
+    signals: jumpSignals,
+    keys: jumpKeys,
+    listRef,
+    // The Liquid Glass header floats over the list; the older header sits above it.
+    topInset: nativeHeader ? headerHeight : 0,
+    bottomInset: insets.bottom,
+    // The floating search bar and its fade cover the bottom of the list; the lower pill sits
+    // just above them.
+    bottomCover: Math.max(insets.bottom - 4, 12) + BOTTOM_BAR.height + BOTTOM_BAR.fade,
+  });
   const navigation = useNavigation();
   const router = useRouter();
   const pathname = usePathname();
@@ -943,6 +1018,15 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
         const spaceId = chat.spaceId ?? selectedSpaceId();
         const session = currentSessionGeneration();
         setUnreadOverrides((current) => new Map(current).set(key, action === "unread"));
+        if (action === "read") {
+          void dismissThreadNotifications(
+            kind === "group"
+              ? { groupId: chat.id }
+              : "threadId" in chat && chat.threadId
+                ? { threadId: chat.threadId }
+                : { botId: chat.id },
+          ).catch(() => undefined);
+        }
         await sendReadState(
           key,
           action === "unread",
@@ -988,6 +1072,17 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
           );
         }
         await loadBots();
+        return;
+      }
+      // The same confirmation as the chat's own menu; the row goes once the server deletes it.
+      if (action === "delete") {
+        if (isPrimaryBot(kind, chat)) return;
+        const deleted = () => {
+          notifyArchivedChatsChanged();
+          void loadBots();
+        };
+        if (kind === "bot") confirmDeleteBot({ id: chat.id, name: chat.name }, deleted);
+        else confirmDeleteGroup({ id: chat.id, name: chat.name }, deleted);
         return;
       }
       await updateChat(kind, chat, { pinned: action === "pin" }).catch((err) =>
@@ -1071,29 +1166,6 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     },
     [loadBots, t],
   );
-
-  const listRef = useRef<FlatList<InboxItem>>(null);
-  const [lastVisible, setLastVisible] = useState(-1);
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
-      setLastVisible(Math.max(-1, ...viewableItems.map((item) => item.index ?? -1)));
-    },
-  ).current;
-  // Unread chats below the last fully visible row, nearest first.
-  const unreadBelow = useMemo(
-    () =>
-      listData.flatMap((item, index) =>
-        index > lastVisible &&
-        ((item.type === "bot" && item.bot.unread) || (item.type === "group" && item.group.unread))
-          ? [index]
-          : [],
-      ),
-    [listData, lastVisible],
-  );
-  const scrollToUnread = useCallback(() => {
-    const index = unreadBelow[0];
-    if (index !== undefined) listRef.current?.scrollToIndex({ index, viewPosition: 0.5 });
-  }, [unreadBelow]);
 
   const renderItem = useCallback(
     ({ item }: { item: InboxItem }) =>
@@ -1315,115 +1387,105 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
 
       <SelectedChatContext.Provider value={embedded ? selectedChatId : null}>
         <CompactRowsContext.Provider value={compactRows}>
-          <FlatList<InboxItem>
-            ref={listRef}
-            style={{ flex: 1 }}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={{ itemVisiblePercentThreshold: 100 }}
-            onScrollToIndexFailed={(info) => {
-              // Rows further down are not laid out yet: get close, then land on the row.
-              listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index });
-              setTimeout(
-                () => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5 }),
-                120,
-              );
-            }}
-            data={showLoadFailure ? [] : listData}
-            keyExtractor={(item) => {
-              if (item.type === "pinned") return "pinned";
-              if (item.type === "heading") return `heading-${item.key}`;
-              if (item.type === "bot") return item.bot.id;
-              return `group-${item.group.id}`;
-            }}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            indicatorStyle={appearance === "dark" ? "white" : "black"}
-            contentContainerStyle={[styles.list, { paddingHorizontal: columnInset }]}
-            contentInsetAdjustmentBehavior="automatic"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  void refreshBots();
-                  void loadActivity();
-                }}
-                tintColor={native.secondaryLabel}
-                colors={[tokens.mutedForeground]}
-                progressBackgroundColor={tokens.muted}
+          <View style={styles.listArea}>
+            <FlatList<InboxItem>
+              ref={listRef}
+              {...unreadJump.listProps}
+              style={{ flex: 1 }}
+              data={showLoadFailure ? [] : listData}
+              keyExtractor={inboxItemKey}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              indicatorStyle={appearance === "dark" ? "white" : "black"}
+              contentContainerStyle={[styles.list, { paddingHorizontal: columnInset }]}
+              contentInsetAdjustmentBehavior="automatic"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    void refreshBots();
+                    void loadActivity();
+                  }}
+                  tintColor={native.secondaryLabel}
+                  colors={[tokens.mutedForeground]}
+                  progressBackgroundColor={tokens.muted}
+                />
+              }
+              ListHeaderComponent={
+                <>
+                  {inlineError ? <Text style={styles.error}>{inlineError}</Text> : null}
+                  {spaceRecoveryId ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={spaceBusy}
+                      onPress={() => void chooseInboxSpace(spaceRecoveryId)}
+                      style={styles.recoveryAction}
+                    >
+                      <Text style={styles.spaceTitle}>{t("Try again.")}</Text>
+                    </Pressable>
+                  ) : null}
+                  {activityMode && (activity.active.length > 0 || activity.recent.length > 0) ? (
+                    <ActivitySection activity={activity} bots={bots} />
+                  ) : null}
+                </>
+              }
+              ListEmptyComponent={
+                showLoadFailure && loadFailure ? (
+                  <HomeErrorState
+                    kind={loadFailure.kind}
+                    message={loadFailure.message}
+                    loading={inboxLoading && !refreshing}
+                    onRetry={() => void refreshBots()}
+                    onSignIn={() => void signInAgain()}
+                  />
+                ) : (
+                  <Text style={styles.empty}>{me ? t("Tap + to create a bot") : null}</Text>
+                )
+              }
+              ListFooterComponent={
+                <>
+                  {!showLoadFailure && inboxNeedsCreateHint(listData) ? (
+                    <Text style={styles.empty}>{t("Tap + to create a bot")}</Text>
+                  ) : null}
+                  <ArchivedChatsRow
+                    count={archivedCount}
+                    onPress={() => router.push("/archived-bots")}
+                  />
+                </>
+              }
+              renderItem={renderItem}
+            />
+            {/* The fades sit in the list area so the jump pills can float above them. */}
+            {nativeHeader ? (
+              // Rows fade out under the status bar and header buttons as they scroll up.
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.topFade,
+                  {
+                    height: insets.top + 60,
+                    experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 1))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 60%, ${String(withAlpha(tokens.inboxBackground, 0))} 100%)`,
+                  },
+                ]}
               />
-            }
-            ListHeaderComponent={
-              <>
-                {inlineError ? <Text style={styles.error}>{inlineError}</Text> : null}
-                {spaceRecoveryId ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={spaceBusy}
-                    onPress={() => void chooseInboxSpace(spaceRecoveryId)}
-                    style={styles.recoveryAction}
-                  >
-                    <Text style={styles.spaceTitle}>{t("Try again.")}</Text>
-                  </Pressable>
-                ) : null}
-                {activityMode && (activity.active.length > 0 || activity.recent.length > 0) ? (
-                  <ActivitySection activity={activity} bots={bots} />
-                ) : null}
-              </>
-            }
-            ListEmptyComponent={
-              showLoadFailure && loadFailure ? (
-                <HomeErrorState
-                  kind={loadFailure.kind}
-                  message={loadFailure.message}
-                  loading={inboxLoading && !refreshing}
-                  onRetry={() => void refreshBots()}
-                  onSignIn={() => void signInAgain()}
-                />
-              ) : (
-                <Text style={styles.empty}>{me ? t("Tap + to create a bot") : null}</Text>
-              )
-            }
-            ListFooterComponent={
-              <>
-                {!showLoadFailure && inboxNeedsCreateHint(listData) ? (
-                  <Text style={styles.empty}>{t("Tap + to create a bot")}</Text>
-                ) : null}
-                <ArchivedChatsRow
-                  count={archivedCount}
-                  onPress={() => router.push("/archived-bots")}
-                />
-              </>
-            }
-            renderItem={renderItem}
-          />
+            ) : null}
+            {showLoadFailure ? null : (
+              // Rows fade out under the floating search bar.
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.bottomFade,
+                  {
+                    height: Math.max(insets.bottom - 4, 12) + BOTTOM_BAR.height + 31,
+                    experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 0))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 40%, ${String(withAlpha(tokens.inboxBackground, 0.95))} 100%)`,
+                  },
+                ]}
+              />
+            )}
+            {refreshing || showLoadFailure || inboxHasNoChats(listData) ? null : unreadJump.overlay}
+          </View>
         </CompactRowsContext.Provider>
       </SelectedChatContext.Provider>
-      {nativeHeader ? (
-        // Rows fade out under the status bar and header buttons as they scroll up.
-        <View
-          pointerEvents="none"
-          style={[
-            styles.topFade,
-            {
-              height: insets.top + 60,
-              experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 1))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 60%, ${String(withAlpha(tokens.inboxBackground, 0))} 100%)`,
-            },
-          ]}
-        />
-      ) : null}
-      {showLoadFailure ? null : (
-        // Rows fade out under the floating search bar.
-        <View
-          pointerEvents="none"
-          style={[
-            styles.bottomFade,
-            {
-              height: Math.max(insets.bottom - 4, 12) + BOTTOM_BAR.height + 31,
-              experimental_backgroundImage: `linear-gradient(to bottom, ${String(withAlpha(tokens.inboxBackground, 0))} 0%, ${String(withAlpha(tokens.inboxBackground, 0.9))} 40%, ${String(withAlpha(tokens.inboxBackground, 0.95))} 100%)`,
-            },
-          ]}
-        />
-      )}
       {showLoadFailure ? null : (
         <View
           pointerEvents="box-none"
@@ -1435,31 +1497,6 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             },
           ]}
         >
-          {unreadBelow.length > 0 ? (
-            <Animated.View
-              entering={FadeIn.duration(160)}
-              exiting={FadeOut.duration(160)}
-              style={styles.unreadPillSlot}
-              pointerEvents="box-none"
-            >
-              <Pressable
-                accessibilityRole="button"
-                onPress={scrollToUnread}
-                style={({ pressed }) => [styles.unreadPill, pressed && styles.rowPressed]}
-              >
-                <NativeSymbol
-                  ios="chevron.down"
-                  android="chevron-down"
-                  size={14}
-                  weight="semibold"
-                  color={tokens.destructiveForeground}
-                />
-                <Text style={styles.unreadPillLabel}>
-                  {t("{count} unread", { count: unreadBelow.length })}
-                </Text>
-              </Pressable>
-            </Animated.View>
-          ) : null}
           <GlassSurface
             shape="circle"
             style={styles.gridButton}
@@ -1517,6 +1554,14 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             await chatRpc(organizeTarget.spaceId, "botSections/remove", { sectionId });
             await loadBots();
           }}
+          // Like the iOS row menu, Delete is only for chats in the current space, and never for
+          // the Primary, which the web can't delete either.
+          onDelete={
+            organizeTarget.spaceId === me?.spaceId &&
+            !isPrimaryBot(organizeTarget.kind, organizeChat)
+              ? () => void runRowAction(organizeTarget.kind, organizeChat, "delete")
+              : undefined
+          }
         />
       ) : null}
     </View>
@@ -1606,7 +1651,8 @@ function ActivityRow({
   );
 }
 
-const BOTTOM_BAR = { height: 48, button: 48, inset: 18 };
+// fade: how far above the search bar its fade still hides rows.
+const BOTTOM_BAR = { height: 48, button: 48, inset: 18, fade: 28 };
 const INBOX_ROW = { padding: 24, gap: 15, avatarSize: 44 };
 const COMPACT_INBOX_ROW = { padding: 12, gap: 10 };
 
@@ -2270,6 +2316,9 @@ function createHomeStyles() {
       paddingHorizontal: 20,
       paddingBottom: 8,
     },
+    listArea: {
+      flex: 1,
+    },
     list: {
       flexGrow: 1,
       // Clears the floating search bar (BOTTOM_BAR).
@@ -2487,29 +2536,6 @@ function createHomeStyles() {
     searchPillLabel: {
       color: native.secondaryLabel,
       fontSize: 18,
-    },
-    unreadPillSlot: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 84,
-      alignItems: "center",
-    },
-    unreadPill: {
-      height: 36,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      paddingStart: 15,
-      paddingEnd: 14,
-      borderRadius: 18,
-      backgroundColor: tokens.unread,
-    },
-    unreadPillLabel: {
-      // White on the unread blue in both themes.
-      color: tokens.destructiveForeground,
-      fontSize: 16,
-      fontWeight: "600",
     },
     sectionHeadingRow: { flexDirection: "row", alignItems: "center", paddingRight: 16 },
     sectionMenu: { flex: 1, alignSelf: "stretch" },

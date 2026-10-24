@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InboxSwipeRowProps } from "../components/inbox-swipe-row";
-import { InboxSwipeRow } from "../components/inbox-swipe-row.ios";
+import { InboxPinnedMenu, InboxSwipeRow } from "../components/inbox-swipe-row.ios";
 import type { MobileBotSection } from "./api";
 import type { InboxRowAction } from "./inbox-swipe";
 import {
@@ -16,6 +16,7 @@ import {
   createLatestQueue,
   inboxRowActionList,
   inboxRowActions,
+  isPrimaryBot,
   unreadOverrideKey,
 } from "./inbox-swipe";
 
@@ -174,6 +175,13 @@ describe("inbox row actions", () => {
     },
   );
 
+  it("treats only a bot marked primary as the Primary", () => {
+    expect(isPrimaryBot("bot", { primary: true })).toBe(true);
+    expect(isPrimaryBot("bot", { primary: false })).toBe(false);
+    expect(isPrimaryBot("bot", {})).toBe(false);
+    expect(isPrimaryBot("group", { primary: true })).toBe(false);
+  });
+
   it("targets bots and groups by their own id", () => {
     expect(chatTarget("bot", "b1")).toEqual({ botId: "b1" });
     expect(chatTarget("group", "g1")).toEqual({ groupId: "g1" });
@@ -321,7 +329,7 @@ describe("iOS swipe row", () => {
     act(() => root.unmount());
   });
 
-  it("offers read state, pin, move, hide, and notifications under More for a bot", () => {
+  it("offers read state, pin, move, hide, notifications under More, then Delete last for a bot", () => {
     const { items, find, root } = render({
       unread: true,
       pinned: false,
@@ -334,6 +342,7 @@ describe("iOS swipe row", () => {
       ["Move to", "folder", null],
       ["Hide", "eye.slash", "destructive"],
       ["More", "ellipsis", null],
+      ["Delete…", "trash", "destructive"],
     ]);
     expect(entries(find('[data-ui="Menu"][data-label="More"]')!)).toEqual([
       ["Silence notifications", "bell.slash", null],
@@ -360,7 +369,11 @@ describe("iOS swipe row", () => {
       "Unpin",
       "Hide",
       "More",
+      "Delete…",
     ]);
+    expect(items.querySelector('[data-label="Delete…"]')?.getAttribute("data-role")).toBe(
+      "destructive",
+    );
     expect(entries(find('[data-ui="Menu"][data-label="More"]')!).map(([label]) => label)).toEqual([
       "Move to",
     ]);
@@ -371,6 +384,51 @@ describe("iOS swipe row", () => {
       ["New section", "folder.badge.plus", null],
     ]);
     act(() => root.unmount());
+  });
+
+  it("offers no Delete for the Primary bot, but keeps it for other bots and groups", () => {
+    const labels = (items: Element) => entries(items).map(([label]) => label);
+    const primary = render({ primary: true, unread: false, pinned: false });
+    expect(labels(primary.items)).toEqual(["Mark Unread", "Pin", "Move to", "Hide"]);
+    expect(primary.items.querySelector('[data-label="Delete…"]')).toBeNull();
+    act(() => primary.root.unmount());
+    const bot = render({ primary: false, unread: false, pinned: false });
+    expect(labels(bot.items)).toContain("Delete…");
+    act(() => bot.root.unmount());
+    const group = render({ key: "group:1", unread: false, pinned: false });
+    expect(labels(group.items)).toContain("Delete…");
+    act(() => group.root.unmount());
+  });
+
+  it("offers no Delete on a pinned Primary tile, but keeps it for other pinned chats", () => {
+    function tile(primary?: boolean) {
+      const container = document.createElement("div");
+      const root = createRoot(container);
+      act(() =>
+        root.render(
+          <InboxPinnedMenu
+            size={{ width: 80, height: 90 }}
+            pinned
+            primary={primary}
+            sections={sections}
+            preview={{ title: "Ada", message: "Hi", avatar: <i /> }}
+            onAction={vi.fn()}
+            onOrganize={vi.fn()}
+            onEditSection={vi.fn()}
+          >
+            <span>tile</span>
+          </InboxPinnedMenu>,
+        ),
+      );
+      const items = container.querySelector('[data-ui="ContextMenu.Items"]')!;
+      const labels = entries(items).map(([label]) => label);
+      act(() => root.unmount());
+      return labels;
+    }
+    expect(tile(true)).toEqual(["Mark Unread", "Unpin", "Hide", "More"]);
+    // A pinned bot that isn't the Primary, and a pinned group.
+    expect(tile(false)).toContain("Delete…");
+    expect(tile(undefined)).toContain("Delete…");
   });
 
   it("runs menu items through the swipe and organize paths", () => {
@@ -389,7 +447,8 @@ describe("iOS swipe row", () => {
     press("New section");
     press("Rename section");
     press("Hide");
-    expect(onAction.mock.calls).toEqual([["unread"], ["pin"], ["archive"]]);
+    press("Delete…");
+    expect(onAction.mock.calls).toEqual([["unread"], ["pin"], ["archive"], ["delete"]]);
     // Choosing the current section again changes nothing.
     expect(onOrganize.mock.calls).toEqual([
       [{ notifyOnFinish: true }],
@@ -545,8 +604,12 @@ describe("inbox swipe handlers", () => {
       errorText: (_error: unknown, fallback: string) => fallback,
       chatTarget,
       unreadOverrideKey,
+      isPrimaryBot,
       afterChatNotifyChange: vi.fn(async () => {}),
+      confirmDeleteBot: vi.fn(),
+      confirmDeleteGroup: vi.fn(),
       notifyArchivedChatsChanged: vi.fn(),
+      dismissThreadNotifications: vi.fn(async () => {}),
       currentApiBase: () => "",
       loadSessionToken: async () => null,
       selectedSpaceId: () => session.space,
@@ -563,7 +626,7 @@ describe("inbox swipe handlers", () => {
     const run = new Function(...Object.keys(scope), compiled)(...Object.values(scope)) as {
       runRowAction: (
         kind: "bot" | "group",
-        chat: { id: string; spaceId?: string },
+        chat: { id: string; name?: string; spaceId?: string; primary?: boolean },
         action: InboxRowAction,
       ) => Promise<void>;
       updateChat: (
@@ -594,6 +657,19 @@ describe("inbox swipe handlers", () => {
     await first;
     expect(h.state.bots[0]!.unread).toBe(false);
     expect(h.state.overrides.size).toBe(0);
+  });
+
+  it("clears a chat's delivered notifications when it is marked read, not unread", async () => {
+    const h = handlers(async () => undefined);
+    await h.runRowAction("bot", { id: "b1", threadId: "thread-b1" } as never, "read");
+    await h.runRowAction("bot", { id: "b2" }, "read");
+    await h.runRowAction("group", { id: "g1" }, "read");
+    await h.runRowAction("bot", { id: "b1" }, "unread");
+    expect(h.dismissThreadNotifications.mock.calls).toEqual([
+      [{ threadId: "thread-b1" }],
+      [{ botId: "b2" }],
+      [{ groupId: "g1" }],
+    ]);
   });
 
   it("drops a change that is undone before its turn", async () => {
@@ -682,6 +758,30 @@ describe("inbox swipe handlers", () => {
     await h.runRowAction(kind, { id: "x" }, action);
     expect(h.rpc.mock.calls).toEqual([[procedure, input]]);
     expect(h.loadBots).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["bot", "confirmDeleteBot"],
+    ["group", "confirmDeleteGroup"],
+  ] as const)(
+    "%s delete asks with the chat's own confirmation and refreshes once deleted",
+    async (kind, confirm) => {
+      const h = handlers(async () => ({ ok: true }));
+      await h.runRowAction(kind, { id: "x", name: "Ada" }, "delete");
+      // Nothing is removed until the alert is confirmed.
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.loadBots).not.toHaveBeenCalled();
+      expect(h[confirm]).toHaveBeenCalledWith({ id: "x", name: "Ada" }, expect.any(Function));
+      h[confirm].mock.calls[0]![1]();
+      expect(h.loadBots).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("never starts deleting the Primary bot", async () => {
+    const h = handlers(async () => ({ ok: true }));
+    await h.runRowAction("bot", { id: "x", name: "Ada", primary: true }, "delete");
+    expect(h.confirmDeleteBot).not.toHaveBeenCalled();
+    expect(h.rpc).not.toHaveBeenCalled();
   });
 
   it("archives a chat from another space in that space", async () => {
