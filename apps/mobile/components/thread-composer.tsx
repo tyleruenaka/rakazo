@@ -10,7 +10,17 @@ import {
 } from "@rakazo/core";
 import type { Ref } from "react";
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import * as dictationEngine from "../lib/dictation";
 import { getActiveUiLocale, useI18n } from "../lib/i18n";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
@@ -203,9 +213,27 @@ export function ThreadComposer({
         },
         onFinal: (text) => {
           if (run !== dictationRun.current) return;
-          carried = joinSpeech(carried, text);
-          updateDraft(carried);
+          // Empty after a long quiet stretch: keep listening.
+          if (text) {
+            carried = joinSpeech(carried, text);
+            updateDraft(carried);
+          }
           listenOnce();
+        },
+        onError: (code) => {
+          if (run !== dictationRun.current) return;
+          stopDictation();
+          // iOS reports any failed start as "not-allowed", so ask what the permission really is.
+          void dictationEngine.access().then((access) => {
+            if (access === "denied") askForMicrophone();
+            else
+              Alert.alert(
+                t("Dictation stopped"),
+                code === "audio-capture"
+                  ? t("Could not hear that.")
+                  : t("Speech recognition is not available."),
+              );
+          });
         },
         onVolume: (value) => {
           if (run !== dictationRun.current) return;
@@ -217,11 +245,27 @@ export function ThreadComposer({
         },
       });
     };
-    void dictationEngine.available().then((ok) => {
+    void dictationEngine.access().then((access) => {
       if (run !== dictationRun.current) return;
-      if (ok) listenOnce();
-      else stopDictation();
+      if (access === "granted") {
+        listenOnce();
+        return;
+      }
+      stopDictation();
+      if (access === "denied") askForMicrophone();
+      else Alert.alert(t("Dictation stopped"), t("Speech recognition is not available."));
     });
+  }
+
+  function askForMicrophone() {
+    Alert.alert(
+      t("Microphone is off"),
+      t("Turn on the microphone and speech recognition for Rakazo in Settings."),
+      [
+        { text: t("Not now"), style: "cancel" },
+        { text: t("Open Settings"), onPress: () => void Linking.openSettings() },
+      ],
+    );
   }
 
   function stopDictation() {

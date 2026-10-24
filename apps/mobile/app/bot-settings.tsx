@@ -288,7 +288,8 @@ export default function BotSettingsScreen() {
       const sampleName = name.trim();
       Speech.speak(
         sampleName ? t("Hi, I'm {name}.", { name: sampleName }) : t("Hi, this is how I'll sound."),
-        { voice: voice.identifier },
+        // Normal speed: Android's engine would keep a call's faster rate.
+        { voice: voice.identifier, rate: 1 },
       );
     } catch {
       // The choice is already saved. A sample that cannot play is not a failed save.

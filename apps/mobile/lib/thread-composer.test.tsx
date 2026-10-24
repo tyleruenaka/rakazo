@@ -13,10 +13,13 @@ const input = vi.hoisted(() => ({
   change: (_value: string) => {},
   key: (_event: { nativeEvent: { key: string } }) => {},
 }));
+const alerts = vi.hoisted(() => ({ alert: vi.fn() }));
 vi.mock("react-native", () => {
   const Surface = ({ children, testID }: { children?: ReactNode; testID?: string }) =>
     createElement("div", { "data-testid": testID }, children);
   return {
+    Alert: alerts,
+    Linking: { openSettings: vi.fn() },
     View: Surface,
     ScrollView: Surface,
     Text: Surface,
@@ -83,10 +86,16 @@ vi.mock("./i18n", () => ({
   useI18n: () => ({ t: (text: string) => text }),
 }));
 const speech = vi.hoisted(() => ({
-  heard: null as null | { onInterim?: (text: string) => void; onFinal: (text: string) => void },
+  access: "granted" as "granted" | "denied" | "unavailable",
+  heard: null as null | {
+    onInterim?: (text: string) => void;
+    onFinal: (text: string) => void;
+    onError?: (code: string) => void;
+  },
 }));
 vi.mock("./dictation", () => ({
-  available: async () => true,
+  available: async () => speech.access === "granted",
+  access: async () => speech.access,
   listen: async (handlers: NonNullable<typeof speech.heard>) => {
     speech.heard = handlers;
   },
@@ -148,6 +157,7 @@ describe("thread composer isolation", () => {
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.clearAllMocks();
+    speech.access = "granted";
     threadRenders = 0;
     container = document.createElement("div");
     document.body.append(container);
@@ -245,6 +255,39 @@ describe("thread composer isolation", () => {
       // The field is 48 tall with a 1 pt border; the pill sits 8 pt from its bottom and end.
       expect(pill.marginBottom + 1).toBe((48 - pill.height) / 2);
     }
+  });
+
+  it("leaves dictation and says why when the recognizer fails", async () => {
+    press("Dictate");
+    await act(async () => {});
+    act(() => speech.heard!.onError!("language-not-supported"));
+    await act(async () => {});
+    expect(container.querySelector('button[aria-label="Stop dictation"]')).toBeNull();
+    expect(alerts.alert).toHaveBeenCalledWith("Dictation stopped", expect.any(String));
+  });
+
+  it("keeps dictating after a quiet stretch hands back nothing", async () => {
+    type("Note:");
+    press("Dictate");
+    await act(async () => {});
+    const first = speech.heard;
+    act(() => speech.heard!.onFinal(""));
+    expect(speech.heard).not.toBe(first);
+    act(() => speech.heard!.onFinal("call mom"));
+    press("Stop dictation");
+    expect(container.querySelector("input")!.value).toBe("Note: call mom");
+  });
+
+  it("offers Settings when the microphone is off for Rakazo", async () => {
+    speech.access = "denied";
+    press("Dictate");
+    await act(async () => {});
+    expect(container.querySelector('button[aria-label="Stop dictation"]')).toBeNull();
+    expect(alerts.alert).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/Settings/),
+      expect.arrayContaining([expect.objectContaining({ text: "Open Settings" })]),
+    );
   });
 
   it("dictates into the draft until stopped, then sends it", async () => {

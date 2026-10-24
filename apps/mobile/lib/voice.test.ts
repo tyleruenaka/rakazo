@@ -1,15 +1,18 @@
-import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
+import { createAudioPlayer, setAudioModeAsync, setIsAudioActiveAsync } from "expo-audio";
 import * as SecureStore from "expo-secure-store";
 import * as Speech from "expo-speech";
 import { Platform } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureApiRequestContext, currentApiBase, rpc } from "./api";
+import { resetCallPreferencesForTests, setCallPreferences } from "./call-preferences";
 import {
+  DEVICE_SPEECH_START_TIMEOUT_MS,
   getVoicePlaybackState,
   MAX_VOICE_AUDIO_BYTES,
   pauseVoicePlayback,
   playMpeg,
   resumeVoicePlayback,
+  setCallAudio,
   speakQueue,
   speakText,
   speakUtterance,
@@ -34,6 +37,7 @@ vi.mock("expo-file-system", () => ({
 vi.mock("expo-audio", () => ({
   createAudioPlayer: vi.fn(),
   setAudioModeAsync: vi.fn(async () => undefined),
+  setIsAudioActiveAsync: vi.fn(async () => undefined),
 }));
 vi.mock("expo-secure-store", () => ({
   getItemAsync: vi.fn(),
@@ -548,6 +552,93 @@ describe("hosted voice playback controls", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
   });
 
+  it("plays a call's reply in a session that keeps the microphone open", async () => {
+    vi.stubGlobal("Audio", undefined);
+    const options: unknown[] = [];
+    vi.mocked(createAudioPlayer).mockImplementation((_source, playerOptions) => {
+      options.push(playerOptions);
+      const listeners = new Set<(status: Record<string, unknown>) => void>();
+      return {
+        play: () => {
+          for (const listener of listeners) listener({ didJustFinish: true });
+        },
+        pause() {},
+        release() {},
+        addListener: (_event: string, listener: (status: Record<string, unknown>) => void) => {
+          listeners.add(listener);
+          return { remove: () => listeners.delete(listener) };
+        },
+      } as unknown as ReturnType<typeof createAudioPlayer>;
+    });
+    setCallAudio(true);
+    try {
+      await expect(speakText("Read this", { botId: "bot-1" })).resolves.toBe(true);
+      expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+      expect(setAudioModeAsync).toHaveBeenLastCalledWith(
+        expect.objectContaining({ allowsRecording: true, interruptionMode: "doNotMix" }),
+      );
+      expect(options).toEqual([{ keepAudioSessionActive: true }, { keepAudioSessionActive: true }]);
+    } finally {
+      setCallAudio(false);
+    }
+    await vi.waitFor(() => expect(setIsAudioActiveAsync).toHaveBeenCalledWith(false));
+    expect(setAudioModeAsync).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ allowsRecording: true }),
+    );
+  });
+
+  it("plays a call's reply at the call's speed, and other playback at normal speed", async () => {
+    vi.stubGlobal("Audio", undefined);
+    const rates: number[] = [];
+    vi.mocked(createAudioPlayer).mockImplementation(() => {
+      const listeners = new Set<(status: Record<string, unknown>) => void>();
+      return {
+        play: () => {
+          for (const listener of listeners) listener({ didJustFinish: true });
+        },
+        pause() {},
+        release() {},
+        setPlaybackRate: (rate: number) => rates.push(rate),
+        addListener: (_event: string, listener: (status: Record<string, unknown>) => void) => {
+          listeners.add(listener);
+          return { remove: () => listeners.delete(listener) };
+        },
+      } as unknown as ReturnType<typeof createAudioPlayer>;
+    });
+    vi.mocked(SecureStore.setItemAsync).mockResolvedValue();
+    setCallPreferences({ speed: 1.5 });
+    try {
+      await speakText("Read this", { botId: "bot-1" });
+      expect(rates).toEqual([]);
+      setCallAudio(true);
+      await speakText("On the call", { botId: "bot-1" });
+      expect(rates).toEqual([1.5, 1.5]);
+    } finally {
+      setCallAudio(false);
+      resetCallPreferencesForTests();
+    }
+  });
+
+  it("speaks a call's reply with the device voice at the call's speed", async () => {
+    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("1");
+    vi.mocked(Speech.speak).mockImplementation((_text, options) => options?.onDone?.());
+    vi.mocked(SecureStore.setItemAsync).mockResolvedValue();
+    setCallPreferences({ speed: 2 });
+    setCallAudio(true);
+    try {
+      await speakText("Hello", { botId: "bot-1" });
+      expect(Speech.speak).toHaveBeenCalledWith("Hello", expect.objectContaining({ rate: 2 }));
+      // Android's engine keeps the last rate, so reading aloud after the call resets it.
+      setCallAudio(false);
+      await speakText("After", { botId: "bot-1" });
+      expect(Speech.speak).toHaveBeenLastCalledWith("After", expect.objectContaining({ rate: 1 }));
+    } finally {
+      setCallAudio(false);
+      resetCallPreferencesForTests();
+      vi.mocked(Speech.speak).mockReset();
+    }
+  });
+
   it("does not fail a paused native clip when the startup watchdog elapses", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.stubGlobal("Audio", undefined);
@@ -776,6 +867,22 @@ describe("on-device speech", () => {
     expect(Speech.speak).toHaveBeenCalledWith("Read this", expect.any(Object));
     expect(rpc).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("gives up on a device voice that never starts, instead of holding the player open", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(SecureStore.getItemAsync).mockResolvedValue("1");
+      vi.mocked(Speech.speak).mockImplementation(() => undefined);
+
+      const spoken = speakText("Hello", { botId: "bot-1" });
+      const rejected = expect(spoken).rejects.toThrow("Could not play that clip.");
+      await vi.advanceTimersByTimeAsync(DEVICE_SPEECH_START_TIMEOUT_MS);
+      await rejected;
+      expect(getVoicePlaybackState().status).toBe("idle");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("resolves false on empty text without calling the OS engine", async () => {

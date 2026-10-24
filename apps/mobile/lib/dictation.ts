@@ -11,7 +11,25 @@ const RESTART_MAX_MS = 2_000;
 /** Restarts in a row that hear nothing: the recognizer is wedged, stop churning the mic. */
 const MAX_DEAD_RESTARTS = 5;
 /** Errors that mean this turn cannot recover; the rest are routine and `end` restarts. */
-const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed", "audio-capture"]);
+const FATAL_ERRORS = new Set([
+  "not-allowed",
+  "service-not-allowed",
+  "audio-capture",
+  "language-not-supported",
+]);
+/** iOS answers a permission request once the person taps; this only catches a lost answer. */
+export const PERMISSION_TIMEOUT_MS = 60_000;
+/** Region for an app language when the phone's own languages do not name one. */
+const DEFAULT_REGIONS: Record<string, string> = {
+  en: "en-US",
+  de: "de-DE",
+  ru: "ru-RU",
+  nl: "nl-NL",
+  zh: "zh-CN",
+};
+
+/** Whether the recognizer may use the microphone: refused is not the same as unsupported. */
+export type MicAccess = "granted" | "denied" | "unavailable";
 
 type ResultEvent = { isFinal: boolean; results: { transcript: string }[] };
 type ErrorEvent = { error?: string };
@@ -29,11 +47,18 @@ export type SpeechRecognizer = {
     interimResults: boolean;
     continuous: boolean;
     volumeChangeEventOptions?: { enabled: boolean; intervalMillis: number };
+    iosCategory?: {
+      category: "playAndRecord";
+      categoryOptions: readonly ("defaultToSpeaker" | "allowBluetooth")[];
+      mode: "default";
+    };
   }): void;
   stop(): void;
   abort(): void;
   isRecognitionAvailable(): boolean;
   requestPermissionsAsync(): Promise<{ granted: boolean }>;
+  /** iOS lists the exact tags it recognises; anything else fails as unsupported. */
+  getSupportedLocales?(options: Record<string, never>): Promise<{ locales: string[] }>;
   addListener<Event extends keyof DictationEventMap>(
     event: Event,
     listener: (payload: DictationEventMap[Event]) => void,
@@ -45,6 +70,7 @@ type Session = {
   lang: string;
   onInterim?: (text: string) => void;
   onFinal: (text: string) => void;
+  onError?: (code: string) => void;
   /** Input level, -2 (silent) to 10, for a live meter. */
   onVolume?: (value: number) => void;
   subs: { remove: () => void }[];
@@ -58,10 +84,17 @@ type Session = {
   deadRestarts: number;
 };
 
+const IOS_SESSION = {
+  category: "playAndRecord",
+  categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
+  mode: "default",
+} as const satisfies Parameters<SpeechRecognizer["start"]>[0]["iosCategory"];
+
 let injected: SpeechRecognizer | null = null;
 /** Test seam: an injected recognizer replaces the native module. */
 export function setSpeechRecognizer(recognizer: SpeechRecognizer | null): void {
   injected = recognizer;
+  supportedTags = null;
 }
 
 async function load(): Promise<SpeechRecognizer> {
@@ -74,14 +107,94 @@ async function load(): Promise<SpeechRecognizer> {
 let token = 0;
 let active: Session | null = null;
 
-/** True when the device can recognise speech itself and the caller allowed it. */
-export async function available(): Promise<boolean> {
+/** Asks for the microphone and speech recognition, showing the system prompt the first time. */
+export async function access(): Promise<MicAccess> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const recognizer = await load();
-    if (!recognizer.isRecognitionAvailable()) return false;
-    return (await recognizer.requestPermissionsAsync()).granted;
+    if (!recognizer.isRecognitionAvailable()) return "unavailable";
+    const answer = await Promise.race([
+      recognizer.requestPermissionsAsync(),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), PERMISSION_TIMEOUT_MS);
+      }),
+    ]);
+    if (!answer) return "unavailable";
+    if (answer.granted) return "granted";
+    return "denied";
   } catch {
-    return false;
+    return "unavailable";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** True when the device can recognise speech itself and the caller allowed it. */
+export async function available(): Promise<boolean> {
+  return (await access()) === "granted";
+}
+
+/**
+ * The tag to recognise in. The app language is a bare "en" or "de", and iOS only takes a
+ * tag it lists exactly ("en-US"; never "en", "en-NL" or "zh-Hans-CN"), so anything else
+ * leaves the microphone deaf. Tries the asked-for tag, the phone's own variants of that
+ * language, then a default region, and on iOS keeps only a tag it lists. With no list
+ * (Android takes any tag) the first tag with a region wins.
+ */
+export function recognitionLang(
+  lang: string,
+  phoneTags: readonly string[],
+  supported: readonly string[],
+): string {
+  const asked = lang.replace(/_/g, "-");
+  const language = languageOf(asked);
+  const candidates = [
+    asked,
+    ...phoneTags
+      .map((tag) => tag.replace(/_/g, "-"))
+      .filter((tag) => languageOf(tag) === language)
+      .flatMap((tag) => [tag, withoutScript(tag)]),
+    DEFAULT_REGIONS[language] ?? "",
+  ].filter((tag) => tag.includes("-"));
+  if (supported.length === 0) return candidates[0] ?? asked;
+  const listed = new Map(supported.map((tag) => [tag.replace(/_/g, "-").toLowerCase(), tag]));
+  for (const tag of candidates) {
+    const match = listed.get(tag.toLowerCase());
+    if (match) return match;
+  }
+  return supported.find((tag) => languageOf(tag) === language) ?? candidates[0] ?? asked;
+}
+
+function languageOf(tag: string): string {
+  return tag.split(/[-_]/)[0]?.toLowerCase() ?? "";
+}
+
+/** "zh-Hans-CN" → "zh-CN": iOS lists Chinese by region, not by script. */
+function withoutScript(tag: string): string {
+  const [language, script, region] = tag.split("-");
+  return script?.length === 4 && region ? `${language}-${region}` : tag;
+}
+
+async function phoneLanguageTags(): Promise<string[]> {
+  try {
+    const { getLocales } = await import("expo-localization");
+    return getLocales().map((locale) => locale.languageTag);
+  } catch {
+    return [];
+  }
+}
+
+let supportedTags: string[] | null = null;
+/** The tags iOS recognises, read once; empty elsewhere, where any tag works. */
+async function recognizedTags(recognizer: SpeechRecognizer): Promise<string[]> {
+  if (supportedTags) return supportedTags;
+  try {
+    const { Platform } = await import("react-native");
+    if (Platform.OS !== "ios" || !recognizer.getSupportedLocales) return [];
+    supportedTags = (await recognizer.getSupportedLocales({})).locales;
+    return supportedTags;
+  } catch {
+    return [];
   }
 }
 
@@ -103,7 +216,10 @@ export function stop(): void {
 /** Opens the microphone until a quiet gap ends the utterance, or `signal` aborts it. */
 export async function listen(opts: {
   onInterim?: (text: string) => void;
+  /** The finished turn; empty when the recognizer kept stopping without hearing anything. */
   onFinal: (text: string) => void;
+  /** The recognizer cannot run (an error code like "not-allowed"); nothing more is coming. */
+  onError?: (code: string) => void;
   onVolume?: (value: number) => void;
   signal?: AbortSignal;
   lang?: string;
@@ -112,13 +228,18 @@ export async function listen(opts: {
   const mine = token;
   if (opts.signal?.aborted) return;
   const recognizer = await load();
+  const [phoneTags, supported] = await Promise.all([
+    phoneLanguageTags(),
+    recognizedTags(recognizer),
+  ]);
   // A hang-up or a newer session landed while the native module was loading.
   if (token !== mine) return;
   const session: Session = {
     recognizer,
-    lang: opts.lang || "en-US",
+    lang: recognitionLang(opts.lang || "en-US", phoneTags, supported),
     onInterim: opts.onInterim,
     onFinal: opts.onFinal,
+    onError: opts.onError,
     onVolume: opts.onVolume,
     subs: [],
     carried: "",
@@ -156,6 +277,9 @@ function start(session: Session): void {
     lang: session.lang,
     interimResults: true,
     continuous: true,
+    // The library's own default is a measurement session, which plays the bot's reply
+    // very quietly while the microphone is open. Calls play audio in this same session.
+    iosCategory: IOS_SESSION,
     ...(session.onVolume
       ? { volumeChangeEventOptions: { enabled: true, intervalMillis: 100 } }
       : {}),
@@ -192,8 +316,8 @@ function onEnd(session: Session): void {
   session.heard = "";
   session.deadRestarts += 1;
   if (session.deadRestarts > MAX_DEAD_RESTARTS) {
-    // ponytail: a wedged recognizer just ends the turn; the call opens the mic again next
-    // turn. Surface it as an error if callers ever need to tell it from a real endpoint.
+    // A long quiet stretch: end the turn, empty if nothing was heard, so the caller can
+    // open the microphone again instead of waiting on a session that is gone.
     finish(session);
     return;
   }
@@ -212,8 +336,16 @@ function onEnd(session: Session): void {
 
 function onError(session: Session, event: ErrorEvent): void {
   if (active !== session) return;
-  if (!event?.error || !FATAL_ERRORS.has(event.error)) return;
-  finish(session);
+  const code = event?.error;
+  if (!code || !FATAL_ERRORS.has(code)) return;
+  // Words already heard still count as the turn; the next turn meets the error again.
+  if (join(session.carried, session.heard)) {
+    finish(session);
+    return;
+  }
+  const report = session.onError;
+  stop();
+  report?.(code);
 }
 
 function finish(session: Session): void {
@@ -221,7 +353,7 @@ function finish(session: Session): void {
   const text = join(session.carried, session.heard).trim();
   const { onFinal } = session;
   stop();
-  if (text) onFinal(text);
+  onFinal(text);
 }
 
 function join(left: string, right: string): string {

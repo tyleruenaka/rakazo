@@ -604,7 +604,7 @@ describe("bot settings device voice menu", () => {
     await act(async () => actions[1]!.click());
     expect(mocks.setVoiceForBot).toHaveBeenCalledWith("bot-fixture", "voice-b");
     expect(mocks.stopVoicePlayback).toHaveBeenCalledOnce();
-    expect(mocks.speak).toHaveBeenCalledWith("Hi, I'm Fixture.", { voice: "voice-b" });
+    expect(mocks.speak).toHaveBeenCalledWith("Hi, I'm Fixture.", { voice: "voice-b", rate: 1 });
     expect(mocks.setVoiceForBot.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.speak.mock.invocationCallOrder[0]!,
     );
@@ -667,6 +667,7 @@ describe("bot settings device voice menu", () => {
         expect(container.textContent).not.toContain("Could not save that voice");
         expect(mocks.speak).toHaveBeenCalledExactlyOnceWith("Hi, I'm Fixture.", {
           voice: "voice-c",
+          rate: 1,
         });
       } else {
         expect(container.textContent).toContain("Could not save that voice");

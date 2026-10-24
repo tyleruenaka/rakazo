@@ -25,7 +25,7 @@ import { BotCharacter } from "./bot-character";
 import { NativeSymbol } from "./native-symbol";
 
 /** Grok's white and grey swatches follow the theme: white draws black in light mode. */
-function useAvatarFill(color: string): string {
+export function useAvatarFill(color: string): string {
   const tokens = useMobileTokens();
   const lower = color.toLowerCase();
   if (lower === "#fff" || lower === "#ffffff") return tokens.avatarWhite;

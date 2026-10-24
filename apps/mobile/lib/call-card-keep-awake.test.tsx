@@ -15,6 +15,10 @@ const { activeTags, useKeepAwake } = vi.hoisted(() => ({
 }));
 
 vi.mock("expo-keep-awake", () => ({ useKeepAwake }));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: async () => null,
+  setItemAsync: async () => undefined,
+}));
 vi.mock("expo-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("react-native-reanimated", () => ({ useReducedMotion: () => true }));
 vi.mock("react-native-safe-area-context", () => ({
@@ -37,6 +41,9 @@ vi.mock("react-native", () => {
         { type: "button", onClick: props.onPress, "aria-label": props.accessibilityLabel },
         props.children,
       ),
+    ScrollView: View,
+    PanResponder: { create: () => ({ panHandlers: {} }) },
+    Linking: { openSettings: vi.fn() },
     Animated: {
       View,
       Value: class {
@@ -65,7 +72,13 @@ vi.mock("./i18n", () => ({
   getActiveUiLocale: () => "en",
 }));
 vi.mock("./native", () => ({ useMobileTokens: () => ({}) }));
-vi.mock("../components/bot-avatar", () => ({ BotAvatar: () => null }));
+vi.mock("../components/bot-avatar", () => ({
+  BotAvatar: () => null,
+  useAvatarFill: (color: string) => color,
+}));
+vi.mock("../components/menu-picker", () => ({ MenuPicker: () => null }));
+vi.mock("./bot-voices", () => ({}));
+vi.mock("./device-voice", () => ({ loadDeviceVoiceEnabled: async () => false }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
 vi.mock("expo-file-system", () => ({ File: class {} }));
 vi.mock("./voice", () => ({ speakText: vi.fn(), stopSpeaking: vi.fn() }));
@@ -110,6 +123,8 @@ describe("CallCard keep-awake lifetime", () => {
 
   it("keeps the screen awake only while a call is active", async () => {
     const deps: CallDeps = {
+      micAccess: async () => "granted",
+      callAudio: vi.fn(),
       dictate: async () => true,
       record: vi.fn(),
       transcribe: vi.fn(),

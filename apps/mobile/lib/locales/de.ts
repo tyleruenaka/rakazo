@@ -979,6 +979,16 @@ export const DE_MESSAGES: Record<string, string> = {
   Dictate: "Diktieren",
   Expand: "Erweitern",
   "Photo or Video": "Foto oder Video",
+  "Microphone is off": "Mikrofon ist aus",
+  "Open Settings": "Einstellungen öffnen",
+  "Turn on the microphone and speech recognition for Rakazo in Settings.":
+    "Aktiviere Mikrofon und Spracherkennung für Rakazo in den Einstellungen.",
+  "Dictation stopped": "Diktat beendet",
+  "Speech recognition is not available.": "Spracherkennung ist nicht verfügbar.",
+  "Speech recognition stopped. Tap the mic to try again.":
+    "Spracherkennung wurde beendet. Tippe auf das Mikrofon, um es erneut zu versuchen.",
+  Speed: "Geschwindigkeit",
+  Auto: "Automatisch",
   "Stop dictation": "Diktat beenden",
   "Take Photo": "Foto aufnehmen",
   "Ask {name}": "{name} fragen",

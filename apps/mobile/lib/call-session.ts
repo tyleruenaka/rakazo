@@ -21,6 +21,7 @@ import {
   rpc,
   subscribeThread,
 } from "./api";
+import { callPreferences, loadCallPreferences } from "./call-preferences";
 import type { CallCue } from "./call-sounds";
 import {
   playCallCue,
@@ -32,7 +33,7 @@ import {
 import * as dictation from "./dictation";
 import { getActiveUiLocale, t } from "./i18n";
 import { errorText, voiceAccountErrorText } from "./user-error";
-import { speakText, stopSpeaking } from "./voice";
+import { setCallAudio, speakText, stopSpeaking } from "./voice";
 
 export type CallPhase = "listening" | "thinking" | "speaking";
 export type CallExchange = { role: "user" | "bot"; text: string };
@@ -43,6 +44,8 @@ export type CallState = {
   botColor: string;
   phase: CallPhase;
   muted: boolean;
+  /** The phone refused the microphone: the call is muted and points the caller to Settings. */
+  micBlocked: boolean;
   transcriptOpen: boolean;
   caption: string;
   heard: string;
@@ -55,10 +58,24 @@ export type CallClip = { base64: string; mimeType: string };
 export type DictationHandlers = {
   onInterim: (text: string) => void;
   onFinal: (text: string) => void;
+  /** The recognizer stopped for good, with an error code like "not-allowed". */
+  onError: (code: string) => void;
 };
+
+/** The phone refused the microphone, so no turn can be heard until the caller allows it. */
+export class MicrophoneBlocked extends Error {
+  constructor() {
+    super(t("Allow microphone access to call a bot."));
+    this.name = "MicrophoneBlocked";
+  }
+}
 
 /** Everything that touches the device or the server, so the loop stays testable. */
 export type CallDeps = {
+  /** Asks for the microphone as the call rings, so the system prompt shows right away. */
+  micAccess: () => Promise<dictation.MicAccess>;
+  /** Holds one audio session that plays and records for the whole call, then lets it go. */
+  callAudio: (on: boolean) => void;
   /** On-device dictation for one turn. False when the device cannot recognise speech. */
   dictate: (handlers: DictationHandlers, signal: AbortSignal) => Promise<boolean>;
   /** Fallback when the device cannot: record a clip and send it to the voice provider. */
@@ -189,6 +206,8 @@ export function startCall(
 ): string {
   endCall();
   deps = { ...productionDeps(), ...overrides };
+  // The call takes over the audio, including any message still being read aloud.
+  deps.callAudio(true);
   switchBot = call.switchBot;
   callId = randomId();
   callRunId = null;
@@ -203,6 +222,7 @@ export function startCall(
     botColor: call.botColor ?? "",
     phase: "listening",
     muted: false,
+    micBlocked: false,
     transcriptOpen: false,
     caption: "",
     heard: "",
@@ -214,13 +234,24 @@ export function startCall(
   return callId;
 }
 
-/** The opening cue, then the greeting, then the caller's first turn. */
+/**
+ * The opening cue while the microphone is asked for, then the greeting with the microphone
+ * already open: the caller is heard even if the greeting never finishes playing.
+ */
 async function openCall(openedCallId: string, greeting?: string): Promise<void> {
   deps.waitSound("preload");
   opening = true;
-  await deps.cue("start").catch(() => undefined);
+  const [, mic] = await Promise.all([
+    deps.cue("start").catch(() => undefined),
+    deps.micAccess().catch((): dictation.MicAccess => "unavailable"),
+    // The listening language and the reply speed come from the call's settings.
+    loadCallPreferences(),
+  ]);
   if (!state || callId !== openedCallId) return;
   opening = false;
+  if (mic === "granted") onDevice = true;
+  // Still greet: the caption says how to turn the microphone on.
+  else if (mic === "denied" && !canTranscribe) blockForMic();
   if (greeting) speakAndListen(greeting);
   else void listen();
 }
@@ -249,7 +280,11 @@ export function endCall(): void {
         .then(() => closeServerCall(botId, closingCallId))
         .catch(() => undefined);
   }
-  if (state) deps.waitSound("release");
+  if (state) {
+    if (state.phase === "speaking") deps.stopSpeaking();
+    deps.waitSound("release");
+    deps.callAudio(false);
+  }
   turn?.abort();
   turn = null;
   unwatch?.();
@@ -278,7 +313,8 @@ export function endCall(): void {
 export function toggleMute(): void {
   if (!state) return;
   const muted = !state.muted;
-  set({ muted, heard: "" });
+  // Unmuting a blocked call asks for the microphone again.
+  set({ muted, heard: "", ...(muted ? {} : { micBlocked: false, caption: "" }) });
   if (muted) {
     turn?.abort();
     turn = null;
@@ -302,7 +338,8 @@ async function listen(): Promise<void> {
     endCall();
     return;
   }
-  set({ phase: "listening", heard: "", caption: "" });
+  // A blocked call keeps saying how to turn the microphone on.
+  set({ phase: "listening", heard: "", ...(state.micBlocked ? {} : { caption: "" }) });
   if (state.muted) return;
   await openMic();
 }
@@ -326,6 +363,11 @@ async function openMic(): Promise<void> {
           },
           onFinal: (text) => {
             if (mine()) void handleTranscript(text);
+          },
+          onError: () => {
+            if (!mine()) return;
+            micOpen = false;
+            void recognizerStopped();
           },
         },
         controller.signal,
@@ -359,7 +401,8 @@ async function openMic(): Promise<void> {
   } catch (error) {
     micOpen = false;
     if (!mine()) return;
-    failTurn(error);
+    if (error instanceof MicrophoneBlocked) blockForMic();
+    else failTurn(error);
   }
 }
 
@@ -371,7 +414,9 @@ async function handleTranscript(raw: string): Promise<void> {
   failures = 0;
   const text = raw.trim();
   if (!text) {
-    void listen();
+    // Nothing heard: keep the microphone going, and over a reply let the reply play on.
+    if (state.phase === "speaking") void openMic();
+    else void listen();
     return;
   }
   if (state.phase === "speaking") {
@@ -462,6 +507,50 @@ function failTurn(error: unknown): void {
   }
   set({ phase: "listening", caption: errorText(error, t("Could not hear that.")) });
   void listen();
+}
+
+/**
+ * The recognizer gave up for good. Retrying it would fail the same way at once, so: a refused
+ * microphone mutes with the Settings hint, a reply in progress plays on (its end opens the
+ * microphone again), the provider records the turn if it can, and otherwise the call mutes
+ * until the caller taps the mic.
+ */
+async function recognizerStopped(): Promise<void> {
+  const stoppedCallId = callId;
+  // iOS reports any failed start as "not-allowed", so ask what the permission really is.
+  const mic = await deps.micAccess().catch((): dictation.MicAccess => "unavailable");
+  if (!state || callId !== stoppedCallId || state.muted) return;
+  if (mic === "denied") {
+    blockForMic();
+    return;
+  }
+  if (state.phase === "speaking") return;
+  if (canTranscribe) {
+    onDevice = false;
+    void openMic();
+    return;
+  }
+  set({
+    phase: "listening",
+    muted: true,
+    heard: "",
+    caption: t("Speech recognition stopped. Tap the mic to try again."),
+  });
+}
+
+/** Like a refused disclosure: mute and wait for the caller to allow it and unmute. */
+function blockForMic(): void {
+  turn?.abort();
+  turn = null;
+  micOpen = false;
+  clearInterim();
+  set({
+    phase: state?.phase === "speaking" ? "speaking" : "listening",
+    muted: true,
+    micBlocked: true,
+    heard: "",
+    caption: t("Turn on the microphone and speech recognition for Rakazo in Settings."),
+  });
 }
 
 /** A denied disclosure is not a transient call failure: wait for an explicit retry. */
@@ -621,6 +710,11 @@ function onCallEnded(ended: CallEnded): void {
 
 function productionDeps(): CallDeps {
   return {
+    micAccess: () => dictation.access(),
+    callAudio: (on) => {
+      if (on) stopSpeaking();
+      setCallAudio(on);
+    },
     dictate: dictateTurn,
     record: recordClip,
     transcribe: transcribeClip,
@@ -642,7 +736,9 @@ function productionDeps(): CallDeps {
 /** The device's own speech recognition, which works with a speak-only voice provider. */
 async function dictateTurn(handlers: DictationHandlers, signal: AbortSignal): Promise<boolean> {
   if (!(await dictation.available())) return false;
-  await dictation.listen({ ...handlers, signal, lang: getActiveUiLocale() });
+  const { language } = callPreferences();
+  const lang = language === "auto" ? getActiveUiLocale() : language;
+  await dictation.listen({ ...handlers, signal, lang });
   return true;
 }
 
@@ -650,7 +746,7 @@ async function dictateTurn(handlers: DictationHandlers, signal: AbortSignal): Pr
 async function recordClip(signal: AbortSignal): Promise<CallClip | null> {
   const { AudioModule, RecordingPresets, setAudioModeAsync } = await import("expo-audio");
   const permission = await AudioModule.requestRecordingPermissionsAsync();
-  if (!permission.granted) throw new Error(t("Allow microphone access to call a bot."));
+  if (!permission.granted) throw new MicrophoneBlocked();
   let recorder: AudioRecorder | undefined;
   let heardSpeech = false;
   try {
