@@ -726,6 +726,8 @@ export interface NotificationMessage {
   groupId?: string;
   /** Unread chats to show on the app icon, when the sender knows them. */
   badge?: number;
+  /** Set when the push is the bot's message to the user: phones show it as from that bot. */
+  sender?: { name: string };
 }
 
 /** A product-authored transactional email, independent of its delivery vendor. */
