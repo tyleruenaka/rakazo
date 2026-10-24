@@ -280,3 +280,95 @@ test("New sits above a grouped row of bot-to-bot messages when the first unread 
   await captureScreenshot(page, testInfo, "chat-unread-divider-peer-group");
   await page.unrouteAll({ behavior: "ignoreErrors" });
 });
+
+test("New takes your bubble's bot color, and stays blue where the bubbles stay neutral", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `unread-color-${stamp}@rakazo.test`, "password12", "Unread Color");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+  const chiefId = activeBotId(page);
+  const whiteId = await createNamedBot(page, "Plain");
+  await rpc(page, "bots/update", { botId: chiefId, color: "#8B5CF6" });
+  await rpc(page, "bots/update", { botId: whiteId, color: "#FFFFFF" });
+  const group = await rpc<{ id: string }>(page, "groups/create", {
+    name: "Team",
+    botIds: [chiefId, whiteId],
+  });
+  await rpc(page, "threads/send", { botId: chiefId, text: "Plan my week" });
+  await rpc(page, "threads/send", { botId: whiteId, text: "Plan my day" });
+  await rpc(page, "threads/send", { groupId: group.id, text: "Plan the launch" });
+  await expect
+    .poll(
+      async () => {
+        const bots = await rpc<Array<{ id: string; status: string }>>(page, "bots/list", {});
+        return bots.every((bot) => !["queued", "leased", "running"].includes(bot.status));
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+  // Every visit reads as never read, so each chat opens with New above its first reply.
+  await page.route("**/rpc/threads/markRead", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.json.unreadAfterSeq = -1;
+    await route.fulfill({ response, json: body });
+  });
+
+  const divider = page.getByTestId("unread-divider");
+  const colors = async () => {
+    await expect(divider).toBeVisible();
+    return divider.evaluate((row) => {
+      const [before, label, after] = [...row.children].map((child) => getComputedStyle(child));
+      const bubble = document.querySelector(".rk-user-bubble");
+      return {
+        lines: [before!.backgroundColor, after!.backgroundColor],
+        label: label!.color,
+        bubble: bubble ? getComputedStyle(bubble).backgroundColor : null,
+      };
+    });
+  };
+  const violet = "rgb(139, 92, 246)";
+  const blue = { light: "rgb(8, 110, 211)", dark: "rgb(77, 155, 255)" };
+
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto(`/app/${chiefId}`);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  const light = await colors();
+  // Your bubble is violet darkened like the bubble rule (0.83 x 139, 92, 246).
+  expect(light.bubble).toMatch(/^color\(srgb 0\.45\d* 0\.29\d* 0\.80\d*\)$/);
+  expect(light).toEqual({
+    lines: [light.bubble, light.bubble],
+    label: light.bubble,
+    bubble: light.bubble,
+  });
+  await captureScreenshot(page, testInfo, "chat-unread-divider-bot-color");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // The shade is too dim for text on dark, so New takes the bot's full color.
+  const dark = await colors();
+  expect(dark).toEqual({
+    lines: [light.bubble, light.bubble],
+    label: violet,
+    bubble: light.bubble,
+  });
+  await captureScreenshot(page, testInfo, "chat-unread-divider-bot-color-dark");
+
+  // A white bot's bubbles stay neutral, and so does a group's.
+  for (const path of [`/app/${whiteId}`, `/app/g/${group.id}`]) {
+    await page.goto(path);
+    expect(await colors()).toMatchObject({ lines: [blue.dark, blue.dark], label: blue.dark });
+  }
+  await captureScreenshot(page, testInfo, "chat-unread-divider-group-dark");
+
+  // Settings > Appearance > Accent: None keeps the bubbles and the divider neutral.
+  await page.evaluate(() => localStorage.setItem("rakazo.chatAccent", "none"));
+  await page.goto(`/app/${chiefId}`);
+  expect(await colors()).toMatchObject({ lines: [blue.dark, blue.dark], label: blue.dark });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await colors()).toMatchObject({ lines: [blue.light, blue.light], label: blue.light });
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});

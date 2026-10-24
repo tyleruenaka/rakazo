@@ -75,10 +75,10 @@ export function UnreadDivider({ afterSeparator = false }: { afterSeparator?: boo
   return (
     <div
       data-testid="unread-divider"
-      className={`flex select-none items-center gap-2.5 pb-1 ${afterSeparator ? "pt-0" : "pt-2"}`}
+      className={`rk-unread-divider flex select-none items-center gap-2.5 pb-1 ${afterSeparator ? "pt-0" : "pt-2"}`}
     >
       <span aria-hidden="true" className="h-px flex-1 bg-unread opacity-40" />
-      <span className="text-xs font-medium text-unread">
+      <span className="rk-unread-divider-label text-xs font-medium text-unread">
         <span aria-hidden="true">{t`New`}</span>
         <span className="sr-only">{t`New messages`}</span>
       </span>
