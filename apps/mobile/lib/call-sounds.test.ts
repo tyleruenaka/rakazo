@@ -68,6 +68,22 @@ it("plays waiting audio without changing the active recognition audio mode", asy
   await playing;
 });
 
+it("keeps the call's audio session up when a cue or the waiting sound stops", async () => {
+  // A player that drops the session when it stops would cut off the open microphone.
+  const cue = playCallCue("end");
+  await vi.advanceTimersByTimeAsync(1600);
+  await cue;
+  const waiting = startWaitSound();
+  await vi.advanceTimersByTimeAsync(0);
+  releaseWaitSound();
+  await waiting;
+
+  expect(createAudioPlayer).toHaveBeenCalled();
+  for (const call of vi.mocked(createAudioPlayer).mock.calls) {
+    expect(call[1]).toEqual({ keepAudioSessionActive: true });
+  }
+});
+
 it("cancels a cue pending its settings read at hang-up", async () => {
   let resolve!: (value: string | null) => void;
   vi.mocked(getItemAsync).mockReturnValueOnce(

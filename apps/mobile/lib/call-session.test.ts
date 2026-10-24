@@ -4,6 +4,7 @@ import type { CallClip, CallDeps, CallEnded, DictationHandlers } from "./call-se
 import {
   endCall,
   getSnapshot,
+  MicrophoneBlocked,
   setCallProviderTranscribe,
   startCall,
   subscribe,
@@ -65,6 +66,8 @@ function fakes(opts: { onDevice?: boolean } = {}) {
     waitSound: (action) => {
       waits.push(action);
     },
+    micAccess: async () => (opts.onDevice ? "granted" : "unavailable"),
+    callAudio: () => undefined,
     dictate: async (next, signal) => {
       signals.push(signal);
       if (!opts.onDevice) return false;
@@ -101,6 +104,7 @@ function fakes(opts: { onDevice?: boolean } = {}) {
     stopSpeaking,
     interim: (text: string) => handlers?.onInterim(text),
     hear: (text: string) => handlers?.onFinal(text),
+    failMic: (code: string) => handlers?.onError(code),
     recordings,
     signals,
     speeches,
@@ -707,6 +711,100 @@ describe("mobile call session", () => {
     gate.resolve();
     await flush();
     expect(fake.recordings).toHaveLength(1);
+  });
+
+  it("asks for the microphone as the call starts and hears the caller over a greeting that never ends", async () => {
+    const fake = fakes({ onDevice: true });
+    const micAccess = vi.fn(async () => "granted" as const);
+    startCall(
+      { botId: "bot-1", botName: "Ada", greeting: "Hello, Ada here." },
+      { ...fake.deps, micAccess },
+    );
+    await flush();
+    expect(fake.spoken).toEqual(["Hello, Ada here."]);
+    expect(getSnapshot()?.phase).toBe("speaking");
+    // The microphone is already open while the greeting is still playing.
+    expect(fake.signals).toHaveLength(1);
+    expect(micAccess).toHaveBeenCalledOnce();
+
+    fake.hear("what is on my calendar today");
+    await flush();
+    expect(fake.stopSpeaking).toHaveBeenCalled();
+    expect(fake.send).toHaveBeenCalledWith(
+      "bot-1",
+      "what is on my calendar today",
+      expect.stringMatching(/^call:/),
+    );
+  });
+
+  it("shows how to turn the microphone on when access is denied, and retries on unmute", async () => {
+    const fake = fakes({ onDevice: true });
+    let access: "denied" | "granted" = "denied";
+    startCall(
+      { botId: "bot-1", botName: "Ada", transcribe: false },
+      { ...fake.deps, micAccess: async () => access },
+    );
+    await flush();
+    expect(getSnapshot()).toMatchObject({ micBlocked: true, muted: true });
+    expect(getSnapshot()?.caption).toMatch(/Settings/);
+    expect(fake.signals).toHaveLength(0);
+
+    access = "granted";
+    toggleMute();
+    await flush();
+    expect(getSnapshot()).toMatchObject({ micBlocked: false, muted: false });
+    expect(fake.signals).toHaveLength(1);
+  });
+
+  it("shows the Settings hint when the recorder is refused the microphone", async () => {
+    const fake = fakes();
+    startCall(
+      { botId: "bot-1", botName: "Ada" },
+      { ...fake.deps, record: async () => Promise.reject(new MicrophoneBlocked()) },
+    );
+    await flush();
+    expect(getSnapshot()).toMatchObject({ micBlocked: true, muted: true });
+  });
+
+  it("puts a recognizer failure on the call and opens the microphone again", async () => {
+    const fake = fakes({ onDevice: true });
+    startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
+    await flush();
+    expect(fake.signals).toHaveLength(1);
+
+    fake.failMic("audio-capture");
+    await flush();
+    expect(getSnapshot()?.caption).not.toBe("");
+    expect(fake.signals).toHaveLength(2);
+
+    fake.failMic("not-allowed");
+    await flush();
+    expect(getSnapshot()).toMatchObject({ micBlocked: true, muted: true });
+  });
+
+  it("keeps the reply playing when the microphone hears nothing over it", async () => {
+    const fake = fakes({ onDevice: true });
+    startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
+    await flush();
+    fake.hear("status please");
+    await flush();
+    fake.replyWith("message-1", "It is green.");
+    await flush();
+    const opened = fake.signals.length;
+
+    fake.hear("");
+    await flush();
+    expect(getSnapshot()?.phase).toBe("speaking");
+    expect(fake.signals).toHaveLength(opened + 1);
+  });
+
+  it("holds a call audio session from ringing to hang up", async () => {
+    const fake = fakes();
+    const callAudio = vi.fn();
+    startCall({ botId: "bot-1", botName: "Ada" }, { ...fake.deps, callAudio });
+    expect(callAudio).toHaveBeenLastCalledWith(true);
+    endCall();
+    expect(callAudio).toHaveBeenLastCalledWith(false);
   });
 
   it("keeps the microphone closed until the opening cue ends and the greeting starts", async () => {
