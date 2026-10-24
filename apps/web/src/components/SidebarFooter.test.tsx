@@ -33,7 +33,7 @@ async function render(
   image?: string,
   onIntegrations = vi.fn(),
   onBoard?: () => void,
-  logos?: Array<{ name: string; logo: string }>,
+  logos?: Array<{ name: string; logo?: string }>,
   { connectedCount, open = true }: { connectedCount?: number; open?: boolean } = {},
 ) {
   const email = "account@rakazo.test";
@@ -285,4 +285,20 @@ it.each([
   [200, 3],
 ])("fits marks into %ipx without consuming label or padding space", (width, count) => {
   expect(sidebarMarkCount(width)).toBe(count);
+});
+
+it("shows the first three apps in order, with a letter for an app without a logo", async () => {
+  await render("Demo User", undefined, undefined, undefined, [
+    { name: "Gmail", logo: "https://example.test/gmail.svg" },
+    { name: "Notion" },
+    { name: "GitHub", logo: "https://example.test/github.svg" },
+    { name: "Slack" },
+  ]);
+  const tiles = [...host.querySelectorAll('span[aria-hidden="true"] > span')];
+  expect(tiles).toHaveLength(3);
+  expect(tiles.map((tile) => tile.querySelector("img")?.src ?? tile.textContent)).toEqual([
+    "https://example.test/gmail.svg",
+    "N",
+    "https://example.test/github.svg",
+  ]);
 });
