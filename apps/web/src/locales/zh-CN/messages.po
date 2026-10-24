@@ -1007,7 +1007,10 @@ msgstr ""
 msgid "Can't reach the server."
 msgstr "无法连接服务器。"
 
+#: src/components/TextOnlyMark.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-model-picker.tsx
 msgid "Can't read images"
 msgstr "无法读取图像"
 
@@ -3528,6 +3531,7 @@ msgid "No matching artifacts on this page."
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/chat-model-picker.tsx
 msgid "No matching models"
 msgstr "没有匹配的模型"

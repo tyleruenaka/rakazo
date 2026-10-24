@@ -127,15 +127,14 @@ tags:
 - extendedWaitUntil:
     visible: "Active model"
     timeout: 10000
-- scrollUntilVisible:
-    element: "Show more"
-    direction: DOWN
 - takeScreenshot: "11-models"
-- tapOn: "Show more"
-- scrollUntilVisible:
-    element: "Show less"
-    direction: DOWN
+# Every provider lives on its own searchable screen.
+- tapOn: "Provider"
+- extendedWaitUntil:
+    visible: "Search"
+    timeout: 10000
 - takeScreenshot: "11b-all-providers"
+- back
 
 - openLink: "rakazo:///voice"
 - extendedWaitUntil:

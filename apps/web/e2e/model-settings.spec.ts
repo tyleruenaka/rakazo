@@ -195,6 +195,99 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await expect(thinking).toHaveText("Low");
 });
 
+test("the bot's model picker marks models that cannot read images", async ({ page }, testInfo) => {
+  await page.route("**/rpc/models/list", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      json: Array<{ provider: string; id: string; label: string; images?: boolean }>;
+    };
+    const template = body.json.find((entry) => entry.provider === "openrouter");
+    if (!template) throw new Error("Missing OpenRouter catalog fixture");
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        json: [
+          ...body.json.filter((entry) => entry.provider !== "openrouter"),
+          { ...template, id: "fixture-text", label: "Text-only model", images: false },
+          ...Array.from({ length: 10 }, (_, index) => ({
+            ...template,
+            id: `fixture-vision-${index + 1}`,
+            label: `Vision model ${index + 1}`,
+            images: true,
+          })),
+        ],
+      },
+    });
+  });
+  // A connected OpenRouter key offers its catalog models to the bot.
+  await page.route("**/rpc/models/credentials", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { json: Array<Record<string, unknown>> };
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        json: [
+          ...body.json,
+          {
+            id: "fixture-openrouter",
+            provider: "openrouter",
+            label: "OpenRouter",
+            hasKey: true,
+            isDefault: false,
+          },
+        ],
+      },
+    });
+  });
+  await signup(page, `bot-text-only-${Date.now()}@rakazo.test`, "password12", "Bot Models");
+  await completeOnboarding(page);
+  await openBotSettings(page, "Chief");
+  const settings = page.getByTestId("bot-settings");
+  await expect(settings).toBeVisible();
+  await expandAdvancedSection(settings.getByTestId("bot-settings-advanced"));
+
+  // Past ten choices the model dropdown gains a search field.
+  const picker = settings.getByRole("combobox", { name: "Model", exact: true });
+  await expect(picker).toBeVisible();
+  await picker.click();
+  await page.getByRole("combobox", { name: "Search models" }).fill("model");
+  const textOnly = page.getByRole("option", { name: "OpenRouter · Text-only model", exact: true });
+  const vision = page.getByRole("option", { name: "OpenRouter · Vision model 1", exact: true });
+  await expect(textOnly).toBeVisible();
+  await captureScreenshot(page, testInfo, "bot-model-picker-text-only-row");
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "dark";
+  });
+  await captureScreenshot(page, testInfo, "bot-model-picker-text-only-row-dark");
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "light";
+  });
+  await expect(textOnly.getByTitle("Can't read images")).toBeVisible();
+  await expect(textOnly).toHaveAccessibleDescription("Can't read images");
+  await expect(vision.getByTitle("Can't read images")).toHaveCount(0);
+
+  await textOnly.click();
+  await expect(picker).toContainText("Text-only model");
+  await picker.scrollIntoViewIfNeeded();
+  await captureScreenshot(page, testInfo, "bot-model-picker-text-only-selected");
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "dark";
+  });
+  await captureScreenshot(page, testInfo, "bot-model-picker-text-only-selected-dark");
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "light";
+  });
+  await expect(picker.getByTitle("Can't read images")).toBeVisible();
+  await expect(picker).toHaveAccessibleDescription("Can't read images");
+
+  await picker.click();
+  await page.getByRole("combobox", { name: "Search models" }).fill("Vision model 1");
+  await vision.click();
+  await expect(picker.getByTitle("Can't read images")).toHaveCount(0);
+});
+
 function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -783,7 +876,8 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
 
   const search = page.getByRole("combobox", { name: "Search models" });
   await expect(search).toBeFocused();
-  const options = page.locator('[data-slot="command-list"]').getByRole("option");
+  const list = page.getByRole("listbox", { name: "Model", exact: true });
+  const options = list.getByRole("option");
   await expect(options).toHaveCount(openRouter.length + 1);
   // Rows show names, so this provider prefix can only match the model ids.
   const anthropicIds = openRouter.filter((entry) => entry.id.includes("anthropic/")).length;
@@ -792,17 +886,22 @@ test("chat settings search a long model list", async ({ page }, testInfo) => {
   await expect(options).toHaveCount(anthropicIds);
   await captureScreenshot(page, testInfo, "chat-settings-model-search");
 
+  // With no match the dropdown says so and stays open on the search.
+  const noMatches = page.getByText("No matching models", { exact: true });
   await search.fill("no model is called this");
   await expect(options).toHaveCount(0);
-  await expect(page.getByText("No matching models")).toBeVisible();
+  await expect(noMatches).toBeVisible();
+  await expect(search).toBeFocused();
   await captureScreenshot(page, testInfo, "chat-settings-model-search-empty");
+  await search.locator("..").getByRole("button", { name: "Clear", exact: true }).click();
+  await expect(search).toHaveValue("");
+  await expect(noMatches).toBeHidden();
+  await expect(options).toHaveCount(openRouter.length + 1);
+  await expect(search).toBeFocused();
 
   await search.fill(target.id);
   const targetLabel = `${target.providerName ?? target.provider} · ${target.label}`;
-  await page
-    .locator('[data-slot="command-list"]')
-    .getByRole("option", { name: targetLabel, exact: true })
-    .click();
+  await list.getByRole("option", { name: targetLabel, exact: true }).click();
   await expect(search).toBeHidden();
   await expect(model).toHaveText(targetLabel);
   const saved = page.waitForResponse(

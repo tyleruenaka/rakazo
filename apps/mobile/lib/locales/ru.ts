@@ -2,6 +2,8 @@ export const RU_MESSAGES: Record<string, string> = {
   Export: "Экспорт",
   "Add open work": "Добавить задачу",
   "Open work": "Открытые задачи",
+  Provider: "Провайдер",
+  "No matching providers": "Подходящие провайдеры не найдены",
   "To:": "Кому:",
   Next: "Далее",
   "Ex: Project Falcon": "Например: проект «Сокол»",
@@ -138,6 +140,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "Set up Executor on your server in the web app.":
     "Настройте Executor на сервере в веб-приложении.",
   "Space default": "Пространство по умолчанию",
+  "Can't read images": "Не может читать изображения",
   "Stop all workers and confirm that provider operations have stopped before releasing this computer.":
     "Остановите всех воркеров и убедитесь, что операции провайдера остановлены, прежде чем освобождать этот компьютер.",
   Thinking: "Рассуждение",
@@ -284,7 +287,6 @@ export const RU_MESSAGES: Record<string, string> = {
   "Connect MCP server {name}": "Подключение MCP-сервера {name}",
   "Connect Treg": "Подключить Treg",
   Connected: "Подключено",
-  "Connected · {label}": "Подключено · {label}",
   "Connected. Its tools are available from your next message.":
     "Подключено. Его инструменты доступны со следующего сообщения.",
   "Connected and using {label}.": "Подключено и используется {label}.",
@@ -806,7 +808,6 @@ export const RU_MESSAGES: Record<string, string> = {
   "Could not disconnect this provider": "Не удалось отключить этого провайдера",
   "Default ({level})": "По умолчанию ({level})",
   "Disconnected {provider}.": "{provider} отключён.",
-  "Save limits": "Сохранить лимиты",
   "Sign in again": "Войти снова",
   "Thinking: {level}": "Рассуждение: {level}",
   "Waiting for sign-in — the code expires in about {minutes} minutes.":

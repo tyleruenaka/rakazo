@@ -2,6 +2,8 @@ export const NL_MESSAGES: Record<string, string> = {
   Export: "Exporteren",
   "Add open work": "Open taak toevoegen",
   "Open work": "Open taken",
+  Provider: "Provider",
+  "No matching providers": "Geen overeenkomende providers",
   "To:": "Aan:",
   Next: "Volgende",
   "Ex: Project Falcon": "Bijv. Project Falcon",
@@ -356,6 +358,7 @@ export const NL_MESSAGES: Record<string, string> = {
   Save: "Opslaan",
   "Saving…": "Bezig met opslaan…",
   "Space default": "Spacestandaard",
+  "Can't read images": "Kan afbeeldingen niet lezen",
   Thinking: "Denkt",
   Title: "Titel",
   "What this bot is for": "Waarvoor deze bot is",
@@ -424,7 +427,6 @@ export const NL_MESSAGES: Record<string, string> = {
   "Connect API key": "API-sleutel koppelen",
   "Connect MCP server {name}": "MCP-server {name} koppelen",
   "Connected and using {label}.": "Gekoppeld en gebruikt {label}.",
-  "Connected · {label}": "Gekoppeld · {label}",
   "Connected. Its tools are available from your next message.":
     "Gekoppeld. Zijn tools zijn beschikbaar vanaf je volgende bericht.",
   "Context limit": "Contextlimiet",
@@ -793,7 +795,6 @@ export const NL_MESSAGES: Record<string, string> = {
   "Could not disconnect this provider": "Deze aanbieder loskoppelen mislukt",
   "Default ({level})": "Standaard ({level})",
   "Disconnected {provider}.": "{provider} losgekoppeld.",
-  "Save limits": "Limieten opslaan",
   "Sign in again": "Opnieuw aanmelden",
   "Thinking: {level}": "Denkt: {level}",
   "Waiting for sign-in — the code expires in about {minutes} minutes.":

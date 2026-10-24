@@ -54,7 +54,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@rakazo/ui-web";
-import { Check, ChevronDown, Copy, ImageOff, X } from "lucide-react";
+import { Check, ChevronDown, Copy, X } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
@@ -62,6 +62,7 @@ import {
   modelPreflightTestingLabel,
 } from "../components/ModelConnectionPreflightNotice";
 import { settingsNativeSelectClass } from "../components/SettingsLayout";
+import { TextOnlyMark } from "../components/TextOnlyMark";
 import { useCopyText } from "../lib/copy-text";
 import { providerRowHint } from "../lib/localized-provider-hint";
 import type { ModelCatalogEntry, ModelCredential } from "../lib/model-auth";
@@ -1892,15 +1893,5 @@ function ModelOption({
         ) : null}
       </span>
     </button>
-  );
-}
-
-/** Subtle warning for a model that cannot read images. Screen readers get the words via `aria-describedby`. */
-function TextOnlyMark() {
-  const { t } = useLingui();
-  return (
-    <span className="flex items-center" title={t`Can't read images`} aria-hidden="true">
-      <ImageOff size={14} strokeWidth={1.8} />
-    </span>
   );
 }
