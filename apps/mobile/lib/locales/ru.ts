@@ -974,6 +974,14 @@ export const RU_MESSAGES: Record<string, string> = {
   Dictate: "Диктовать",
   Expand: "Развернуть",
   "Photo or Video": "Фото или видео",
+  "Microphone is off": "Микрофон выключен",
+  "Open Settings": "Открыть настройки",
+  "Turn on the microphone and speech recognition for Rakazo in Settings.":
+    "Включите микрофон и распознавание речи для Rakazo в настройках.",
+  "Dictation stopped": "Диктовка остановлена",
+  "Speech recognition is not available.": "Распознавание речи недоступно.",
+  "Speech recognition stopped. Tap the mic to try again.":
+    "Распознавание речи остановлено. Нажмите на микрофон, чтобы попробовать снова.",
   "Stop dictation": "Остановить диктовку",
   "Take Photo": "Сделать фото",
   "Ask {name}": "Спросить {name}",

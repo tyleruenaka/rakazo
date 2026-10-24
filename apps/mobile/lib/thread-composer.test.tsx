@@ -261,8 +261,9 @@ describe("thread composer isolation", () => {
     press("Dictate");
     await act(async () => {});
     act(() => speech.heard!.onError!("language-not-supported"));
+    await act(async () => {});
     expect(container.querySelector('button[aria-label="Stop dictation"]')).toBeNull();
-    expect(alerts.alert).toHaveBeenCalledOnce();
+    expect(alerts.alert).toHaveBeenCalledWith("Dictation stopped", expect.any(String));
   });
 
   it("keeps dictating after a quiet stretch hands back nothing", async () => {

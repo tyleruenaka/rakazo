@@ -935,6 +935,14 @@ export const NL_MESSAGES: Record<string, string> = {
   Dictate: "Dicteren",
   Expand: "Uitvouwen",
   "Photo or Video": "Foto of video",
+  "Microphone is off": "Microfoon staat uit",
+  "Open Settings": "Instellingen openen",
+  "Turn on the microphone and speech recognition for Rakazo in Settings.":
+    "Zet de microfoon en spraakherkenning voor Rakazo aan in Instellingen.",
+  "Dictation stopped": "Dicteren gestopt",
+  "Speech recognition is not available.": "Spraakherkenning is niet beschikbaar.",
+  "Speech recognition stopped. Tap the mic to try again.":
+    "Spraakherkenning is gestopt. Tik op de microfoon om het opnieuw te proberen.",
   "Stop dictation": "Dicteren stoppen",
   "Take Photo": "Maak foto",
   "Ask {name}": "Vraag {name}",

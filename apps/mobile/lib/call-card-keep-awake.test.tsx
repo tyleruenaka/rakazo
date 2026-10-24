@@ -110,6 +110,8 @@ describe("CallCard keep-awake lifetime", () => {
 
   it("keeps the screen awake only while a call is active", async () => {
     const deps: CallDeps = {
+      micAccess: async () => "granted",
+      callAudio: vi.fn(),
       dictate: async () => true,
       record: vi.fn(),
       transcribe: vi.fn(),

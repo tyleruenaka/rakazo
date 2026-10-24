@@ -1,15 +1,15 @@
-import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
+import { createAudioPlayer, setAudioModeAsync, setIsAudioActiveAsync } from "expo-audio";
 import * as SecureStore from "expo-secure-store";
 import * as Speech from "expo-speech";
 import { Platform } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureApiRequestContext, currentApiBase, rpc } from "./api";
 import {
+  DEVICE_SPEECH_START_TIMEOUT_MS,
   getVoicePlaybackState,
   MAX_VOICE_AUDIO_BYTES,
   pauseVoicePlayback,
   playMpeg,
-  DEVICE_SPEECH_START_TIMEOUT_MS,
   resumeVoicePlayback,
   setCallAudio,
   speakQueue,
@@ -36,6 +36,7 @@ vi.mock("expo-file-system", () => ({
 vi.mock("expo-audio", () => ({
   createAudioPlayer: vi.fn(),
   setAudioModeAsync: vi.fn(async () => undefined),
+  setIsAudioActiveAsync: vi.fn(async () => undefined),
 }));
 vi.mock("expo-secure-store", () => ({
   getItemAsync: vi.fn(),
@@ -571,18 +572,17 @@ describe("hosted voice playback controls", () => {
     setCallAudio(true);
     try {
       await expect(speakText("Read this", { botId: "bot-1" })).resolves.toBe(true);
+      expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
       expect(setAudioModeAsync).toHaveBeenLastCalledWith(
-        expect.objectContaining({ allowsRecording: true, playsInSilentMode: true }),
+        expect.objectContaining({ allowsRecording: true, interruptionMode: "doNotMix" }),
       );
-      expect(options).toEqual([
-        { keepAudioSessionActive: true },
-        { keepAudioSessionActive: true },
-      ]);
+      expect(options).toEqual([{ keepAudioSessionActive: true }, { keepAudioSessionActive: true }]);
     } finally {
       setCallAudio(false);
     }
+    await vi.waitFor(() => expect(setIsAudioActiveAsync).toHaveBeenCalledWith(false));
     expect(setAudioModeAsync).toHaveBeenLastCalledWith(
-      expect.objectContaining({ allowsRecording: false }),
+      expect.not.objectContaining({ allowsRecording: true }),
     );
   });
 

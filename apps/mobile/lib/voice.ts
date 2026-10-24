@@ -19,6 +19,8 @@ type SpeechOptions = {
   speaker?: PlaybackSpeaker;
 };
 export const VOICE_RESPONSE_TIMEOUT_MS = 70_000;
+/** A device voice that has not begun by now never will; its engine dropped the request. */
+export const DEVICE_SPEECH_START_TIMEOUT_MS = 10_000;
 export const MAX_VOICE_AUDIO_BYTES = 16 * 1024 * 1024;
 const MAX_VOICE_ERROR_BYTES = 64 * 1024;
 
@@ -334,13 +336,29 @@ async function loadExpoSpeech(): Promise<typeof ExpoSpeech> {
 
 function speakOneUtterance(Speech: typeof ExpoSpeech, text: string, voice?: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    // iOS reports a failed request (an unknown voice, a session it cannot use) by rejecting
+    // a promise expo-speech drops, so no callback ever fires and the reply would hang.
+    // Android does report errors, and its engine can be slow to warm up.
+    const watchdog =
+      Platform.OS === "ios"
+        ? setTimeout(() => {
+            void Speech.stop();
+            reject(new Error(t("Could not play that clip.")));
+          }, DEVICE_SPEECH_START_TIMEOUT_MS)
+        : undefined;
+    const settle = (error?: Error) => {
+      clearTimeout(watchdog);
+      if (error) reject(error);
+      else resolve();
+    };
     // Only offline voices are assigned; without one, use the engine default.
     Speech.speak(text, {
       ...(voice ? { voice } : {}),
-      onDone: () => resolve(),
+      onStart: () => clearTimeout(watchdog),
+      onDone: () => settle(),
       // Speech.stop() reports onStopped, not onDone.
-      onStopped: () => resolve(),
-      onError: (error) => reject(error instanceof Error ? error : new Error(String(error))),
+      onStopped: () => settle(),
+      onError: (error) => settle(error instanceof Error ? error : new Error(String(error))),
     });
   });
 }
@@ -507,18 +525,50 @@ async function playWithHtmlAudio(
   }
 }
 
+const PLAYBACK_MODE = {
+  playsInSilentMode: true,
+  interruptionMode: "mixWithOthers",
+  shouldPlayInBackground: false,
+} as const;
+/**
+ * Play and record in one session, out of the speaker, like a phone call. These are the same
+ * options the recognizer sets on iOS, so neither one changes the session under the other.
+ */
+const CALL_MODE = {
+  playsInSilentMode: true,
+  interruptionMode: "doNotMix",
+  shouldPlayInBackground: false,
+  allowsRecording: true,
+} as const;
+let onCall = false;
+let audioModeChange: Promise<unknown> = Promise.resolve();
+
+/**
+ * Switches playback to the call's session and back. During a call a clip must not reset the
+ * session to playback only (that stops the microphone) or drop it when it ends. Hanging up
+ * lets the iOS session go, so audio the call paused in other apps resumes.
+ */
+export function setCallAudio(on: boolean): void {
+  if (on === onCall) return;
+  onCall = on;
+  audioModeChange = audioModeChange
+    .then(async () => {
+      const { setAudioModeAsync, setIsAudioActiveAsync } = await import("expo-audio");
+      await setAudioModeAsync(on ? CALL_MODE : PLAYBACK_MODE);
+      // Only iOS: on Android this turns all playback off until it is turned back on.
+      if (!on && Platform.OS === "ios") await setIsAudioActiveAsync(false);
+    })
+    .catch(() => undefined);
+}
+
 async function playWithNativeAudio(bytes: Uint8Array, session?: HostedSession): Promise<void> {
   if (session?.isStopped) return;
   const { createAudioPlayer, setAudioModeAsync } = await import("expo-audio");
-  await setAudioModeAsync({
-    playsInSilentMode: true,
-    interruptionMode: "mixWithOthers",
-    shouldPlayInBackground: false,
-  });
+  if (!onCall) await setAudioModeAsync(PLAYBACK_MODE);
   const file = new File(Paths.cache, `rakazo-voice-${Date.now()}.mp3`);
   file.create({ overwrite: true });
   file.write(bytesToBase64(bytes), { encoding: "base64" });
-  const player = createAudioPlayer({ uri: file.uri });
+  const player = createAudioPlayer({ uri: file.uri }, { keepAudioSessionActive: onCall });
   try {
     await new Promise<void>((resolve, reject) => {
       let settled = false;

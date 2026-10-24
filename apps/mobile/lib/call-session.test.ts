@@ -766,7 +766,7 @@ describe("mobile call session", () => {
     expect(getSnapshot()).toMatchObject({ micBlocked: true, muted: true });
   });
 
-  it("puts a recognizer failure on the call and opens the microphone again", async () => {
+  it("records the turn through the provider when the recognizer stops working", async () => {
     const fake = fakes({ onDevice: true });
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -774,12 +774,83 @@ describe("mobile call session", () => {
 
     fake.failMic("audio-capture");
     await flush();
-    expect(getSnapshot()?.caption).not.toBe("");
-    expect(fake.signals).toHaveLength(2);
+    expect(fake.recordings).toHaveLength(1);
+    expect(getSnapshot()).toMatchObject({ phase: "listening", muted: false });
+  });
 
+  it("mutes with a way to retry when the recognizer stops and nothing else can listen", async () => {
+    const fake = fakes({ onDevice: true });
+    startCall({ botId: "bot-1", botName: "Ada", transcribe: false }, fake.deps);
+    await flush();
+
+    fake.failMic("service-not-allowed");
+    await flush();
+    expect(getSnapshot()).toMatchObject({ muted: true, micBlocked: false });
+    expect(getSnapshot()?.caption).toMatch(/Tap the mic/);
+    expect(fake.signals).toHaveLength(1);
+
+    toggleMute();
+    await flush();
+    expect(fake.signals).toHaveLength(2);
+  });
+
+  it("points to Settings when the recognizer was refused the microphone", async () => {
+    const fake = fakes({ onDevice: true });
+    let access: "granted" | "denied" = "granted";
+    startCall(
+      { botId: "bot-1", botName: "Ada", transcribe: false },
+      { ...fake.deps, micAccess: async () => access },
+    );
+    await flush();
+
+    access = "denied";
     fake.failMic("not-allowed");
     await flush();
     expect(getSnapshot()).toMatchObject({ micBlocked: true, muted: true });
+  });
+
+  it("lets the reply play on when the recognizer stops over it", async () => {
+    const fake = fakes({ onDevice: true });
+    startCall({ botId: "bot-1", botName: "Ada", transcribe: false }, fake.deps);
+    await flush();
+    fake.hear("status please");
+    await flush();
+    fake.replyWith("message-1", "It is green.");
+    await flush();
+    const opened = fake.signals.length;
+
+    fake.failMic("audio-capture");
+    await flush();
+    expect(getSnapshot()).toMatchObject({ phase: "speaking", muted: false });
+    expect(fake.stopSpeaking).not.toHaveBeenCalled();
+
+    fake.speeches[fake.speeches.length - 1]?.resolve();
+    await flush();
+    expect(getSnapshot()?.phase).toBe("listening");
+    expect(fake.signals).toHaveLength(opened + 1);
+  });
+
+  it("stops the reply when the caller hangs up over it", async () => {
+    const fake = fakes();
+    startCall({ botId: "bot-1", botName: "Ada", greeting: "Hello, Ada here." }, fake.deps);
+    await flush();
+    expect(getSnapshot()?.phase).toBe("speaking");
+    endCall();
+    expect(fake.stopSpeaking).toHaveBeenCalledOnce();
+  });
+
+  it("still greets when the microphone is refused, and keeps the Settings hint", async () => {
+    const fake = fakes();
+    startCall(
+      { botId: "bot-1", botName: "Ada", transcribe: false, greeting: "Hello, Ada here." },
+      { ...fake.deps, micAccess: async () => "denied" },
+    );
+    await flush();
+    expect(fake.spoken).toEqual(["Hello, Ada here."]);
+    fake.speeches[0]?.resolve();
+    await flush();
+    expect(getSnapshot()).toMatchObject({ phase: "listening", micBlocked: true, muted: true });
+    expect(getSnapshot()?.caption).toMatch(/Settings/);
   });
 
   it("keeps the reply playing when the microphone hears nothing over it", async () => {

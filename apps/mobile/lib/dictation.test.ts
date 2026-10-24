@@ -16,6 +16,7 @@ const device = vi.hoisted(() => ({
   }[],
 }));
 vi.mock("expo-localization", () => ({ getLocales: () => device.locales }));
+vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
 
 type Listener = (payload: never) => void;
 
@@ -49,6 +50,9 @@ function fakeRecognizer(opts: { supported?: string[] } = {}) {
     abort,
     isRecognitionAvailable: () => true,
     requestPermissionsAsync: async () => ({ granted: true }),
+    ...(opts.supported
+      ? { getSupportedLocales: async () => ({ locales: opts.supported ?? [] }) }
+      : {}),
     addListener: (event, listener) => {
       const set = listeners.get(event) ?? new Set();
       set.add(listener as Listener);
@@ -104,6 +108,11 @@ describe("mobile dictation", () => {
       lang: "en-US",
       interimResults: true,
       continuous: true,
+      iosCategory: {
+        category: "playAndRecord",
+        categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
+        mode: "default",
+      },
     });
 
     fake.hear("how is the");
@@ -188,6 +197,20 @@ describe("mobile dictation", () => {
     stop();
     await listen({ lang: "zh-CN", onFinal: vi.fn() });
     expect(fake.start).toHaveBeenLastCalledWith(expect.objectContaining({ lang: "zh-CN" }));
+  });
+
+  it("only asks an iPhone for a language variant it lists", async () => {
+    const iphone = fakeRecognizer({ supported: ["en-GB", "en-US", "nl-NL", "zh-CN", "zh-TW"] });
+    setSpeechRecognizer(iphone.recognizer);
+    // English on a phone set to the Netherlands: iOS has no "en-NL" recogniser.
+    device.locales = [{ languageTag: "en-NL", languageCode: "en" }];
+    await listen({ lang: "en", onFinal: vi.fn() });
+    expect(iphone.start).toHaveBeenLastCalledWith(expect.objectContaining({ lang: "en-US" }));
+
+    stop();
+    device.locales = [{ languageTag: "zh-Hans-CN", languageCode: "zh" }];
+    await listen({ lang: "zh", onFinal: vi.fn() });
+    expect(iphone.start).toHaveBeenLastCalledWith(expect.objectContaining({ lang: "zh-CN" }));
   });
 
   it("says why when the recognizer cannot run, instead of going quiet", async () => {
