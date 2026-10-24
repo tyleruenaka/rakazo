@@ -16,6 +16,7 @@ let server: Server;
 let serverUrl: string;
 let configHome: string;
 let app: ElectronApplication | undefined;
+let appUrl: string;
 
 test.beforeAll(async () => {
   // Stands in for a server build that registers its worker wherever the desktop bridge is missing,
@@ -57,8 +58,9 @@ test.afterEach(async () => {
   await rm(configHome, { recursive: true, force: true });
 });
 
-async function launch() {
-  const env = { ...process.env, XDG_CONFIG_HOME: configHome, RAKAZO_WEB_URL: serverUrl };
+async function launch(url = serverUrl) {
+  appUrl = url;
+  const env = { ...process.env, XDG_CONFIG_HOME: configHome, RAKAZO_WEB_URL: url };
   delete env.RAKAZO_PERFORMANCE_USER_DATA;
   app = await electron.launch({ args: ["."], cwd: path.resolve(import.meta.dirname, ".."), env });
   // The first window can be the hidden startup check, so wait for the visible app window.
@@ -81,7 +83,7 @@ function mainWindow() {
         signedIn: cookies.length > 0,
       };
     },
-    { url: serverUrl, name: SIGN_IN_COOKIE },
+    { url: appUrl, name: SIGN_IN_COOKIE },
   );
 }
 
@@ -126,5 +128,29 @@ test("a web worker left in the default session does not sign the user out on the
       [],
     );
     await quit();
+  }
+});
+
+test("a startup check that never finishes loading still opens the app in its own session", async () => {
+  test.setTimeout(60_000);
+  // Only a window without the desktop bridge (the hidden startup check) asks for /never.js, and
+  // that request never gets an answer, so the check's page never finishes loading.
+  const stalled = createServer((request, response) => {
+    if (request.url === "/never.js") return;
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Rakazo</title></head><body><main>${APP_MARKER}</main><script>if (!window.rakazoDesktop) document.write('<script src="/never.js"><\\/script>');</script></body></html>`,
+    );
+  });
+  await new Promise<void>((resolve) => stalled.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = stalled.address();
+    if (address === null || typeof address === "string") throw new Error("stub server has no port");
+    await launch(`http://127.0.0.1:${address.port}`);
+    expect(await mainWindow()).toEqual({ isDefault: false, signedIn: false });
+    await quit();
+  } finally {
+    stalled.closeAllConnections();
+    await new Promise<void>((resolve) => stalled.close(() => resolve()));
   }
 });

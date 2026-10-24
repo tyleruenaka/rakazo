@@ -74,6 +74,8 @@ const PERFORMANCE_USER_DATA = process.env.RAKAZO_PERFORMANCE_USER_DATA;
 const LOCAL_WEB_URL = process.env.RAKAZO_LOCAL_WEB_URL?.trim() || DEFAULT_LOCAL_WEB_URL;
 const PROBE_TIMEOUT_MS = 8_000;
 const APP_DOCUMENT_READY_TIMEOUT_MS = 20_000;
+/** The hidden storage check gives up after this and the app opens in its own partition. */
+const SESSION_PROBE_TIMEOUT_MS = 10_000;
 const DESKTOP_STACK_PROBE_PATH = "/.well-known/rakazo-desktop-stack";
 const DESKTOP_STACK_TOKEN_HEADER = "x-rakazo-desktop-stack-token";
 let mainWindow: BrowserWindow | null = null;
@@ -235,7 +237,11 @@ async function defaultSessionHasOriginData(origin: string): Promise<boolean> {
   // Increment only after construction succeeds so a throw cannot leave the
   // counter stuck > 0 and permanently block quit on Windows/Linux.
   liveProbeWindows++;
-  try {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), SESSION_PROBE_TIMEOUT_MS);
+  });
+  const check = (async () => {
     await probe.loadURL(origin);
     return (await probe.webContents.executeJavaScript(`(async () => {
       if (localStorage.length > 0 || sessionStorage.length > 0) return true;
@@ -253,9 +259,11 @@ async function defaultSessionHasOriginData(origin: string): Promise<boolean> {
       }
       return false;
     })()`)) as boolean;
-  } catch {
-    return false;
+  })().catch(() => false);
+  try {
+    return await Promise.race([check, timedOut]);
   } finally {
+    clearTimeout(timer);
     if (!probe.isDestroyed()) probe.destroy();
     liveProbeWindows--;
   }
