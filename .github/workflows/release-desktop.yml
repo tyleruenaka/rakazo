@@ -1,9 +1,13 @@
 name: release-desktop
 
 on:
-  push:
-    tags: ["v*"]
+  # The fork's release environment only deploys from my-ui, so releases are dispatched there.
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the GitHub release (leave unchecked to keep it as a draft)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,6 +22,9 @@ jobs:
   validate:
     name: Validate stable release
     runs-on: ubuntu-24.04
+    permissions:
+      # Draft releases are only listed for tokens with push access.
+      contents: write
     outputs:
       tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
@@ -29,42 +36,34 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Validate tag, version, ancestry, and monotonicity
+      - name: Validate branch, version, tag, and monotonicity
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_REF_TYPE: ${{ github.ref_type }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$RELEASE_REF_TYPE" != "tag" ]]; then
-            echo "Desktop releases must run from a tag, including manual dispatches." >&2
+          if [[ "$GITHUB_REF" != "refs/heads/my-ui" ]]; then
+            echo "Desktop releases must be dispatched from the my-ui branch, not $GITHUB_REF." >&2
             exit 1
           fi
+
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          RELEASE_TAG="v$version"
           if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "Desktop releases use the stable vMAJOR.MINOR.PATCH channel." >&2
             exit 1
           fi
 
-          version="$(node -p "require('./apps/desktop/package.json').version")"
-          if [[ "$RELEASE_TAG" != "v$version" ]]; then
-            echo "Tag $RELEASE_TAG does not match desktop version $version." >&2
+          remote_tag="$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}")"
+          if [[ -n "$remote_tag" ]] || git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            echo "Tag $RELEASE_TAG already exists; bump the version in apps/desktop/package.json." >&2
             exit 1
           fi
-
-          tag_sha="$(git rev-parse "${RELEASE_TAG}^{commit}")"
-          if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
-            echo "The workflow revision does not match the tagged commit." >&2
-            exit 1
-          fi
-          git fetch --no-tags origin main
-          if ! git merge-base --is-ancestor "$tag_sha" origin/main; then
-            echo "Desktop releases must point to a commit already on main." >&2
-            exit 1
-          fi
-          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "A release already exists for $RELEASE_TAG; refusing to replace it." >&2
+          # releases/tags/<tag> never returns drafts, so match tag_name across every release.
+          existing="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq ".[] | select(.tag_name == \"${RELEASE_TAG}\") | .id")"
+          if [[ -n "$existing" ]]; then
+            echo "A release or draft already exists for $RELEASE_TAG; refusing to replace it." >&2
             exit 1
           fi
 
@@ -84,7 +83,7 @@ jobs:
 
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "sha=$tag_sha" >> "$GITHUB_OUTPUT"
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - name: Choose release platforms
         id: platforms
         env:
@@ -104,6 +103,7 @@ jobs:
     name: Build signed ${{ matrix.artifact }} artifacts
     needs: validate
     runs-on: ${{ matrix.os }}
+    environment: release
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -168,6 +168,8 @@ jobs:
       - name: Verify macOS signature, notarization ticket, and update feed
         if: runner.os == 'macOS'
         shell: bash
+        env:
+          RELEASE_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           app="apps/desktop/out/mac-universal/Rakazo.app"
@@ -187,7 +189,7 @@ jobs:
           xcrun stapler validate "$app"
           spctl --assess --type execute --verbose=2 "$app"
           grep -Fqx "provider: github" "$app/Contents/Resources/app-update.yml"
-          grep -Fqx "owner: elie222" "$app/Contents/Resources/app-update.yml"
+          grep -Fqx "owner: $RELEASE_OWNER" "$app/Contents/Resources/app-update.yml"
           grep -Fqx "repo: rakazo" "$app/Contents/Resources/app-update.yml"
 
       - name: Verify the packaged native bridge dependency
@@ -228,6 +230,8 @@ jobs:
       - name: Verify Windows Authenticode signature and publisher-bound update feed
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          RELEASE_OWNER: ${{ github.repository_owner }}
         run: |
           $ErrorActionPreference = "Stop"
           $executables = @(
@@ -246,7 +250,7 @@ jobs:
             throw "Windows update config is not bound to the signing publisher."
           }
           $feed = Get-Content -Raw $config
-          foreach ($expected in @("provider: github", "owner: elie222", "repo: rakazo")) {
+          foreach ($expected in @("provider: github", "owner: $env:RELEASE_OWNER", "repo: rakazo")) {
             if ($feed -notmatch "(?m)^$([regex]::Escape($expected))\r?$") {
               throw "Windows update config missing '$expected'."
             }
@@ -261,6 +265,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         env:
+          RELEASE_OWNER: ${{ github.repository_owner }}
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
           set -euo pipefail
@@ -271,7 +276,7 @@ jobs:
           test -n "$config"
           test -f "$config"
           grep -Fqx "provider: github" "$config"
-          grep -Fqx "owner: elie222" "$config"
+          grep -Fqx "owner: $RELEASE_OWNER" "$config"
           grep -Fqx "repo: rakazo" "$config"
           test -f apps/desktop/out/latest-linux.yml
           grep -Fqx "version: $RELEASE_VERSION" apps/desktop/out/latest-linux.yml
@@ -295,6 +300,7 @@ jobs:
     name: Attest and publish complete release
     needs: [validate, build]
     runs-on: ubuntu-24.04
+    environment: release
     timeout-minutes: 15
     permissions:
       actions: read
@@ -321,9 +327,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          if [[ "$(git rev-parse "${RELEASE_TAG}^{commit}")" != "$RELEASE_SHA" ]]; then
-            echo "The release tag moved after the build started." >&2
+          # The tag is created at RELEASE_SHA when the release is published; nobody may create it first.
+          remote_tag="$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}")"
+          if [[ -n "$remote_tag" ]]; then
+            echo "Tag $RELEASE_TAG was created after validation; refusing to publish onto it." >&2
             exit 1
           fi
 
@@ -360,10 +367,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
         run: >-
           gh release create "$RELEASE_TAG" release-artifacts/*
-          --draft --generate-notes --title "Rakazo $RELEASE_TAG" --verify-tag
+          --draft --generate-notes --title "Rakazo $RELEASE_TAG" --target "$RELEASE_SHA"
       - name: Publish the completed release
+        if: inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
@@ -375,6 +384,6 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         shell: bash
         run: |
-          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq .draft 2>/dev/null)" == "true" ]]; then
+          if [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)" == "true" ]]; then
             gh release delete "$RELEASE_TAG" --yes
           fi
