@@ -1,0 +1,220 @@
+name: testflight
+
+# Builds the iPhone app from my-ui and uploads it to TestFlight. Run it with:
+#   gh workflow run testflight.yml --ref my-ui [-f build_number=N]
+#
+# GitHub only lets you dispatch a workflow it has registered, and it registers files from the
+# default branch. This file lives on my-ui only, so the push trigger below exists just to register
+# it when it lands on my-ui; every job skips unless the run was dispatched by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Build number to use. Leave empty for the latest TestFlight build + 1."
+        required: false
+        default: ""
+  push:
+    branches: [my-ui]
+    paths: [.github/workflows/testflight.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Require my-ui
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse other refs
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [[ "$REF" != "refs/heads/my-ui" ]]; then
+            echo "TestFlight builds run from my-ui only (got $REF)." >&2
+            exit 1
+          fi
+
+  build:
+    name: Build and upload to TestFlight
+    needs: guard
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    timeout-minutes: 90
+    environment: release
+    env:
+      # Same Xcode as the EAS iOS image in apps/mobile/eas.json.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
+      RAKAZO_IOS_BUNDLE_ID: ${{ secrets.RAKAZO_IOS_BUNDLE_ID }}
+      RAKAZO_APPLE_TEAM_ID: ${{ secrets.RAKAZO_APPLE_TEAM_ID }}
+      EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+      RAKAZO_EAS_PROJECT_ID: ${{ secrets.RAKAZO_EAS_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Check Xcode and credentials
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          missing=()
+          for name in APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER RAKAZO_IOS_BUNDLE_ID \
+            RAKAZO_APPLE_TEAM_ID EXPO_PUBLIC_API_URL RAKAZO_EAS_PROJECT_ID; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "Missing in the release environment: ${missing[*]}" >&2
+            exit 1
+          fi
+          {
+            echo "LOGS=$RUNNER_TEMP/testflight-logs"
+            echo "OUT=$RUNNER_TEMP/testflight"
+            echo "ASC_KEY_PATH=$RUNNER_TEMP/asc-api-key.p8"
+          } >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/testflight-logs" "$RUNNER_TEMP/testflight"
+          (umask 077 && printf '%s\n' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/asc-api-key.p8")
+
+      - name: Choose the build number
+        id: build_number
+        env:
+          OVERRIDE: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$OVERRIDE" ]]; then
+            if [[ ! "$OVERRIDE" =~ ^[1-9][0-9]*$ ]]; then
+              echo "build_number must be a positive whole number." >&2
+              exit 1
+            fi
+            number="$OVERRIDE"
+            echo "Using build_number from the run inputs: $number"
+          else
+            number="$(ASC_BUNDLE_ID="$RAKAZO_IOS_BUNDLE_ID" node scripts/testflight-build-number.mjs)"
+            echo "Latest TestFlight build + 1: $number"
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate the iOS project
+        working-directory: apps/mobile
+        env:
+          BUILD_NUMBER: ${{ steps.build_number.outputs.number }}
+        run: |
+          set -euo pipefail
+          if ! pnpm exec expo prebuild --platform ios --clean > "$LOGS/prebuild.log" 2>&1; then
+            tail -n 80 "$LOGS/prebuild.log"
+            exit 1
+          fi
+          plutil -replace CFBundleVersion -string "$BUILD_NUMBER" ios/Rakazo/Info.plist
+          updates="$(plutil -extract EXUpdatesEnabled raw ios/Rakazo/Supporting/Expo.plist)"
+          if [[ "$updates" != "false" ]]; then
+            echo "EXUpdatesEnabled is '$updates'; over-the-air updates must stay off for this copy." >&2
+            exit 1
+          fi
+          version="$(plutil -extract CFBundleShortVersionString raw ios/Rakazo/Info.plist)"
+          echo "Building version $version, build $BUILD_NUMBER"
+          echo "### TestFlight: version $version, build $BUILD_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive
+        working-directory: apps/mobile/ios
+        run: |
+          set -euo pipefail
+          if ! xcodebuild -workspace Rakazo.xcworkspace -scheme Rakazo -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$OUT/Rakazo.xcarchive" \
+            -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            archive > "$LOGS/archive.log" 2>&1; then
+            grep -E 'error:|\*\* ARCHIVE FAILED' "$LOGS/archive.log" | tail -n 40 || true
+            tail -n 40 "$LOGS/archive.log"
+            exit 1
+          fi
+
+      - name: Check the archived app
+        env:
+          BUILD_NUMBER: ${{ steps.build_number.outputs.number }}
+        run: |
+          set -euo pipefail
+          app="$OUT/Rakazo.xcarchive/Products/Applications/Rakazo.app"
+          plutil -p "$app/Info.plist" | grep -E 'CFBundleIdentifier|DisplayName|ShortVersion|CFBundleVersion|NonExempt'
+          bundle_id="$(plutil -extract CFBundleIdentifier raw "$app/Info.plist")"
+          build="$(plutil -extract CFBundleVersion raw "$app/Info.plist")"
+          updates="$(plutil -extract EXUpdatesEnabled raw "$app/Expo.plist")"
+          project_id="$(plutil -extract extra.eas.projectId raw "$app/EXConstants.bundle/app.config")"
+          aps="$(codesign -d --entitlements :- "$app" 2>/dev/null | plutil -extract aps-environment raw -o - -)"
+          # The bundle and project ids are secrets, so the log masks them; compare them here.
+          same() { if [[ "$2" == "$3" ]]; then echo "$1 matches"; else echo "$1 does NOT match"; fi; }
+          same "CFBundleIdentifier vs RAKAZO_IOS_BUNDLE_ID:" "$bundle_id" "$RAKAZO_IOS_BUNDLE_ID"
+          same "projectId vs RAKAZO_EAS_PROJECT_ID:" "$project_id" "$RAKAZO_EAS_PROJECT_ID"
+          echo "CFBundleVersion=$build"
+          echo "EXUpdatesEnabled=$updates"
+          echo "aps-environment=$aps (archive is development-signed; the upload re-signs for production)"
+          [[ "$bundle_id" == "$RAKAZO_IOS_BUNDLE_ID" && "$project_id" == "$RAKAZO_EAS_PROJECT_ID" ]]
+          [[ "$build" == "$BUILD_NUMBER" && "$updates" == "false" ]]
+
+      - name: Export and upload to TestFlight
+        run: |
+          set -euo pipefail
+          cat > "$OUT/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$RAKAZO_APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          status=0
+          xcodebuild -exportArchive -archivePath "$OUT/Rakazo.xcarchive" -exportPath "$OUT/export" \
+            -exportOptionsPlist "$OUT/ExportOptions.plist" -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" > "$LOGS/upload.log" 2>&1 || status=$?
+          grep -E 'EXPORT SUCCEEDED|Upload succeeded|warning|error' "$LOGS/upload.log" || true
+          exit "$status"
+
+      - name: Delete the API key
+        if: always()
+        run: rm -f "$ASC_KEY_PATH"
+
+      # Uploaded files are not masked like the job log, so replace every secret value first.
+      - name: Scrub logs
+        if: always()
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          [[ -d "$LOGS" ]] || exit 0
+          find "$LOGS" -type f -exec perl -0pi -e '
+            for my $name (qw(APPLE_API_KEY_P8 ASC_KEY_ID ASC_ISSUER_ID RAKAZO_IOS_BUNDLE_ID
+                             RAKAZO_APPLE_TEAM_ID EXPO_PUBLIC_API_URL RAKAZO_EAS_PROJECT_ID)) {
+              my $value = $ENV{$name} // ""; $value =~ s/\s+\z//;
+              s/\Q$value\E/[$name]/g if length $value;
+            }' {} +
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: testflight-logs-${{ github.run_number }}
+          path: ${{ runner.temp }}/testflight-logs
+          if-no-files-found: ignore
+          retention-days: 14
