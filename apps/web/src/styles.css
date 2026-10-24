@@ -108,6 +108,15 @@ body,
   background: color-mix(in srgb, var(--bot-accent) 92.5%, black);
 }
 
+/* The New divider follows the same rule: the lines take your bubble's shade, and in dark "New"
+   takes the full bot color because the shade is too dim for text. */
+[data-chat-accent="bot"] [data-bot-accent] .rk-unread-divider {
+  --unread: color-mix(in srgb, var(--bot-accent) 83%, black);
+}
+[data-theme="dark"][data-chat-accent="bot"] [data-bot-accent] .rk-unread-divider-label {
+  color: var(--bot-accent);
+}
+
 /* A card in the transcript: a hairline ring outside it, and a soft shadow in light. Unlayered,
    so it wins over a component's own radius and ring. */
 .rk-chat-card {

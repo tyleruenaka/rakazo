@@ -34,16 +34,22 @@ vi.mock("react-native", () => {
       createElement("span", { "data-style": JSON.stringify(flatten(props.style)) }, props.children),
   };
 });
-vi.mock("./native", () => ({ useMobileTokens: () => ({ primary: "ink", unread: "unread-blue" }) }));
+const appearance = vi.hoisted(() => ({ current: "dark" as "dark" | "light" }));
+vi.mock("./native", () => ({
+  useMobileTokens: () => ({ primary: "ink", unread: "unread-blue" }),
+  useResolvedAppearance: () => appearance.current,
+}));
 vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
 
 import { UnreadDivider } from "../components/unread-divider";
+import { chatAccentColor } from "./user-bubble-color";
 
 describe("UnreadDivider", () => {
   let root: Root;
   let container: HTMLDivElement;
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    appearance.current = "dark";
     container = document.createElement("div");
     root = createRoot(container);
   });
@@ -79,6 +85,33 @@ describe("UnreadDivider", () => {
         flex: 1,
         opacity: 0.4,
       });
+    }
+  });
+
+  const colors = () => {
+    const [before, label, after] = [...(container.firstElementChild as HTMLElement).children].map(
+      (element) => JSON.parse((element as HTMLElement).dataset.style!),
+    );
+    return { lines: [before.backgroundColor, after.backgroundColor], label: label.color };
+  };
+
+  it("takes the bot's bubble color in a one-on-one chat with a colored bot", () => {
+    const accent = chatAccentColor({ id: "b_1", color: "#8B5CF6" });
+    appearance.current = "light";
+    act(() => root.render(<UnreadDivider accent={accent} />));
+    // The same shade as your bubbles (userBubbleColor), lines and label alike.
+    expect(colors()).toEqual({ lines: ["#734ccc", "#734ccc"], label: "#734ccc" });
+    appearance.current = "dark";
+    act(() => root.render(<UnreadDivider accent={accent} afterSeparator />));
+    // On dark the shade is too dim for text, so New takes the bot's full color.
+    expect(colors()).toEqual({ lines: ["#734ccc", "#734ccc"], label: "#8B5CF6" });
+  });
+
+  it("stays unread blue without an accent, as where your bubbles stay neutral", () => {
+    for (const scheme of ["dark", "light"] as const) {
+      appearance.current = scheme;
+      act(() => root.render(<UnreadDivider />));
+      expect(colors()).toEqual({ lines: ["unread-blue", "unread-blue"], label: "unread-blue" });
     }
   });
 });

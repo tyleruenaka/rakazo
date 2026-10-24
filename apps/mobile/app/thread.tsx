@@ -253,7 +253,7 @@ import type { ThreadScrollAction, ThreadScrollState } from "../lib/thread-scroll
 import { latestArrivalMessageId, ThreadScrollBehavior } from "../lib/thread-scroll";
 import { reconcileVisibleThreadSnapshot } from "../lib/thread-snapshot";
 import { prepareUnsentSends } from "../lib/unsent-sends";
-import { userBubbleColor } from "../lib/user-bubble-color";
+import { bubbleShade, chatAccentColor, userBubbleColor } from "../lib/user-bubble-color";
 import { errorText } from "../lib/user-error";
 import { speakQueue, speakText } from "../lib/voice";
 import {
@@ -2159,10 +2159,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       ),
     [visibleMessages, separatorIds, unreadDividerId],
   );
-  const userBubble = useMemo(
-    () => (inGroup || !currentBot ? undefined : userBubbleColor(currentBot)),
+  const chatAccent = useMemo(
+    () => (inGroup || !currentBot ? undefined : chatAccentColor(currentBot)),
     [inGroup, currentBot],
   );
+  const userBubble = chatAccent && bubbleShade(chatAccent);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -2431,6 +2432,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           joinedAbove={bubbleJoins.has(message.id)}
           joinedBelow={bubbleJoins.has(`below:${message.id}`)}
           userBubbleColor={userBubble}
+          chatAccent={chatAccent}
           unreadDivider={message.id === unreadDividerId}
           replyAuthor={replyAuthor}
           replyFallbackText={parent ? previewMessageText(parent) : undefined}
@@ -2466,6 +2468,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       separatorIds,
       bubbleJoins,
       userBubble,
+      chatAccent,
       unreadDividerId,
       t,
       locale,
@@ -2515,6 +2518,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           {voiceChatHoldsMessage(item, unreadDividerId) ? (
             <UnreadDivider
               afterSeparator={Boolean(item.messages[0] && separatorIds.has(item.messages[0].id))}
+              accent={chatAccent}
             />
           ) : null}
           <Pressable
@@ -2531,7 +2535,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
             <>
               <TimeSeparator createdAt={item.messages[0].createdAt} />
               {voiceChatHoldsMessage(item, unreadDividerId) ? (
-                <UnreadDivider afterSeparator />
+                <UnreadDivider afterSeparator accent={chatAccent} />
               ) : null}
               {/* The row's 44pt tap target pads its line; Grok's line sits 5pt closer. */}
               <View style={{ marginTop: -5 }}>
@@ -2540,7 +2544,9 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
             </>
           ) : (
             <>
-              {voiceChatHoldsMessage(item, unreadDividerId) ? <UnreadDivider /> : null}
+              {voiceChatHoldsMessage(item, unreadDividerId) ? (
+                <UnreadDivider accent={chatAccent} />
+              ) : null}
               <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
             </>
           )}
@@ -2552,6 +2558,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       renderMessageRow,
       separatorIds,
       voiceChatUserBubble,
+      chatAccent,
       peerColor,
       openPeerGroup,
       unreadDividerId,
@@ -3255,6 +3262,8 @@ type MessageRowProps = {
   joinedAbove: boolean;
   joinedBelow: boolean;
   userBubbleColor?: string;
+  /** The bot color tinting your bubbles, for the New divider; undefined when they're neutral. */
+  chatAccent?: string;
   unreadDivider: boolean;
   replyAuthor: string;
   replyFallbackText?: string;
@@ -3320,6 +3329,7 @@ const MessageRow = memo(function MessageRow({
   joinedAbove,
   joinedBelow,
   userBubbleColor,
+  chatAccent,
   unreadDivider,
   replyAuthor,
   replyFallbackText,
@@ -3519,7 +3529,7 @@ const MessageRow = memo(function MessageRow({
       }}
     >
       {separator ? <TimeSeparator createdAt={message.createdAt} /> : null}
-      {unreadDivider ? <UnreadDivider afterSeparator={separator} /> : null}
+      {unreadDivider ? <UnreadDivider afterSeparator={separator} accent={chatAccent} /> : null}
       <View
         style={{
           width: "100%",

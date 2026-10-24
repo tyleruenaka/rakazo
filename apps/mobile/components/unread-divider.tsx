@@ -1,13 +1,27 @@
 import { fontWeight, typeScale } from "@rakazo/ui-tokens";
 import { StyleSheet, Text, View } from "react-native";
 import { useI18n } from "../lib/i18n";
-import { useMobileTokens } from "../lib/native";
+import { useMobileTokens, useResolvedAppearance } from "../lib/native";
+import { bubbleShade } from "../lib/user-bubble-color";
 
-/** Marks where the messages the user hadn't seen yet begin. Sized like the time separator. */
-export function UnreadDivider({ afterSeparator = false }: { afterSeparator?: boolean }) {
+/**
+ * Marks where the messages the user hadn't seen yet begin. Sized like the time separator.
+ * `accent` is the bot color tinting your bubbles: the lines take the bubble shade, and in dark
+ * "New" takes the full color because the shade is too dim for text. Without it, unread blue.
+ */
+export function UnreadDivider({
+  afterSeparator = false,
+  accent,
+}: {
+  afterSeparator?: boolean;
+  accent?: string;
+}) {
   const { t } = useI18n();
   const tokens = useMobileTokens();
-  const line = [styles.line, { backgroundColor: tokens.unread }];
+  const dark = useResolvedAppearance() === "dark";
+  const lineColor = accent ? bubbleShade(accent) : tokens.unread;
+  const labelColor = accent && dark ? accent : lineColor;
+  const line = [styles.line, { backgroundColor: lineColor }];
   return (
     <View
       accessibilityLabel={t("New messages")}
@@ -15,7 +29,7 @@ export function UnreadDivider({ afterSeparator = false }: { afterSeparator?: boo
       style={[styles.row, afterSeparator && { paddingTop: 0 }]}
     >
       <View style={line} />
-      <Text style={[styles.label, { color: tokens.unread }]}>{t("New")}</Text>
+      <Text style={[styles.label, { color: labelColor }]}>{t("New")}</Text>
       <View style={line} />
     </View>
   );
