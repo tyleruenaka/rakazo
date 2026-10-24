@@ -159,11 +159,11 @@ export const BACKGROUND_WORK_PROBE = [
   `idle() { printf '${BACKGROUND_WORK_IDLE_SENTINEL}\\n'; exit 1; }`,
   'markers=("$prefix"*)',
   "if [ -d /proc ]; then",
-  "  command -v readlink >/dev/null 2>&1 || exit 2",
-  "  for fd in /proc/[0-9]*/fd/*; do",
-  '    target="$(readlink "$fd" 2>/dev/null)"',
-  '    case "$target" in "$prefix"*) exit 0 ;; esac',
-  "  done",
+  // One find over every fd; a readlink per fd took over 10s on busy computers.
+  // A find that is missing or cannot match link targets would print nothing, so check it first.
+  "  find /proc/self/fd -maxdepth 0 -lname x -quit >/dev/null 2>&1 || exit 2",
+  '  held="$(find /proc/[0-9]*/fd -mindepth 1 -maxdepth 1 -lname "$prefix*" -print -quit 2>/dev/null)"',
+  '  [ -n "$held" ] && exit 0',
   `  for marker in "\${markers[@]}"; do [ -e "$marker" ] && rm -f -- "$marker"; done`,
   "  idle",
   "fi",

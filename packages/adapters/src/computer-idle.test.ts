@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import type { AgentHomeStore, JobPublisher, SandboxProvider } from "@rakazo/adapter-kit";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -722,6 +724,87 @@ describe("background work launch and probe", () => {
       expect(await probeBackgroundWork(computerId)).toBe(1);
     },
   );
+
+  it.skipIf(process.platform !== "linux")(
+    "answers quickly on a computer with thousands of open files",
+    async () => {
+      const markerId = "computer-many-fds";
+      const heldMarker = `/tmp/rakazo-background-${markerId}-run-1-held`;
+      const deletedMarker = `/tmp/rakazo-background-${markerId}-run-1-deleted`;
+      markers.add(heldMarker);
+      markers.add(deletedMarker);
+
+      const manyFiles = spawn(
+        "bash",
+        [
+          "-c",
+          'ulimit -n 4096 || exit 3; for fd in $(seq 10 3009); do eval "exec $fd</dev/null"; done; echo ready; exec sleep 60',
+        ],
+        { stdio: ["ignore", "pipe", "ignore"] },
+      );
+      children.push(manyFiles);
+      await new Promise<void>((resolve, reject) => {
+        manyFiles.stdout?.once("data", () => resolve());
+        manyFiles.once("close", (code) => reject(new Error(`fd holder exited with ${code}`)));
+      });
+
+      const started = Date.now();
+      expect(await runProbe(markerId)).toEqual({ code: 1, stdout: "rakazo-background-idle\n" });
+      expect(Date.now() - started).toBeLessThan(2_000);
+
+      const launch = (launchId: string) => {
+        const child = spawn(
+          "bash",
+          [
+            "-c",
+            BACKGROUND_WORK_LAUNCH,
+            "rakazo-background-launch",
+            markerId,
+            "run-1",
+            launchId,
+            "exec sleep 60",
+          ],
+          { stdio: "ignore" },
+        );
+        children.push(child);
+        return child;
+      };
+
+      const held = launch("held");
+      await expect.poll(() => existsSync(heldMarker)).toBe(true);
+      expect((await runProbe(markerId)).code).toBe(0);
+      held.kill("SIGKILL");
+      await processExit(held);
+
+      launch("deleted");
+      await expect.poll(() => existsSync(deletedMarker)).toBe(true);
+      rmSync(deletedMarker);
+      expect((await runProbe(markerId)).code).toBe(0);
+    },
+    30_000,
+  );
+
+  it.skipIf(process.platform !== "linux")(
+    "reports busy when find cannot match open files by target",
+    async () => {
+      const bin = mkdtempSync(path.join(tmpdir(), "rakazo-probe-bin-"));
+      markers.add(bin);
+      // A find without -lname (e.g. a minimal busybox) errors out and prints nothing.
+      writeFileSync(
+        path.join(bin, "find"),
+        "#!/bin/sh\necho 'find: unrecognized: -lname' >&2\nexit 1\n",
+        {
+          mode: 0o755,
+        },
+      );
+      const child = spawn(
+        "/bin/bash",
+        ["-c", BACKGROUND_WORK_PROBE, "rakazo-background-probe", "computer-limited-find"],
+        { stdio: "ignore", env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` } },
+      );
+      expect(await processExit(child)).toBe(2);
+    },
+  );
 });
 
 describe("CANCEL_PRIMARY_BROWSER_WORK", () => {
@@ -857,15 +940,25 @@ function idleHarness(
   };
 }
 
-function probeBackgroundWork(markerId: string): Promise<number> {
+async function probeBackgroundWork(markerId: string): Promise<number> {
+  return (await runProbe(markerId)).code;
+}
+
+function runProbe(markerId: string): Promise<{ code: number; stdout: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "bash",
       ["-c", BACKGROUND_WORK_PROBE, "rakazo-background-probe", markerId],
-      { stdio: ["ignore", "pipe", "pipe"] },
+      {
+        stdio: ["ignore", "pipe", "ignore"],
+      },
     );
+    let stdout = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
     child.on("error", reject);
-    child.on("close", (code) => resolve(code ?? 1));
+    child.on("close", (code) => resolve({ code: code ?? 1, stdout }));
   });
 }
 
