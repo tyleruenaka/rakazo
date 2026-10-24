@@ -288,7 +288,7 @@ describe("thread menu archive notifications", () => {
     thread.indexOf("  function showBotActions()"),
   );
 
-  function setup() {
+  function setup(currentBot: { primary?: boolean } = { primary: false }) {
     const rpc = vi.fn();
     const notify = vi.fn();
     const leave = vi.fn();
@@ -300,6 +300,7 @@ describe("thread menu archive notifications", () => {
       "leaveBot",
       "confirmDeleteBot",
       "Alert",
+      "currentBot",
       compile(`
         const readOnly = false, botId = "bot-b", displayName = "Bot";
         const t = text => text, openBotComputer = () => {}, clearConversation = () => {};
@@ -307,7 +308,10 @@ describe("thread menu archive notifications", () => {
         ${actionsSource}
         return botActions;
       `),
-    )(rpc, notify, leave, confirmDeleteBot, { alert }) as { text: string; onPress: () => void }[];
+    )(rpc, notify, leave, confirmDeleteBot, { alert }, currentBot) as {
+      text: string;
+      onPress: () => void;
+    }[];
     return { rpc, notify, leave, confirmDeleteBot, alert, actions };
   }
 
@@ -340,6 +344,13 @@ describe("thread menu archive notifications", () => {
     h.confirmDeleteBot.mock.calls[0]![1]();
     expect(h.notify).toHaveBeenCalledOnce();
     expect(h.leave).toHaveBeenCalledOnce();
+  });
+
+  it("never offers Delete for the Primary bot", () => {
+    const texts = (primary: boolean) => setup({ primary }).actions.map((action) => action.text);
+    expect(texts(true)).not.toContain("Delete…");
+    expect(texts(true)).toContain("Archive");
+    expect(texts(false)).toContain("Delete…");
   });
 });
 

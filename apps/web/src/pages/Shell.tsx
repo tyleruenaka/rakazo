@@ -4592,15 +4592,18 @@ function SpaceShell() {
                       >
                         <Trans>Restore</Trans>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="text-destructive hover:text-destructive"
-                        aria-label={t`Delete ${bot.name}`}
-                        onClick={() => setDeleteTarget(bot)}
-                      >
-                        <Trans>Delete</Trans>
-                      </Button>
+                      {/* The Primary bot can't be deleted. */}
+                      {bot.primary ? null : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={t`Delete ${bot.name}`}
+                          onClick={() => setDeleteTarget(bot)}
+                        >
+                          <Trans>Delete</Trans>
+                        </Button>
+                      )}
                     </div>
                   ))}
                   {archivedGroups.map((group) => (

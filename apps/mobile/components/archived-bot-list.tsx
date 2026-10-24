@@ -38,11 +38,16 @@ export function ArchivedBotList({
             colorScheme={scheme}
             actions={[
               { id: "restore", title: t("Restore"), attributes: { disabled: pending } },
-              {
-                id: "delete",
-                title: t("Delete"),
-                attributes: { destructive: true, disabled: pending },
-              },
+              // The Primary bot can't be deleted.
+              ...(bot.primary
+                ? []
+                : [
+                    {
+                      id: "delete",
+                      title: t("Delete"),
+                      attributes: { destructive: true, disabled: pending },
+                    },
+                  ]),
             ]}
             onPressAction={({ nativeEvent }) =>
               nativeEvent.event === "restore" ? onRestore(bot) : onDelete(bot)
