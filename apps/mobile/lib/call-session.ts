@@ -21,6 +21,7 @@ import {
   rpc,
   subscribeThread,
 } from "./api";
+import { callPreferences, loadCallPreferences } from "./call-preferences";
 import type { CallCue } from "./call-sounds";
 import {
   playCallCue,
@@ -243,6 +244,8 @@ async function openCall(openedCallId: string, greeting?: string): Promise<void> 
   const [, mic] = await Promise.all([
     deps.cue("start").catch(() => undefined),
     deps.micAccess().catch((): dictation.MicAccess => "unavailable"),
+    // The listening language and the reply speed come from the call's settings.
+    loadCallPreferences(),
   ]);
   if (!state || callId !== openedCallId) return;
   opening = false;
@@ -733,7 +736,9 @@ function productionDeps(): CallDeps {
 /** The device's own speech recognition, which works with a speak-only voice provider. */
 async function dictateTurn(handlers: DictationHandlers, signal: AbortSignal): Promise<boolean> {
   if (!(await dictation.available())) return false;
-  await dictation.listen({ ...handlers, signal, lang: getActiveUiLocale() });
+  const { language } = callPreferences();
+  const lang = language === "auto" ? getActiveUiLocale() : language;
+  await dictation.listen({ ...handlers, signal, lang });
   return true;
 }
 

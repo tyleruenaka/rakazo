@@ -6,6 +6,7 @@ import { promptAiConsent } from "./ai-consent";
 import type { ApiRequestContext } from "./api";
 import { aiConsentCoalesceKey, captureApiRequestContext, rpc } from "./api";
 import { voiceForBot } from "./bot-voices";
+import { callPreferences } from "./call-preferences";
 import { loadDeviceVoiceEnabled } from "./device-voice";
 import { t } from "./i18n";
 import { errorText, voiceAccountErrorText } from "./user-error";
@@ -351,9 +352,11 @@ function speakOneUtterance(Speech: typeof ExpoSpeech, text: string, voice?: stri
       if (error) reject(error);
       else resolve();
     };
-    // Only offline voices are assigned; without one, use the engine default.
+    // Only offline voices are assigned; without one, use the engine default. Always pass the
+    // rate: Android's engine keeps the last one it was given.
     Speech.speak(text, {
       ...(voice ? { voice } : {}),
+      rate: playbackRate(),
       onStart: () => clearTimeout(watchdog),
       onDone: () => settle(),
       // Speech.stop() reports onStopped, not onDone.
@@ -484,6 +487,7 @@ async function playWithHtmlAudio(
   const url = URL.createObjectURL(blob);
   try {
     const audio = new AudioCtor(url);
+    audio.playbackRate = playbackRate();
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = (error?: Error) => {
@@ -543,6 +547,11 @@ const CALL_MODE = {
 let onCall = false;
 let audioModeChange: Promise<unknown> = Promise.resolve();
 
+/** A call plays at the speed picked in its settings; everything else at normal speed. */
+function playbackRate(): number {
+  return onCall ? callPreferences().speed : 1;
+}
+
 /**
  * Switches playback to the call's session and back. During a call a clip must not reset the
  * session to playback only (that stops the microphone) or drop it when it ends. Hanging up
@@ -569,6 +578,8 @@ async function playWithNativeAudio(bytes: Uint8Array, session?: HostedSession): 
   file.create({ overwrite: true });
   file.write(bytesToBase64(bytes), { encoding: "base64" });
   const player = createAudioPlayer({ uri: file.uri }, { keepAudioSessionActive: onCall });
+  const rate = playbackRate();
+  if (rate !== 1) player.setPlaybackRate(rate);
   try {
     await new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -602,7 +613,7 @@ async function playWithNativeAudio(bytes: Uint8Array, session?: HostedSession): 
           clearTimeout(timer);
           timer = setTimeout(
             () => finish(new Error(t("Could not play that clip."))),
-            Math.min(120_000, Math.ceil(status.duration * 1000) + 8_000),
+            Math.min(120_000, Math.ceil((status.duration * 1000) / rate) + 8_000),
           );
         }
       });

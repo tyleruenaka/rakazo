@@ -943,6 +943,8 @@ export const NL_MESSAGES: Record<string, string> = {
   "Speech recognition is not available.": "Spraakherkenning is niet beschikbaar.",
   "Speech recognition stopped. Tap the mic to try again.":
     "Spraakherkenning is gestopt. Tik op de microfoon om het opnieuw te proberen.",
+  Speed: "Snelheid",
+  Auto: "Automatisch",
   "Stop dictation": "Dicteren stoppen",
   "Take Photo": "Maak foto",
   "Ask {name}": "Vraag {name}",

@@ -982,6 +982,8 @@ export const RU_MESSAGES: Record<string, string> = {
   "Speech recognition is not available.": "Распознавание речи недоступно.",
   "Speech recognition stopped. Tap the mic to try again.":
     "Распознавание речи остановлено. Нажмите на микрофон, чтобы попробовать снова.",
+  Speed: "Скорость",
+  Auto: "Авто",
   "Stop dictation": "Остановить диктовку",
   "Take Photo": "Сделать фото",
   "Ask {name}": "Спросить {name}",

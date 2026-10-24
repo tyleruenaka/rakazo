@@ -1,5 +1,6 @@
 import { AiConsentBlocked, callIdFromClientNonce, INTERIM_BARGE_IN_MS } from "@rakazo/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetCallPreferencesForTests } from "./call-preferences";
 import type { CallClip, CallDeps, CallEnded, DictationHandlers } from "./call-session";
 import {
   endCall,
@@ -10,8 +11,14 @@ import {
   subscribe,
   toggleMute,
 } from "./call-session";
+import { setSpeechRecognizer } from "./dictation";
 
 vi.mock("expo-file-system", () => ({ File: class {}, Paths: {} }));
+const saved = vi.hoisted(() => ({ preferences: null as string | null }));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: async () => saved.preferences,
+  setItemAsync: async () => undefined,
+}));
 vi.mock("./voice", () => ({ speakText: vi.fn(), stopSpeaking: vi.fn() }));
 vi.mock("./call-sounds", () => ({ playCallCue: vi.fn() }));
 vi.mock("./api", () => ({
@@ -876,6 +883,31 @@ describe("mobile call session", () => {
     expect(callAudio).toHaveBeenLastCalledWith(true);
     endCall();
     expect(callAudio).toHaveBeenLastCalledWith(false);
+  });
+
+  it("listens in the language picked in the call's settings", async () => {
+    saved.preferences = JSON.stringify({ speed: 1, language: "de-DE" });
+    resetCallPreferencesForTests();
+    const start = vi.fn();
+    setSpeechRecognizer({
+      start,
+      stop: vi.fn(),
+      abort: vi.fn(),
+      isRecognitionAvailable: () => true,
+      requestPermissionsAsync: async () => ({ granted: true }),
+      addListener: () => ({ remove: () => undefined }),
+    });
+    try {
+      const { dictate: _fake, ...deps } = fakes().deps;
+      startCall({ botId: "bot-1", botName: "Ada" }, deps);
+      await vi.waitFor(() =>
+        expect(start).toHaveBeenCalledWith(expect.objectContaining({ lang: "de-DE" })),
+      );
+    } finally {
+      setSpeechRecognizer(null);
+      saved.preferences = null;
+      resetCallPreferencesForTests();
+    }
   });
 
   it("keeps the microphone closed until the opening cue ends and the greeting starts", async () => {

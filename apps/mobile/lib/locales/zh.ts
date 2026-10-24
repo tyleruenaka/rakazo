@@ -949,6 +949,8 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Dictation stopped": "听写已停止",
   "Speech recognition is not available.": "语音识别不可用。",
   "Speech recognition stopped. Tap the mic to try again.": "语音识别已停止。轻点麦克风重试。",
+  Speed: "速度",
+  Auto: "自动",
   "Stop dictation": "停止听写",
   "Take Photo": "拍照",
   "Ask {name}": "询问 {name}",

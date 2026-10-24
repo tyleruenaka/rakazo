@@ -987,6 +987,8 @@ export const DE_MESSAGES: Record<string, string> = {
   "Speech recognition is not available.": "Spracherkennung ist nicht verfügbar.",
   "Speech recognition stopped. Tap the mic to try again.":
     "Spracherkennung wurde beendet. Tippe auf das Mikrofon, um es erneut zu versuchen.",
+  Speed: "Geschwindigkeit",
+  Auto: "Automatisch",
   "Stop dictation": "Diktat beenden",
   "Take Photo": "Foto aufnehmen",
   "Ask {name}": "{name} fragen",
