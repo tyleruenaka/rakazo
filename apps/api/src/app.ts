@@ -135,6 +135,7 @@ import {
 import { createMessagingReceipts } from "./messaging-receipts.js";
 import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
 import { monitoringRoutes } from "./monitoring.js";
+import { mountPushAvatarRoute } from "./push-avatar.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
@@ -449,6 +450,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       sessionExpiresAt: (sessionId) => pushSessionExpiresAt(prisma, sessionId),
       jobs,
       accessToken: env.expoAccessToken,
+      avatarLinks: { origin: env.apiUrl, encryptionKey: env.encryptionKey },
     });
   const auth = createAuth(prisma, {
     analytics,
@@ -788,6 +790,11 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return actor;
   });
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
+  mountPushAvatarRoute(app, {
+    prisma,
+    encryptionKey: env.encryptionKey,
+    member: (userId, spaceId) => actorFromMembership(requireMembership(prisma, userId, spaceId)),
+  });
   if (billing && billingProvider) {
     mountBillingRoutes(app, {
       billing,

@@ -15,6 +15,7 @@ import { getLogger } from "@rakazo/logging";
 import koffi from "koffi";
 import { combineSignals } from "./connector-safety.js";
 import { credentialDigest } from "./credential-digest.js";
+import { type PushAvatarLinks, pushAvatarUrl } from "./push-avatar.js";
 import { readBodyCapped, withAbort } from "./web-ssrf.js";
 
 const O_NOFOLLOW = constants.O_NOFOLLOW ?? 0;
@@ -451,6 +452,8 @@ export type ExpoPushOptions = {
   /** Sent as a bearer token when the Expo project enforces enhanced push security. */
   accessToken?: string;
   retryDelaysMs?: readonly number[];
+  /** Lets a bot's message show that bot's name and picture on iOS. */
+  avatarLinks?: PushAvatarLinks;
 };
 
 export class ExpoPushProvider implements NotificationProvider {
@@ -458,6 +461,7 @@ export class ExpoPushProvider implements NotificationProvider {
   private readonly jobs?: JobPublisher;
   private readonly accessToken?: string;
   private readonly retryDelaysMs: readonly number[];
+  private readonly avatarLinks?: PushAvatarLinks;
 
   constructor(
     private readonly dataDir: string,
@@ -467,6 +471,7 @@ export class ExpoPushProvider implements NotificationProvider {
     this.jobs = options.jobs;
     this.accessToken = options.accessToken?.trim() || undefined;
     this.retryDelaysMs = options.retryDelaysMs ?? EXPO_PUSH_RETRY_DELAYS_MS;
+    this.avatarLinks = options.avatarLinks;
   }
 
   describe() {
@@ -494,6 +499,7 @@ export class ExpoPushProvider implements NotificationProvider {
   async deliver(message: NotificationMessage, context: AdapterContext): Promise<ExpoPushDelivery> {
     const token = await this.deliverableToken(context.userId);
     if (!token) return "undeliverable";
+    const sender = this.sender(message, context);
     const payload = {
       to: token,
       title: capped(message.title, MAX_PUSH_TITLE_CHARS),
@@ -501,7 +507,12 @@ export class ExpoPushProvider implements NotificationProvider {
       collapseId: message.threadId,
       tag: message.threadId,
       ...(message.badge === undefined ? {} : { badge: message.badge }),
-      data: expoPushData(message, context.spaceId, randomUUID()),
+      // mutableContent wakes the iOS notification service, which fetches the picture.
+      ...(sender ? { mutableContent: true } : {}),
+      data: {
+        ...expoPushData(message, context.spaceId, randomUUID()),
+        ...(sender ? { sender } : {}),
+      },
     };
     for (let attempt = 0; ; attempt += 1) {
       const { status, body } = await postToExpo(
@@ -535,6 +546,19 @@ export class ExpoPushProvider implements NotificationProvider {
       if (ticket?.id) await this.scheduleReceiptCheck(context.userId, token, ticket.id);
       return "delivered";
     }
+  }
+
+  /** Who a bot's message is from, with a short-lived link to the bot's picture. */
+  private sender(message: NotificationMessage, context: AdapterContext) {
+    if (!message.sender || !this.avatarLinks) return undefined;
+    const avatarUrl = pushAvatarUrl(this.avatarLinks, {
+      botId: message.botId,
+      spaceId: context.spaceId,
+      userId: context.userId,
+    });
+    return avatarUrl
+      ? { name: capped(message.sender.name, MAX_PUSH_TITLE_CHARS), avatarUrl }
+      : undefined;
   }
 
   /** Drops the token when the receipt says the device is no longer registered. */

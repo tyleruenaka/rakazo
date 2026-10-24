@@ -18,6 +18,7 @@ import {
   PushSessionEndedError,
   savePushToken,
 } from "./expo-push.js";
+import { openPushAvatarToken } from "./push-avatar.js";
 
 const dirs: string[] = [];
 
@@ -811,6 +812,105 @@ flock(fd, 8);
     expect(Array.from(sent?.title ?? "")).toHaveLength(100);
     expect(Array.from(sent?.body ?? "")).toHaveLength(180);
     expect(sent?.body.endsWith("…")).toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(sent))).toBeLessThan(4096);
+  });
+});
+
+describe("bot message pushes on iOS", () => {
+  const avatarLinks = {
+    origin: "https://rakazo.example",
+    encryptionKey: "test-encryption-key-test-encryption-key",
+  };
+  type Sent = {
+    title: string;
+    mutableContent?: boolean;
+    data: { sender?: { name: string; avatarUrl: string } };
+  };
+
+  async function sendOne(
+    message: Parameters<ExpoPushProvider["send"]>[0],
+    links: { origin: string; encryptionKey: string } | null = avatarLinks,
+  ) {
+    const dataDir = await mkdtemp(path.join(tmpdir(), "rakazo-push-"));
+    dirs.push(dataDir);
+    await savePushToken(dataDir, "user-1", "ExponentPushToken[test]");
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse({ data: { status: "ok", id: "ticket" } })),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    await new ExpoPushProvider(dataDir, { avatarLinks: links ?? undefined }).send(
+      message,
+      notifyContext,
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return JSON.parse(String(init.body)) as Sent;
+  }
+
+  it("marks a bot's message for the notification service with the bot's name and picture", async () => {
+    const sent = await sendOne({
+      kind: "completion",
+      title: "Remy finished",
+      body: "All set.",
+      botId: "bot-1",
+      threadId: "th-1",
+      sender: { name: "Remy" },
+    });
+    expect(sent.mutableContent).toBe(true);
+    expect(sent.title).toBe("Remy finished");
+    expect(sent.data.sender?.name).toBe("Remy");
+    const link = new URL(sent.data.sender?.avatarUrl ?? "");
+    expect(link.origin + link.pathname).toBe("https://rakazo.example/api/push-avatar");
+    expect(
+      openPushAvatarToken(link.searchParams.get("token") ?? "", avatarLinks.encryptionKey),
+    ).toEqual({
+      botId: "bot-1",
+      spaceId: "w",
+      userId: "user-1",
+    });
+  });
+
+  it("leaves other pushes as they are", async () => {
+    const sent = await sendOne({
+      kind: "help",
+      title: "Remy needs approval",
+      body: "Run this?",
+      botId: "bot-1",
+      threadId: "th-1",
+    });
+    expect(sent).not.toHaveProperty("mutableContent");
+    expect(sent.data).not.toHaveProperty("sender");
+  });
+
+  it("sends a plain push when the server has no public HTTPS address", async () => {
+    const message = {
+      kind: "completion" as const,
+      title: "Remy finished",
+      body: "All set.",
+      botId: "bot-1",
+      threadId: "th-1",
+      sender: { name: "Remy" },
+    };
+    for (const links of [null, { ...avatarLinks, origin: "http://127.0.0.1:3100" }]) {
+      const sent = await sendOne(message, links);
+      expect(sent).not.toHaveProperty("mutableContent");
+      expect(sent.data).not.toHaveProperty("sender");
+    }
+  });
+
+  it("stays inside Expo's payload limit at the longest name, title and body", async () => {
+    const sent = await sendOne({
+      kind: "completion",
+      title: "🤖".repeat(500),
+      body: "é".repeat(5_000),
+      botId: "c".repeat(40),
+      threadId: "t".repeat(40),
+      groupId: "g".repeat(40),
+      badge: 999,
+      sender: { name: "🤖".repeat(500) },
+    });
+    expect(Array.from(sent.data.sender?.name ?? "")).toHaveLength(100);
     expect(Buffer.byteLength(JSON.stringify(sent))).toBeLessThan(4096);
   });
 });

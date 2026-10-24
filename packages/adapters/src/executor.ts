@@ -8253,6 +8253,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               body: notifyBody,
               botId: bot.id,
               threadId: thread.id,
+              sender: { name: displayName(bot.name, "Bot") },
             });
           }
           // Last, and never fatal: the run is already finalized, so a failure here must not reach

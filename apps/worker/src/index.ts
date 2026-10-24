@@ -202,6 +202,11 @@ async function main() {
     sessionExpiresAt: (sessionId) => pushSessionExpiresAt(prisma, sessionId),
     jobs,
     accessToken: process.env.EXPO_ACCESS_TOKEN,
+    // The API serves the picture links the worker signs, so both use its public URL and key.
+    avatarLinks: {
+      origin: process.env.API_URL ?? "",
+      encryptionKey: resolveEncryptionKey(process.env),
+    },
   });
   const executor = createRunExecutor({
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
