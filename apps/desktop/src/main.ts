@@ -181,7 +181,7 @@ async function resolveSessionForTarget(targetUrl: string) {
   const origin = safeOrigin(targetUrl);
   if (origin !== null) {
     // The web app's service worker is for browsers. One that a server build registered in the
-    // hidden probe below can stall that probe or answer it with its own caches, so drop it first.
+    // hidden probe below can stall that probe, so drop it first.
     await session.defaultSession
       .clearStorageData({ origin, storages: ["serviceworkers", "cachestorage"] })
       .catch(() => undefined);
@@ -243,18 +243,14 @@ async function defaultSessionHasOriginData(origin: string): Promise<boolean> {
   });
   const check = (async () => {
     await probe.loadURL(origin);
+    // Cache Storage is left out: only the service worker writes it, and this page can register that
+    // worker again and fill a cache before the check reads it.
     return (await probe.webContents.executeJavaScript(`(async () => {
       if (localStorage.length > 0 || sessionStorage.length > 0) return true;
       if (typeof indexedDB !== "undefined" && indexedDB.databases) {
         try {
           const databases = await indexedDB.databases();
           if (databases.length > 0) return true;
-        } catch {}
-      }
-      if (typeof caches !== "undefined") {
-        try {
-          const keys = await caches.keys();
-          if (keys.length > 0) return true;
         } catch {}
       }
       return false;
