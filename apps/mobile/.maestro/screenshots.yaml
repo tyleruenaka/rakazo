@@ -50,15 +50,36 @@ tags:
     timeout: 30000
 - takeScreenshot: "04-inbox"
 
-# On Android, Create opens a dialog with the create choices.
+# On Android, Create opens a menu with the create choices and Activity.
 - tapOn: "Create"
 - extendedWaitUntil:
     visible: "New Space"
     timeout: 10000
 - assertVisible: "New Bot"
 - assertVisible: "New Group Chat"
+- assertVisible: "Activity"
 - takeScreenshot: "05-create-menu"
-- back
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: "Recent"
+    timeout: 10000
+- takeScreenshot: "05b-activity"
+# Turn Activity back off so the inbox shows its chats again.
+- tapOn: "Create"
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: "Researcher"
+    timeout: 10000
+# The menu opens under +, so a quick double tap closes it instead of landing on New Bot.
+- doubleTapOn: "Create"
+- waitForAnimationToEnd
+- assertNotVisible: "Create New Bot"
+- runFlow:
+    when:
+      visible: "New Space"
+    commands:
+      - back
+- assertVisible: "Researcher"
 
 - tapOn:
     id: "home-search-button"
@@ -154,8 +175,6 @@ tags:
 - assertVisible: "Read-only"
 - takeScreenshot: "15f-thread-peer-exchange"
 - back
-# Menus come before typing: closing one while the message box has focus brings its
-# keyboard back, and the next press then only closes the keyboard.
 # Holding a message opens the reaction row and grouped actions next to it.
 - longPressOn: "The fixture workspace is ready."
 - assertVisible: "Reply"
@@ -235,6 +254,11 @@ tags:
 - assertVisible: "Reply"
 - assertVisible: "👍"
 - assertVisible: "Speak message"
+- back
+# Closing the menu must not bring the keyboard back, so the next hold opens the menu again.
+- longPressOn: "The fixture launch plan is ready."
+- assertVisible: "Reply"
+- takeScreenshot: "19c-group-thread-menu-again"
 - back
 
 - openLink: "rakazo:///group-settings?groupId=${RAKAZO_SCREENSHOT_GROUP_ID}"

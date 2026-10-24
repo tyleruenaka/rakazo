@@ -53,4 +53,17 @@ describe("message menu placement", () => {
     expect(result.left).toBe(42);
     expect(result.menuWidth).toBe(206);
   });
+
+  it("opens a menu from a button below that button, so a quick second tap can't land on a row", () => {
+    // A phone with the + button in the top corner: 44dp tall, its bottom edge at y=98.
+    const phone = { width: 411, height: 914, insets: { top: 54, bottom: 24, left: 0, right: 0 } };
+    const result = messageMenuPlacement({
+      ...phone,
+      maxWidth: 340,
+      measuredHeight: 225,
+      anchor: { x: 374, y: 98, below: true },
+    });
+    expect(result.top).toBeGreaterThanOrEqual(98);
+    expect(result.top + 225).toBeLessThanOrEqual(914 - 24);
+  });
 });

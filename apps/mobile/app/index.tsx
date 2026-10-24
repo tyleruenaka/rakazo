@@ -54,6 +54,7 @@ import { GlassSurface } from "../components/glass-surface";
 import { GroupAvatar } from "../components/group-avatar";
 import { HomeErrorState } from "../components/home-error-state";
 import { InboxPinnedMenu, InboxSwipeRow } from "../components/inbox-swipe-row";
+import { presentMessageMenu } from "../components/message-action-menu";
 import { NativeSymbol } from "../components/native-symbol";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {
@@ -704,19 +705,50 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     [router],
   );
 
+  // Android: the long-press menu card, since an Alert keeps only its first three buttons.
+  const createButton = useRef<View>(null);
   const openCreateChooser = useCallback(() => {
-    Alert.alert(
-      t("Create"),
-      undefined,
-      [
-        { text: t("New Bot"), onPress: () => runCreateAction("bot") },
-        { text: t("New Group Chat"), onPress: () => runCreateAction("group") },
-        { text: t("New Space"), onPress: () => runCreateAction("space") },
-        { text: t("Activity"), onPress: toggleActivityMode },
-      ],
-      { cancelable: true },
-    );
-  }, [runCreateAction, toggleActivityMode, t]);
+    createButton.current?.measureInWindow((x, y, width, height) => {
+      presentMessageMenu({
+        reactions: [],
+        groups: [
+          [
+            {
+              name: "bot",
+              text: t("New Bot"),
+              icon: { ios: "person.badge.plus", android: "person-add-outline" },
+              onPress: () => runCreateAction("bot"),
+            },
+            {
+              name: "group",
+              text: t("New Group Chat"),
+              icon: { ios: "person.2", android: "people-outline" },
+              onPress: () => runCreateAction("group"),
+            },
+            {
+              name: "space",
+              text: t("New Space"),
+              icon: { ios: "square.grid.2x2", android: "grid-outline" },
+              onPress: () => runCreateAction("space"),
+            },
+          ],
+          [
+            {
+              name: "activity",
+              text: t("Activity"),
+              // A check while it's on, like the iOS menu's state.
+              icon: activityMode
+                ? { ios: "checkmark", android: "checkmark" }
+                : { ios: "waveform", android: "pulse-outline" },
+              onPress: toggleActivityMode,
+            },
+          ],
+        ],
+        // Under +, so a quick double tap closes the menu instead of hitting New Bot.
+        anchor: { x: x + width / 2, y: y + height, below: true },
+      });
+    });
+  }, [activityMode, runCreateAction, toggleActivityMode, t]);
 
   useLayoutEffect(() => {
     if (!nativeHeader) return;
@@ -1245,7 +1277,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
               <Text style={styles.profileInitials}>{initials}</Text>
             </HeaderButton>
           </View>
-          <View style={styles.circleButton}>
+          <View ref={createButton} collapsable={false} style={styles.circleButton}>
             {Platform.OS === "android" ? (
               // A plain button: the native Android menu trigger collapses to zero width when the
               // installed app binary is older than the JS update, which hid the only way to create.

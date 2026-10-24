@@ -1,6 +1,7 @@
 import type Ionicons from "@react-native-vector-icons/ionicons";
 import type { ComponentProps } from "react";
 import { useSyncExternalStore } from "react";
+import { Keyboard, Platform } from "react-native";
 import { MessageMenuSheet } from "./message-menu-sheet";
 
 export type MessageMenuItem = {
@@ -18,8 +19,11 @@ export type MessageMenuSpec = {
   reactions: { emoji: string; selected?: boolean; onPress: () => void }[];
   /** Groups of actions, drawn as separate rounded blocks. */
   groups: MessageMenuItem[][];
-  /** Where the finger was, so the Android menu opens next to the message. */
-  anchor: { x: number; y: number };
+  /**
+   * Where the finger was, so the Android menu opens next to the message. With `below`, `y` is a
+   * button's bottom edge and the menu opens under it, so a quick second tap can't land on a row.
+   */
+  anchor: { x: number; y: number; below?: boolean };
 };
 
 let current: MessageMenuSpec | null = null;
@@ -34,6 +38,9 @@ function setMenu(next: MessageMenuSpec | null) {
 
 /** Opens the reaction and action sheet for a long-pressed message. */
 export function presentMessageMenu(spec: MessageMenuSpec) {
+  // The Android menu is its own window. If the message box keeps focus behind it, Android
+  // shows the keyboard again when the menu closes, and the next press only hides it.
+  if (Platform.OS === "android") Keyboard.dismiss();
   opened += 1;
   setMenu(spec);
 }
