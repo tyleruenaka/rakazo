@@ -192,18 +192,22 @@ export function ModelPickerList({
     if (noMatches) AccessibilityInfo.announceForAccessibility(noMatchesMessage);
   }, [noMatches, noMatchesMessage]);
 
-  return (
+  const sectionList = (
     <SectionList
       ref={list}
       onViewableItemsChanged={revealInitialSelection}
       onScrollToIndexFailed={retryInitialSelection}
       onScrollBeginDrag={cancelInitialScroll}
       initialNumToRender={initialNumToRender}
-      key={Platform.OS === "android" ? "android" : query}
+      key={query}
       style={styles.screen}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerInset + 16, paddingBottom: insets.bottom + 72 },
+        // On Android the pinned search bar adds 8 below itself, so the resting gap stays 16.
+        {
+          paddingTop: headerInset + (Platform.OS === "android" ? 8 : 16),
+          paddingBottom: insets.bottom + 72,
+        },
       ]}
       // Reserve the transparent bar explicitly: native search can drop its automatic inset.
       automaticallyAdjustKeyboardInsets
@@ -226,29 +230,6 @@ export function ModelPickerList({
           <View style={styles.separator} />
         </View>
       )}
-      ListHeaderComponent={
-        Platform.OS === "android" ? (
-          <View style={styles.search}>
-            <NativeSymbol
-              android="search"
-              color={mobileTokens().sheetLabel}
-              ios="magnifyingglass"
-              size={18}
-            />
-            <TextInput
-              accessibilityLabel={t("Search")}
-              placeholder={t("Search")}
-              placeholderTextColor={mobileTokens().sheetLabel}
-              value={query}
-              onChangeText={changeQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-              style={styles.searchInput}
-            />
-          </View>
-        ) : null
-      }
       ListEmptyComponent={
         error || noMatches ? (
           <Text style={styles.empty}>{error ?? noMatchesMessage}</Text>
@@ -287,6 +268,34 @@ export function ModelPickerList({
         );
       }}
     />
+  );
+  if (Platform.OS !== "android") return sectionList;
+
+  // Android has no native header search, so the field sits above the list instead of
+  // scrolling with it: opening on a far-down pick must not leave search out of reach.
+  return (
+    <View style={styles.screen}>
+      <View style={styles.search}>
+        <NativeSymbol
+          android="search"
+          color={mobileTokens().sheetLabel}
+          ios="magnifyingglass"
+          size={18}
+        />
+        <TextInput
+          accessibilityLabel={t("Search")}
+          placeholder={t("Search")}
+          placeholderTextColor={mobileTokens().sheetLabel}
+          value={query}
+          onChangeText={changeQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          style={styles.searchInput}
+        />
+      </View>
+      {sectionList}
+    </View>
   );
 }
 
@@ -329,7 +338,9 @@ function createStyles() {
       alignItems: "center",
       gap: 8,
       paddingHorizontal: 14,
-      marginBottom: 16,
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 8,
     },
     searchInput: { flex: 1, height: "100%", color: native.label, fontSize: 17 },
     empty: {

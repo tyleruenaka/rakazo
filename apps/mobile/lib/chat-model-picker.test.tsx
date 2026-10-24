@@ -1267,7 +1267,7 @@ describe("shared model picker presentation", () => {
     expect(container.textContent).toBe("Could not load model settings");
   });
 
-  it("keeps the Android search input mounted while filtering", async () => {
+  it("pins the Android search above the list and starts each search at the top", async () => {
     mocks.platform = "android";
     await act(async () =>
       root.render(
@@ -1277,6 +1277,9 @@ describe("shared model picker presentation", () => {
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Search"]')!;
     expect(input).not.toBeNull();
     expect(mocks.setOptions).not.toHaveBeenCalled();
+    // Outside the scrolling list, so opening scrolled to a far-down pick leaves it on screen.
+    expect(input.closest("ul")).toBeNull();
+    const initialList = container.querySelector("ul");
     // React's controlled input setter plus input event exercises the Android fallback.
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     act(() => {
@@ -1285,5 +1288,7 @@ describe("shared model picker presentation", () => {
     });
     expect(pickerRows().map((row) => row.textContent)).toEqual(["Gemini"]);
     expect(container.querySelector("input")).toBe(input);
+    // A fresh list per query, so results start at the top rather than at the old scroll offset.
+    expect(container.querySelector("ul")).not.toBe(initialList);
   });
 });

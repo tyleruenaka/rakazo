@@ -1,0 +1,175 @@
+appId: com.rakazo.app
+name: Model list search stays on screen
+tags:
+  - screenshots
+---
+# The Model list opens scrolled to the current pick. With a far-down pick, the search
+# field must still be on screen. A made-up OpenRouter key on the disposable test server
+# fills the list with the full catalog. Runs last so the key stays out of other flows.
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: deny
+- extendedWaitUntil:
+    visible: "Sign up for Rakazo|Pixel Launcher isn't responding"
+    timeout: 30000
+    optional: true
+# The emulator can kill the fresh process while it removes the cleared task. Launch once more.
+- runFlow:
+    when:
+      notVisible: "Sign up for Rakazo|Pixel Launcher isn't responding"
+    commands:
+      - launchApp
+      - extendedWaitUntil:
+          visible: "Sign up for Rakazo|Pixel Launcher isn't responding"
+          timeout: 30000
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Sign up for Rakazo"
+    timeout: 30000
+- tapOn: "Sign in"
+- runFlow: helpers/server.yaml
+- runFlow: helpers/use-password.yaml
+- tapOn: "Email"
+- inputText: ${RAKAZO_SCREENSHOT_EMAIL}
+- tapOn: "Password"
+- inputText: ${RAKAZO_SCREENSHOT_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+- tapOn:
+    text: "Don’t allow"
+    optional: true
+- extendedWaitUntil:
+    visible: "Researcher"
+    timeout: 30000
+
+- openLink: "rakazo:///models"
+- extendedWaitUntil:
+    visible: "Active model"
+    timeout: 15000
+- runFlow:
+    when:
+      visible: "Connect API key"
+    commands:
+      - tapOn: "sk-.*"
+      - inputText: "fake-test-openrouter-key"
+      - hideKeyboard
+      - tapOn: "Connect API key"
+      - extendedWaitUntil:
+          visible: "Disconnect"
+          timeout: 30000
+          optional: true
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Model"
+    direction: UP
+    optional: true
+
+# A bot's own model, from Edit Bot > Advanced > Model. It opens at the top, so search is
+# on screen; pick a model near the bottom of the list and reopen on it.
+- openLink: "rakazo:///bot-settings?botId=${RAKAZO_SCREENSHOT_BOT_ID}"
+- extendedWaitUntil:
+    visible: "Advanced"
+    timeout: 10000
+- tapOn: "Advanced"
+- scrollUntilVisible:
+    element: "Space default.*|.*MiMo-V2\\.6-Pro.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Space default.*|.*MiMo-V2\\.6-Pro.*"
+- extendedWaitUntil:
+    visible: "Search"
+    timeout: 15000
+- tapOn: "Search"
+- inputText: "MiMo-V2.6"
+- hideKeyboard
+- tapOn: "MiMo-V2.6-Pro"
+- extendedWaitUntil:
+    notVisible: "Search"
+    timeout: 15000
+- scrollUntilVisible:
+    element: ".*MiMo-V2\\.6-Pro.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: ".*MiMo-V2\\.6-Pro.*"
+- extendedWaitUntil:
+    notVisible: "Advanced"
+    timeout: 15000
+- assertVisible: "MiMo-V2.6-Pro"
+- waitForAnimationToEnd
+- takeScreenshot: "mp-01-bot-model-reopen-far-pick"
+- assertVisible: "Search"
+- back
+
+- openLink: "rakazo:///models"
+- extendedWaitUntil:
+    visible: "Active model"
+    timeout: 15000
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Model"
+    direction: UP
+    optional: true
+
+# The list opens on the current model, mid-list. Search must still be on screen.
+- tapOn:
+    text: "Model"
+    index: 0
+- extendedWaitUntil:
+    notVisible: "Active model"
+    timeout: 15000
+- waitForAnimationToEnd
+- assertVisible: "GPT-6 Luna|MiMo-V2\\.6-Pro"
+- takeScreenshot: "mp-02-first-open"
+- assertVisible: "Search"
+
+# The keyboard leaves the field and the first results visible.
+- tapOn: "Search"
+- inputText: "MiMo-V2.6"
+- assertVisible: "Search"
+- assertVisible: "MiMo-V2.6-Pro"
+- takeScreenshot: "mp-03-search-keyboard"
+- eraseText: 20
+- inputText: "qwen"
+- assertVisible: "Search"
+- takeScreenshot: "mp-04-search-many-results"
+- eraseText: 20
+- inputText: "no model has this name"
+- assertVisible: "No matching models"
+- takeScreenshot: "mp-05-no-matches"
+- eraseText: 30
+- inputText: "MiMo-V2.6"
+- hideKeyboard
+- tapOn: "MiMo-V2.6-Pro"
+- extendedWaitUntil:
+    visible: "Active model"
+    timeout: 15000
+- waitForAnimationToEnd
+# Absent when this server already uses the pick (the flow ran before on another window).
+- tapOn:
+    text: "Use this model"
+    optional: true
+- waitForAnimationToEnd
+
+# Saved, left and reopened: still lands on the pick with search on screen.
+- openLink: "rakazo:///account"
+- waitForAnimationToEnd
+- openLink: "rakazo:///models"
+- extendedWaitUntil:
+    visible: "Active model"
+    timeout: 15000
+- waitForAnimationToEnd
+- tapOn:
+    text: "Model"
+    index: 0
+- extendedWaitUntil:
+    notVisible: "Active model"
+    timeout: 15000
+- waitForAnimationToEnd
+- assertVisible: "MiMo-V2.6-Pro"
+- takeScreenshot: "mp-06-saved-reopen"
+- assertVisible: "Search"
