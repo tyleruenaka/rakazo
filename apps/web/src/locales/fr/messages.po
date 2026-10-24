@@ -3125,6 +3125,10 @@ msgstr "Configuration manuelle requise"
 msgid "Mark as Read"
 msgstr "Marquer comme lu"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "Marquer comme non lu"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "Marquer comme non lu"
@@ -3427,6 +3431,10 @@ msgstr "A besoin de vous"
 msgid "Nest under"
 msgstr "Imbriquer sous"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Nouveau bot"
@@ -3434,6 +3442,10 @@ msgstr "Nouveau bot"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "Nouveau groupe"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

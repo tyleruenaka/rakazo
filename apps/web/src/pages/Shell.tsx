@@ -32,14 +32,16 @@ import {
   MESSAGE_REACTIONS,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
-import type { ComposerMention, FoldedTranscript, SlashActionId } from "@rakazo/core";
+import type { ComposerMention, FoldedTranscript, ReadBoundary, SlashActionId } from "@rakazo/core";
 import {
   accountDisplay,
   answerableAskMessageIds,
   anySignal,
   attachmentsForThread,
   buildComposerMentionOptions,
+  canMarkMessageUnread,
   clampMentionHighlightIndex,
+  createChatQueues,
   cronFromPreset,
   dismissableAskMessageIds,
   expandPeerReplies,
@@ -69,10 +71,13 @@ import {
   SLASH_ACTIONS,
   searchHitThreadTarget,
   serializeComposerPrompt,
+  settleReadBoundary,
   shownPinned,
   speechFromBlocks,
   timeSeparatorIds,
   truncateSlashDescription,
+  unreadDividerMessageId,
+  voiceChatHoldsMessage,
   withLiveStreamingProgress,
 } from "@rakazo/core";
 import type { GroupAvatarMember } from "@rakazo/ui-web";
@@ -126,6 +131,7 @@ import {
   Lock,
   Maximize2,
   Menu,
+  MessageSquareDot,
   Minimize2,
   Monitor,
   MoreHorizontal,
@@ -213,6 +219,7 @@ import { emptyActivityFilters } from "../lib/activity-list-filters";
 import { readActivityMode, writeActivityMode } from "../lib/activity-mode";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { authClient } from "../lib/auth";
+import { autoReadStillWanted } from "../lib/auto-read";
 import {
   discardPrimedBootstrap,
   primeSpaceBootstrap,
@@ -357,6 +364,7 @@ import {
   ComposerReplyPreview,
   ReplyLine,
   TimeSeparator,
+  UnreadDivider,
 } from "./shell/chat-context";
 import { CommandPalette, isApplePlatform, isCommandPaletteHotkey } from "./shell/command-palette";
 import { ComposerAttachments } from "./shell/composer-attachments";
@@ -1065,6 +1073,17 @@ function SpaceShell() {
   } | null>(null);
   const manuallyUnread = useRef(new Set<string>());
   const readVisibleGroups = useRef(new Set<string>());
+  // What the user had read up to when the open chat was opened; the "New" divider
+  // follows it for the rest of the visit. Each open of a chat is a new visit.
+  const readVisit = useRef<{ chat: string | null; visit: number }>({ chat: null, visit: 0 });
+  const [readBoundary, setReadBoundary] = useState<ReadBoundary | null>(null);
+  // A chat's markRead calls run one at a time so the request that opened it answers first.
+  const [readInOrder] = useState(createChatQueues);
+  const captureReadBoundary = useCallback((visit: number, seq: number | null) => {
+    setReadBoundary((current) =>
+      settleReadBoundary(current, readVisit.current.visit, { visit, seq }),
+    );
+  }, []);
   const notifiedBrowserEvents = useRef(new Set<string>());
   const pendingBrowserNotifications = useRef(new Map<string, PendingBrowserNotification>());
   const computerVisible = useRef(false);
@@ -1091,6 +1110,10 @@ function SpaceShell() {
   computerOpenRef.current = computerOpen;
   computerBotIdRef.current = computerBotId ?? active?.id;
   const activeGroup = groups.find((group) => group.id === groupId);
+  const openChat = groupId ? `group:${groupId}` : active ? `bot:${active.id}` : null;
+  if (readVisit.current.chat !== openChat) {
+    readVisit.current = { chat: openChat, visit: readVisit.current.visit + 1 };
+  }
   const activePendingAttachments = useMemo(
     () => attachmentsForThread(pendingAttachments, inGroup ? groupId : active?.id),
     [active?.id, groupId, inGroup, pendingAttachments],
@@ -1128,26 +1151,36 @@ function SpaceShell() {
       );
     });
   }, []);
+  // `stillWanted` makes it an automatic read: one that waited in the queue skips once the user
+  // has left. Only an explicit read clears a Mark as Unread hold, and it does so up front, so an
+  // automatic read answering after the user marked the chat unread can't undo the hold.
   const markBotRead = useCallback(
-    async (id: string) => {
-      await rpc.threads.markRead({ botId: id });
-      manuallyUnread.current.delete(id);
-      updateBotUnread(id, false);
+    async (id: string, stillWanted?: () => boolean) => {
+      if (!stillWanted) manuallyUnread.current.delete(id);
+      const answer = await readInOrder(`bot:${id}`, () =>
+        !stillWanted || stillWanted() ? rpc.threads.markRead({ botId: id }) : Promise.resolve(null),
+      );
+      if (!answer) return undefined;
+      if (!manuallyUnread.current.has(id)) updateBotUnread(id, false);
+      return answer.unreadAfterSeq;
     },
-    [updateBotUnread],
+    [readInOrder, updateBotUnread],
   );
   const markBotUnread = useCallback(
-    async (id: string) => {
+    async (id: string, messageId?: string) => {
       manuallyUnread.current.add(id);
       try {
-        await rpc.threads.markUnread({ botId: id });
+        // Through the chat's read queue, so a read already sent lands first and this one wins.
+        await readInOrder(`bot:${id}`, () =>
+          rpc.threads.markUnread({ botId: id, ...(messageId ? { messageId } : {}) }),
+        );
       } catch (err) {
         manuallyUnread.current.delete(id);
         throw err;
       }
       updateBotUnread(id, true);
     },
-    [updateBotUnread],
+    [readInOrder, updateBotUnread],
   );
   // A bot the user marked unread by hand stays unread until they open it again,
   // otherwise the auto-read below would undo the action on the next window focus.
@@ -1155,10 +1188,19 @@ function SpaceShell() {
     (id: string) => {
       if (manuallyUnread.current.has(id)) return;
       if (document.visibilityState === "visible" && document.hasFocus()) {
-        void markBotRead(id).catch(() => undefined);
+        const visit = readVisit.current.visit;
+        void markBotRead(
+          id,
+          () =>
+            !manuallyUnread.current.has(id) && autoReadStillWanted(readVisit.current.visit, visit),
+        )
+          .then((seq) => {
+            if (seq !== undefined) captureReadBoundary(visit, seq);
+          })
+          .catch(() => undefined);
       }
     },
-    [markBotRead],
+    [markBotRead, captureReadBoundary],
   );
   const deliverBrowserNotification = useCallback((pending: PendingBrowserNotification): boolean => {
     const currentBot = botsRef.current.find((bot) => bot.id === pending.botId);
@@ -1773,13 +1815,24 @@ function SpaceShell() {
       if (
         document.visibilityState !== "visible" ||
         !document.hasFocus() ||
-        readVisibleGroups.current.has(groupId)
+        readVisibleGroups.current.has(groupId) ||
+        // A group the user marked unread stays unread until they open it again.
+        manuallyUnread.current.has(groupId)
       )
         return;
       readVisibleGroups.current.add(groupId);
-      void rpc.threads
-        .markRead({ groupId })
-        .then(() => {
+      const visit = readVisit.current.visit;
+      void readInOrder(`group:${groupId}`, () =>
+        !manuallyUnread.current.has(groupId) && autoReadStillWanted(readVisit.current.visit, visit)
+          ? rpc.threads.markRead({ groupId })
+          : Promise.resolve(null),
+      )
+        .then((answer) => {
+          if (!answer) {
+            readVisibleGroups.current.delete(groupId);
+            return;
+          }
+          captureReadBoundary(visit, answer.unreadAfterSeq);
           setGroups((current) => {
             const group = current.find((candidate) => candidate.id === groupId);
             if (!group?.unread) return current;
@@ -3697,9 +3750,12 @@ function SpaceShell() {
             const request = unread ? markBotUnread(contextBot.id) : markBotRead(contextBot.id);
             void request.catch(() => undefined);
           } else {
-            const request = unread
-              ? rpc.threads.markUnread({ groupId: contextGroup!.id })
-              : rpc.threads.markRead({ groupId: contextGroup!.id });
+            const groupId = contextGroup!.id;
+            if (unread) manuallyUnread.current.add(groupId);
+            else manuallyUnread.current.delete(groupId);
+            const request = readInOrder(`group:${groupId}`, () =>
+              unread ? rpc.threads.markUnread({ groupId }) : rpc.threads.markRead({ groupId }),
+            );
             void request
               .then(() =>
                 setGroups((current) =>
@@ -3708,7 +3764,10 @@ function SpaceShell() {
                   ),
                 ),
               )
-              .catch(() => undefined);
+              .catch(() => {
+                // A failed Mark as Unread leaves the group as it was, readable again.
+                if (unread) manuallyUnread.current.delete(groupId);
+              });
           }
         }}
         onMoveToSection={(sectionId) => {
@@ -4807,6 +4866,9 @@ function SpaceShell() {
             transcript={transcript}
             showToolActivity={showToolActivity}
             olderCursor={activeSnapshot?.olderCursor ?? null}
+            unreadAfterSeq={
+              readBoundary?.visit === readVisit.current.visit ? readBoundary.seq : null
+            }
             loadingOlder={loadingOlder}
             answerableAskIds={answerableAskIds}
             dismissableAskIds={dismissableAskIds}
@@ -4825,6 +4887,25 @@ function SpaceShell() {
             onReply={(message) => {
               setReplyTarget(message);
               setReplyQuote(null);
+            }}
+            onMarkUnread={(message) => {
+              // The next open of this chat starts the New divider at this message.
+              if (groupId) {
+                manuallyUnread.current.add(groupId);
+                void readInOrder(`group:${groupId}`, () =>
+                  rpc.threads.markUnread({ groupId, messageId: message.id }),
+                )
+                  .then(() =>
+                    setGroups((current) =>
+                      current.map((group) =>
+                        group.id === groupId ? { ...group, unread: true } : group,
+                      ),
+                    ),
+                  )
+                  .catch(() => manuallyUnread.current.delete(groupId));
+              } else if (active) {
+                void markBotUnread(active.id, message.id).catch(() => undefined);
+              }
             }}
             onQuote={(message, quote) => {
               setReplyTarget(message);
@@ -6072,6 +6153,7 @@ const Transcript = memo(function Transcript({
   transcript,
   showToolActivity,
   olderCursor,
+  unreadAfterSeq,
   loadingOlder,
   answerableAskIds,
   dismissableAskIds,
@@ -6084,6 +6166,7 @@ const Transcript = memo(function Transcript({
   onOpenBot,
   onAnswer,
   onReply,
+  onMarkUnread,
   onQuote,
   onReact,
   onJumpToMessage,
@@ -6107,6 +6190,8 @@ const Transcript = memo(function Transcript({
   transcript: FoldedTranscript<ThreadMessage>;
   showToolActivity: boolean;
   olderCursor: number | null;
+  /** The seq read up to when this chat opened; null when nothing was unread. */
+  unreadAfterSeq: number | null;
   loadingOlder: boolean;
   answerableAskIds: Set<string>;
   dismissableAskIds: Set<string>;
@@ -6126,6 +6211,7 @@ const Transcript = memo(function Transcript({
     dismiss?: boolean,
   ) => Promise<void>;
   onReply: (message: ThreadMessage) => void;
+  onMarkUnread: (message: ThreadMessage) => void;
   onQuote: (message: ThreadMessage, quote: string) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
   onJumpToMessage: (messageId: string) => void;
@@ -6188,11 +6274,11 @@ const Transcript = memo(function Transcript({
   );
   const newestItem = items.at(-1);
   const newestCall = newestItem?.kind === "voiceChat" ? newestItem.key : null;
-  const separatorIds = timeSeparatorIds(
-    reactionView.visibleMessages.filter((message) =>
-      messageHasVisibleBlocks(message.blocks, showToolActivity),
-    ),
+  const shownMessages = reactionView.visibleMessages.filter((message) =>
+    messageHasVisibleBlocks(message.blocks, showToolActivity),
   );
+  const separatorIds = timeSeparatorIds(shownMessages);
+  const unreadDividerId = unreadDividerMessageId(shownMessages, unreadAfterSeq, olderCursor);
   const workingBotName = workingBots.length === 1 ? workingBots[0]?.name : undefined;
   const workingLabel =
     workingBotName != null && workingBotName !== ""
@@ -6516,6 +6602,9 @@ const Transcript = memo(function Transcript({
                   {first && separatorIds.has(first.id) ? (
                     <TimeSeparator createdAt={first.createdAt} locale={i18n.locale || "en"} />
                   ) : null}
+                  {voiceChatHoldsMessage(item, unreadDividerId) ? (
+                    <UnreadDivider afterSeparator={Boolean(first && separatorIds.has(first.id))} />
+                  ) : null}
                   <div data-message-id={item.key} className="relative py-1">
                     {rest.map((message) => (
                       <span key={message.id} data-message-id={message.id} className="sr-only" />
@@ -6541,6 +6630,13 @@ const Transcript = memo(function Transcript({
                       locale={i18n.locale || "en"}
                     />
                   ) : null}
+                  {voiceChatHoldsMessage(item, unreadDividerId) ? (
+                    <UnreadDivider
+                      afterSeparator={Boolean(
+                        item.messages[0] && separatorIds.has(item.messages[0].id),
+                      )}
+                    />
+                  ) : null}
                   <VoiceChatCard
                     group={item}
                     revealMessageId={scrollRequest?.messageId}
@@ -6556,6 +6652,9 @@ const Transcript = memo(function Transcript({
               <Fragment key={message.id}>
                 {separatorIds.has(message.id) ? (
                   <TimeSeparator createdAt={message.createdAt} locale={i18n.locale || "en"} />
+                ) : null}
+                {message.id === unreadDividerId ? (
+                  <UnreadDivider afterSeparator={separatorIds.has(message.id)} />
                 ) : null}
                 <div
                   data-message-id={message.id}
@@ -6632,6 +6731,7 @@ const Transcript = memo(function Transcript({
                         onOpenComputer={onOpenComputer}
                         showToolActivity={showToolActivity}
                         onReply={onReply}
+                        onMarkUnread={onMarkUnread}
                         onReact={onReact}
                         reacted={Boolean(messageReactions)}
                       />
@@ -7958,6 +8058,7 @@ function MessageHoverActions({
   side,
   reacted,
   onReply,
+  onMarkUnread,
   onReact,
   speech,
 }: {
@@ -7965,6 +8066,7 @@ function MessageHoverActions({
   side: "start" | "end";
   reacted: boolean;
   onReply: (message: ThreadMessage) => void;
+  onMarkUnread: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
   /** Read the reply aloud; while it plays the row stays up so it can be stopped. */
   speech?: { speaking: boolean; onSpeak: () => void };
@@ -8058,6 +8160,17 @@ function MessageHoverActions({
             <MoreHorizontal size={16} strokeWidth={1.5} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align={side === "end" ? "start" : "end"}>
+            {canMarkMessageUnread(message) ? (
+              <DropdownMenuItem
+                onClick={() => {
+                  setMoreOpen(false);
+                  onMarkUnread(message);
+                }}
+              >
+                <MessageSquareDot size={14} strokeWidth={1.7} />
+                <Trans>Mark as unread</Trans>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem onClick={copyMessage}>
               <Copy size={14} strokeWidth={1.7} />
               <Trans>Copy</Trans>
@@ -8217,6 +8330,7 @@ export const MessageView = memo(function MessageView({
   onOpenComputer,
   showToolActivity,
   onReply,
+  onMarkUnread,
   onReact,
   reacted,
 }: {
@@ -8249,6 +8363,7 @@ export const MessageView = memo(function MessageView({
   onOpenComputer: (botId?: string) => void;
   showToolActivity: boolean;
   onReply: (message: ThreadMessage) => void;
+  onMarkUnread: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
   /** Reaction badges sit on the bubble's outer top corner; the toolbar starts past them. */
   reacted: boolean;
@@ -8320,6 +8435,7 @@ export const MessageView = memo(function MessageView({
       side={message.role === "user" ? "start" : "end"}
       reacted={reacted}
       onReply={onReply}
+      onMarkUnread={onMarkUnread}
       onReact={onReact}
       speech={
         !isLive &&

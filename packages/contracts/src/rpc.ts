@@ -488,8 +488,14 @@ export const appContract = {
           ),
       )
       .output(z.object({ ok: z.literal(true) })),
-    markRead: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
-    markUnread: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
+    /** `unreadAfterSeq`: the seq read up to before this call, null when nothing was unread. */
+    markRead: oc
+      .input(threadTarget)
+      .output(z.object({ ok: z.literal(true), unreadAfterSeq: z.number().int().nullable() })),
+    /** With `messageId`, the chat reads as unread from that message: the next open puts New above it. */
+    markUnread: oc
+      .input(threadTarget.and(z.object({ messageId: Id.optional() })))
+      .output(z.object({ ok: z.literal(true) })),
   },
   computer: {
     status: oc.input(botId).output(ComputerStatusSchema),

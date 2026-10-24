@@ -1281,6 +1281,7 @@ describe("MessageView alignment", () => {
           onOpenComputer={noop}
           showToolActivity={false}
           onReply={noop}
+          onMarkUnread={noop}
           onReact={done}
           reacted={false}
         />,

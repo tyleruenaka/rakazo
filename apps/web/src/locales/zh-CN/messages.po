@@ -3125,6 +3125,10 @@ msgstr ""
 msgid "Mark as Read"
 msgstr "标为已读"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "标为未读"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "标为未读"
@@ -3427,6 +3431,10 @@ msgstr ""
 msgid "Nest under"
 msgstr "嵌套到"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr "新消息"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "新建 Bot"
@@ -3434,6 +3442,10 @@ msgstr "新建 Bot"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "新建群组"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr "新消息"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

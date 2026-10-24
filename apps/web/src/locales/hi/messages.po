@@ -3125,6 +3125,10 @@ msgstr ""
 msgid "Mark as Read"
 msgstr "पढ़ा हुआ चिह्नित करें"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "अपठित चिह्नित करें"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "अपठित चिह्नित करें"
@@ -3427,6 +3431,10 @@ msgstr ""
 msgid "Nest under"
 msgstr "इसके अंतर्गत नेस्ट करें"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "नया बॉट"
@@ -3434,6 +3442,10 @@ msgstr "नया बॉट"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "नया समूह"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

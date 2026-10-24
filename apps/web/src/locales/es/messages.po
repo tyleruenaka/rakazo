@@ -3125,6 +3125,10 @@ msgstr ""
 msgid "Mark as Read"
 msgstr "Marcar como leído"
 
+#: src/pages/Shell.tsx
+msgid "Mark as unread"
+msgstr "Marcar como no leído"
+
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "Marcar como no leído"
@@ -3427,6 +3431,10 @@ msgstr ""
 msgid "Nest under"
 msgstr "Anidar en"
 
+#: src/pages/shell/chat-context.tsx
+msgid "New"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Nuevo bot"
@@ -3434,6 +3442,10 @@ msgstr "Nuevo bot"
 #: src/pages/GroupPanel.tsx
 msgid "New group"
 msgstr "Nuevo grupo"
+
+#: src/pages/shell/chat-context.tsx
+msgid "New messages"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "New open-work item"

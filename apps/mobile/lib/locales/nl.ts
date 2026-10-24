@@ -164,6 +164,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Expand {name}": "{name} uitklappen",
   "Mark as Read": "Markeren als gelezen",
   "Mark as Unread": "Markeren als ongelezen",
+  "Mark as unread": "Markeren als ongelezen",
   "Long press to pin or move to a section":
     "Lang indrukken om vast te zetten of naar een sectie te verplaatsen",
   "Long press to pin, move, or silence notifications":
@@ -241,6 +242,8 @@ export const NL_MESSAGES: Record<string, string> = {
   Image: "Afbeelding",
   "Jump to latest": "Naar het nieuwste springen",
   "Jump to latest, new messages": "Naar het nieuwste springen, nieuwe berichten",
+  New: "Nieuw",
+  "New messages": "Nieuwe berichten",
   "Load earlier messages": "Eerdere berichten laden",
   "Markdown file": "Markdown-bestand",
   Message: "Bericht",

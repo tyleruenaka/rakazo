@@ -169,6 +169,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Expand {name}": "{name} ausklappen",
   "Mark as Read": "Als gelesen markieren",
   "Mark as Unread": "Als ungelesen markieren",
+  "Mark as unread": "Als ungelesen markieren",
   "Long press to pin or move to a section":
     "Lange drücken, um anzuheften oder in einen Abschnitt zu verschieben",
   "Long press to pin, move, or silence notifications":
@@ -246,6 +247,8 @@ export const DE_MESSAGES: Record<string, string> = {
   Image: "Bild",
   "Jump to latest": "Zur neuesten Nachricht springen",
   "Jump to latest, new messages": "Zur neuesten Nachricht springen, neue Nachrichten",
+  New: "Neu",
+  "New messages": "Neue Nachrichten",
   "Load earlier messages": "Frühere Nachrichten laden",
   "Markdown file": "Markdown-Datei",
   Message: "Nachricht",

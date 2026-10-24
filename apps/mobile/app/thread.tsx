@@ -14,6 +14,7 @@ import type {
   BotActivity,
   PeerMarkerGroup,
   PeerMarkerPeer,
+  ReadBoundary,
   SlashActionId,
   ThreadItem,
 } from "@rakazo/core";
@@ -24,7 +25,9 @@ import {
   appendNewerThreadPage,
   attachmentsForThread,
   buildComposerMentionOptions,
+  canMarkMessageUnread,
   cloudAgentHttpsUrl,
+  createChatQueues,
   dismissableAskMessageIds,
   expandPeerReplies,
   foldPeerReplies,
@@ -48,8 +51,11 @@ import {
   resolvePersonaColorDef,
   displayName as safeDisplayName,
   selectedAskActionLabel,
+  settleReadBoundary,
   threadWindowMessages,
   timeSeparatorIds,
+  unreadDividerMessageId,
+  voiceChatHoldsMessage,
   withLiveStreamingProgress,
 } from "@rakazo/core";
 import { fontWeight, typeScale } from "@rakazo/ui-tokens";
@@ -142,6 +148,7 @@ import { ThreadErrorNotice } from "../components/thread-error-notice";
 import { createThreadHeaderStyles } from "../components/thread-header-styles";
 import { ThreadScrollSurface } from "../components/thread-scroll-surface";
 import { TimeSeparator } from "../components/time-separator";
+import { UnreadDivider } from "../components/unread-divider";
 import { VoiceChatCard } from "../components/VoiceChatCard";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import { WorkingStatusLine } from "../components/working-status-line";
@@ -440,6 +447,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   const [botActionsOpen, setBotActionsOpen] = useState(false);
   const { t, locale } = useI18n();
   const navigation = useNavigation();
+  const focused = useIsFocused();
   const foreground = useAppForeground();
   const router = useRouter();
   // Beside the chat list on a wide window, the chat has only the width the list leaves.
@@ -541,9 +549,24 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   const mentionBotsRefreshGeneration = useRef(0);
   const mentionBotsAppliedGeneration = useRef(0);
   const readVisibleTarget = useRef<string | null>(null);
+  // What the user had read up to when this chat opened; the "New" divider follows it all visit.
+  // Each open or return to a chat is a new visit.
+  const readVisit = useRef<{ target: string | undefined; visit: number; focused: boolean }>({
+    target: undefined,
+    visit: 0,
+    focused,
+  });
+  const [readBoundary, setReadBoundary] = useState<ReadBoundary | null>(null);
+  // A chat's markRead calls run one at a time so the request that opened it answers first.
+  const [readInOrder] = useState(createChatQueues);
   const autoSpoken = useRef<string | null>(null);
   const autoSpokenBotId = useRef<string | null>(null);
   const threadKey = groupId ?? botId;
+  if (readVisit.current.target !== threadKey || (focused && !readVisit.current.focused)) {
+    readVisit.current = { target: threadKey, visit: readVisit.current.visit + 1, focused };
+    readVisibleTarget.current = null;
+  }
+  readVisit.current.focused = focused;
   const [threadScrollState, setThreadScrollState] = useState<ThreadScrollState>(() =>
     scrollBehavior.current.state(),
   );
@@ -1419,24 +1442,70 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     }
   }
 
+  // After "Mark as unread" on a message, the chat stays unread for the rest of this visit. The
+  // hold names the visit, so returning to the chat (a new visit) reads it again.
+  const heldUnread = useRef<number | null>(null);
+  const markUnreadFrom = (message: MobileMessage) => {
+    const visit = readVisit.current.visit;
+    const target = groupId ?? botId;
+    if (!target) return;
+    heldUnread.current = visit;
+    // Through the chat's read queue, so a read already sent lands first and this one wins.
+    void readInOrder(target, () =>
+      rpc("threads/markUnread", {
+        ...(groupId ? { groupId } : { botId: botId! }),
+        messageId: message.id,
+      }),
+    ).catch((err) => {
+      if (heldUnread.current === visit) heldUnread.current = null;
+      Alert.alert(t("Could not update chat"), errorText(err, t("Try again.")));
+    });
+  };
+
   const markReadIfVisible = useCallback(() => {
-    if (readOnly || AppState.currentState !== "active" || !navigation.isFocused()) return;
+    if (
+      readOnly ||
+      heldUnread.current === readVisit.current.visit ||
+      AppState.currentState !== "active" ||
+      !navigation.isFocused()
+    )
+      return;
     const target = groupId ?? botId;
     if (!target || readVisibleTarget.current === target) return;
     readVisibleTarget.current = target;
+    const visit = readVisit.current.visit;
     if (activeThreadId.current) {
       void dismissThreadNotifications({ threadId: activeThreadId.current }).catch(() => undefined);
     }
-    if (groupId) {
-      void rpc("threads/markRead", { groupId }).catch(() => {
+    // A read that waited in the queue skips once the user has left the chat, or marked it
+    // unread meanwhile.
+    void readInOrder(target, () =>
+      readVisit.current.visit === visit &&
+      heldUnread.current !== visit &&
+      AppState.currentState === "active" &&
+      navigation.isFocused()
+        ? rpc<{ unreadAfterSeq?: number | null }>(
+            "threads/markRead",
+            groupId ? { groupId } : { botId: botId! },
+          )
+        : Promise.resolve(null),
+    )
+      .then((answer) => {
+        if (!answer) {
+          if (readVisibleTarget.current === target) readVisibleTarget.current = null;
+          return;
+        }
+        setReadBoundary((current) =>
+          settleReadBoundary(current, readVisit.current.visit, {
+            visit,
+            seq: answer.unreadAfterSeq ?? null,
+          }),
+        );
+      })
+      .catch(() => {
         if (readVisibleTarget.current === target) readVisibleTarget.current = null;
       });
-      return;
-    }
-    void rpc("threads/markRead", { botId: botId! }).catch(() => {
-      if (readVisibleTarget.current === target) readVisibleTarget.current = null;
-    });
-  }, [botId, groupId, navigation, readOnly]);
+  }, [botId, groupId, navigation, readInOrder, readOnly]);
 
   useEffect(() => {
     if (!notificationThreadId || AppState.currentState !== "active" || !navigation.isFocused())
@@ -2065,9 +2134,22 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     router.push({ pathname: "/bot-settings", params: { botId: snap?.run?.botId ?? botId ?? "" } });
   }
   const separatorIds = useMemo(() => timeSeparatorIds(visibleMessages), [visibleMessages]);
+  const unreadDividerId = useMemo(
+    () =>
+      unreadDividerMessageId(
+        visibleMessages,
+        readBoundary?.visit === readVisit.current.visit ? readBoundary.seq : null,
+        snap?.olderCursor ?? null,
+      ),
+    [visibleMessages, readBoundary, snap?.olderCursor, threadKey],
+  );
   const bubbleJoins = useMemo(
-    () => joinedBubbles(groupVoiceChats(visibleMessages), separatorIds),
-    [visibleMessages, separatorIds],
+    () =>
+      joinedBubbles(
+        groupVoiceChats(visibleMessages),
+        unreadDividerId ? new Set([...separatorIds, unreadDividerId]) : separatorIds,
+      ),
+    [visibleMessages, separatorIds, unreadDividerId],
   );
   const userBubble = useMemo(
     () => (inGroup || !currentBot ? undefined : userBubbleColor(currentBot)),
@@ -2212,6 +2294,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     select: setSelectableText,
     speak,
     react: (message, reaction) => void reactToMessage(message, reaction),
+    markUnread: markUnreadFrom,
     answer: answerMessage,
     openBot,
     openComputer,
@@ -2279,6 +2362,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       select: (text) => rowActionsRef.current.select(text),
       speak: (message) => rowActionsRef.current.speak(message),
       react: (message, reaction) => rowActionsRef.current.react(message, reaction),
+      markUnread: (message) => rowActionsRef.current.markUnread(message),
       answer: (message, answer, username, dismiss) =>
         rowActionsRef.current.answer(message, answer, username, dismiss),
       openBot: (id, name) => rowActionsRef.current.openBot(id, name),
@@ -2339,6 +2423,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           joinedAbove={bubbleJoins.has(message.id)}
           joinedBelow={bubbleJoins.has(`below:${message.id}`)}
           userBubbleColor={userBubble}
+          unreadDivider={message.id === unreadDividerId}
           replyAuthor={replyAuthor}
           replyFallbackText={parent ? previewMessageText(parent) : undefined}
           messageReactions={messageReactions}
@@ -2373,6 +2458,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       separatorIds,
       bubbleJoins,
       userBubble,
+      unreadDividerId,
       t,
       locale,
     ],
@@ -2418,6 +2504,11 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
             <TimeSeparator createdAt={item.messages[0].createdAt} />
           ) : null}
+          {voiceChatHoldsMessage(item, unreadDividerId) ? (
+            <UnreadDivider
+              afterSeparator={Boolean(item.messages[0] && separatorIds.has(item.messages[0].id))}
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
             onPress={(event) => openPeerGroup(item, event)}
@@ -2431,19 +2522,32 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
             <>
               <TimeSeparator createdAt={item.messages[0].createdAt} />
+              {voiceChatHoldsMessage(item, unreadDividerId) ? (
+                <UnreadDivider afterSeparator />
+              ) : null}
               {/* The row's 44pt tap target pads its line; Grok's line sits 5pt closer. */}
               <View style={{ marginTop: -5 }}>
                 <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
               </View>
             </>
           ) : (
-            <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
+            <>
+              {voiceChatHoldsMessage(item, unreadDividerId) ? <UnreadDivider /> : null}
+              <VoiceChatCard group={item} userBubble={voiceChatUserBubble} />
+            </>
           )}
         </View>
       ) : (
         renderMessageRow(item.message)
       ),
-    [renderMessageRow, separatorIds, voiceChatUserBubble, peerColor, openPeerGroup],
+    [
+      renderMessageRow,
+      separatorIds,
+      voiceChatUserBubble,
+      peerColor,
+      openPeerGroup,
+      unreadDividerId,
+    ],
   );
   const listContentStyle = useMemo(
     () => ({
@@ -3106,6 +3210,7 @@ type MessageRowActions = {
   select: (text: string) => void;
   speak: (message: MobileMessage) => void;
   react: (message: MobileMessage, reaction: MessageReaction) => void;
+  markUnread: (message: MobileMessage) => void;
   answer: (
     message: MobileMessage,
     answer: string,
@@ -3142,6 +3247,7 @@ type MessageRowProps = {
   joinedAbove: boolean;
   joinedBelow: boolean;
   userBubbleColor?: string;
+  unreadDivider: boolean;
   replyAuthor: string;
   replyFallbackText?: string;
   messageReactions?: ReadonlyMap<MessageReaction, number>;
@@ -3201,6 +3307,7 @@ const MessageRow = memo(function MessageRow({
   joinedAbove,
   joinedBelow,
   userBubbleColor,
+  unreadDivider,
   replyAuthor,
   replyFallbackText,
   messageReactions,
@@ -3240,6 +3347,8 @@ const MessageRow = memo(function MessageRow({
     // The call already reads replies aloud; a second voice would talk over it.
     const includeSpeak = message.role === "bot" && !onCall && Boolean(blockText(message));
     const includeSelect = messageText.trim().length > 0;
+    // Any sent message can be marked unread; the next open starts New at the first reply from it.
+    const includeUnread = !readOnly && canMarkMessageUnread(message);
     const reply = () => actions.reply(message);
     const quote = () => actions.quote(message);
     const speakMessage = () => actions.speak(message);
@@ -3252,6 +3361,7 @@ const MessageRow = memo(function MessageRow({
       if (text) void Clipboard.setStringAsync(text).catch(() => undefined);
     };
     const react = (reaction: MessageReaction) => actions.react(message, reaction);
+    const markUnread = () => actions.markUnread(message);
     // VoiceOver reads the bubble as one element and can't reach a code block's copy button.
     const codeBlocks = message.role === "user" ? [] : markdownCodeBlocks(blockText(message));
     const copyCode = () => {
@@ -3259,6 +3369,9 @@ const MessageRow = memo(function MessageRow({
     };
     const menuActions = [
       ...(!readOnly ? [{ name: "reply", text: t("Reply"), onPress: reply }] : []),
+      ...(includeUnread
+        ? [{ name: "unread", text: t("Mark as unread"), onPress: markUnread }]
+        : []),
       ...(includeQuote ? [{ name: "quote", text: t("Quote"), onPress: quote }] : []),
       ...(includeReact
         ? [
@@ -3304,6 +3417,16 @@ const MessageRow = memo(function MessageRow({
                     text: t("Reply"),
                     icon: { ios: "arrow.uturn.backward", android: "arrow-undo-outline" as const },
                     onPress: reply,
+                  },
+                ]
+              : []),
+            ...(includeUnread
+              ? [
+                  {
+                    name: "unread",
+                    text: t("Mark as unread"),
+                    icon: { ios: "message.badge", android: "mail-unread-outline" as const },
+                    onPress: markUnread,
                   },
                 ]
               : []),
@@ -3383,6 +3506,7 @@ const MessageRow = memo(function MessageRow({
       }}
     >
       {separator ? <TimeSeparator createdAt={message.createdAt} /> : null}
+      {unreadDivider ? <UnreadDivider afterSeparator={separator} /> : null}
       <View
         style={{
           width: "100%",
