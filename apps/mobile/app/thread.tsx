@@ -181,6 +181,7 @@ import { BotMotionProvider } from "../lib/bot-motion";
 import { retainUnchangedBotRoster } from "../lib/bot-roster";
 import { findSwitchTarget, ringOnArrival, takeRingOnArrival } from "../lib/bot-switch";
 import { setCallProviderTranscribe, startCall, useCallSession } from "../lib/call-session";
+import { chatSettingsRoute } from "../lib/chat-settings-route";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
@@ -906,6 +907,8 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   }
 
   useLayoutEffect(() => {
+    // The title opens the chat's own settings: the group's in a group, the bot's otherwise.
+    const titleSettings = chatSettingsRoute({ groupId, botId, readOnly });
     navigation.setOptions({
       title: displayName || t("Thread"),
       headerTitleAlign: "center",
@@ -913,11 +916,14 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       headerTitle: () => (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={!inGroup && botId ? t("Chat settings") : displayName || t("Thread")}
-          disabled={readOnly || inGroup || !botId}
+          accessibilityLabel={
+            titleSettings
+              ? t(inGroup ? "Group settings" : "Chat settings")
+              : displayName || t("Thread")
+          }
+          disabled={!titleSettings}
           onPress={() => {
-            if (readOnly || !botId || inGroup) return;
-            router.push({ pathname: "/bot-settings", params: { botId } });
+            if (titleSettings) router.push(titleSettings);
           }}
         >
           <GlassSurface style={styles.titleCapsule} fallbackStyle={styles.titleCapsuleFill}>
@@ -1694,11 +1700,8 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
 
   function runSlashAction(action: SlashActionId) {
     if (action === "chat-settings") {
-      if (inGroup && groupId) {
-        router.push({ pathname: "/group-settings", params: { groupId } });
-      } else if (botId) {
-        router.push({ pathname: "/bot-settings", params: { botId } });
-      }
+      const settings = chatSettingsRoute({ groupId, botId });
+      if (settings) router.push(settings);
       return;
     }
     router.push({
